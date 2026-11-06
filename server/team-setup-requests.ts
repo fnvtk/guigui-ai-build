@@ -20,17 +20,30 @@ const modelSelectionText = (selection: ModelSelection) =>
 const fieldsSchema = z.object({
   chiefOfStaff: z.boolean().optional(),
   name: z.string().optional(), title: z.string().optional(), description: z.string().optional(), soul: z.string().optional(),
-  cwd: z.string().optional(),
+  cwd: z.string().transform((value) => value.trim() ? value : undefined).optional(),
   section: z.string().trim().max(60).refine(fitsOnOneLine).refine((value) => redactSecretsInText(value) === value, "Team names cannot contain credentials").optional(),
-  modelSelection: z.object({ instanceId: z.string().trim().min(1), model: z.string().trim().min(1), effort: z.string().optional(), variant: z.string().optional() }).strict().optional(),
+  modelSelection: z.object({ instanceId: z.string().trim().min(1), model: z.string().trim().min(1), effort: z.string().trim().optional(), variant: z.string().trim().optional() }).strict()
+    .transform(({ effort, variant, ...selection }) => ({ ...selection, ...(effort ? { effort } : {}), ...(variant ? { variant } : {}) })).optional(),
 }).strict();
 const planSchema = z.object({
   reason: z.string().trim().min(1).max(500),
   newTeams: z.array(teamName).max(8).default([]),
-  operations: z.array(z.discriminatedUnion("action", [
+  operations: z.array(z.preprocess((input) => {
+    if (typeof input !== "object" || input === null || Array.isArray(input)) return input;
+    const operation = input as Record<string, unknown>;
+    if (operation.action === "create" && operation.botId === "") {
+      const { botId: _botId, ...create } = operation;
+      return create;
+    }
+    if (operation.action === "update" && typeof operation.key === "string") {
+      const { key: _key, ...update } = operation;
+      return update;
+    }
+    return input;
+  }, z.discriminatedUnion("action", [
     z.object({ action: z.literal("create"), key: z.string().trim().min(1).max(80), fields: fieldsSchema }).strict(),
     z.object({ action: z.literal("update"), botId: z.string().min(1).max(128), fields: fieldsSchema }).strict(),
-  ])).min(1).max(24),
+  ]))).min(1).max(24),
 }).strict();
 
 export class TeamSetupError extends Error {

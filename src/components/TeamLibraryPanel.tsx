@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
@@ -834,7 +835,7 @@ export function TeamLibraryPanel({
                       value={scoutFolder}
                       onChange={(event) => setScoutFolder(event.target.value)}
                       onKeyDown={(event) => event.key === "Enter" && scoutTarget && void runScout(scoutTarget)}
-                      placeholder="/path/to/your/project"
+                      placeholder={translateUi("ui.literal.456b30b4a65b")}
                       aria-label={t("templates.projectFolder")}
                       className="min-w-0 flex-1 rounded-xl bg-raised/80 px-3 py-2.5 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none"
                     />

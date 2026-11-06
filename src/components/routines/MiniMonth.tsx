@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -52,7 +53,7 @@ export function MiniMonth({ anchor, onSelect }: MiniMonthProps) {
   });
 
   return (
-    <section aria-label="Mini calendar" className="select-none px-3 py-3">
+    <section aria-label={translateUi("ui.literal.26416f8ec2d0")} className="select-none px-3 py-3">
       <div className="mb-2 flex items-center justify-between px-1">
         <div className="text-[13px] font-semibold text-ink">{monthLabel}</div>
         <div className="flex items-center gap-0.5">
@@ -60,7 +61,7 @@ export function MiniMonth({ anchor, onSelect }: MiniMonthProps) {
             type="button"
             onClick={() => setVisibleMonth((month) => moveMonth(month, -1))}
             className="flex size-7 items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-            aria-label="Previous month"
+            aria-label={translateUi("ui.literal.46a299215300")}
           >
             <ChevronLeft size={15} aria-hidden="true" />
           </button>
@@ -68,7 +69,7 @@ export function MiniMonth({ anchor, onSelect }: MiniMonthProps) {
             type="button"
             onClick={() => setVisibleMonth((month) => moveMonth(month, 1))}
             className="flex size-7 items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-raised hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-            aria-label="Next month"
+            aria-label={translateUi("ui.literal.8abf7cf1d0b3")}
           >
             <ChevronRight size={15} aria-hidden="true" />
           </button>

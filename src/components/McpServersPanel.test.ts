@@ -96,3 +96,8 @@ describe("MCP server form", () => {
     expect(t(result.error.key, result.error.params)).toBe("“TOKEN WITH SPACE” is not a valid environment variable.");
   });
 });
+
+it("carries a pasted server's bot scope through the owner form submission", () => {
+  const draft = draftFromPaste({ transport: "stdio", name: "project-files", command: "node", args: ["files.js"], env: [], bot: "ada" });
+  expect(draftBody(draft, undefined)).toEqual({ ok: true, body: { command: "node", args: ["files.js"], env: {}, bot: "ada" } });
+});

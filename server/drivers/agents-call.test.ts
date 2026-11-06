@@ -180,6 +180,22 @@ describe("propose_profile", () => {
 });
 
 describe("memory_update", () => {
+  it("omits blank passage placeholders only for append and prefer", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const ctx = context({ client: { api: async () => ({}), apiResponse: async (_path, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return { ok: true, status: 200, body: { ok: true } };
+    } } });
+    for (const action of ["append", "prefer"]) {
+      expect((await callTool("memory_update", { action, text: "Screenshots belong in chat.", old_text: " " }, ctx)).isError).toBeFalsy();
+    }
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every(body => !("oldText" in body))).toBe(true);
+    for (const action of ["replace", "remove", "supersede", "forget"]) {
+      expect((await callTool("memory_update", { action, text: "new", old_text: "" }, ctx)).isError).toBe(true);
+    }
+    expect(bodies).toHaveLength(2);
+  });
   // The harness route, in process: the real write behind the tool, and an About me held in memory.
   const profile = { aboutMe: "" };
   const aboutMe = createAboutMe({ read: () => profile.aboutMe, write: (text) => { profile.aboutMe = text; }, changed: () => undefined, today: () => "2026-10-27" });

@@ -17,16 +17,13 @@ export function sanitizeInput(input: RoutineInput, after: number): Omit<Routine,
   const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
   const runOn = input.runOn ?? "maus";
   if (runOn !== "maus" && runOn !== "cloud") throw new Error("Choose where this routine runs");
+  if (runOn === "cloud") {
+    throw Object.assign(new Error('Routines may only run on this computer in this version (runOn="maus").'), { status: 400, code: "routine_destination" });
+  }
   const attachments = cleanAttachments(input.attachments);
   const timeoutMinutes = cleanTimeoutMinutes(input.timeoutMinutes);
-  if (target === "room-goal" && runOn === "cloud") {
-    throw new Error("Room goals can only run on this computer");
-  }
   if (target === "room-goal" && attachments.length > 0) {
     throw new Error("Room goals do not support attachments yet");
-  }
-  if (runOn === "cloud" && attachments.length > 0) {
-    throw new Error("Attachments can only run on this computer until cloud file staging is available");
   }
   const continuity = input.continuity === true;
   if (input.overlap !== undefined && input.overlap !== "skip" && input.overlap !== "queue") {

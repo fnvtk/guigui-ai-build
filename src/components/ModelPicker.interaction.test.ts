@@ -1,291 +1,75 @@
-import { Children, createElement, isValidElement, type ReactElement, type ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+// @vitest-environment happy-dom
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Bot, InstanceInfo } from "@/state/store";
 
-// Hook-by-call-order harness: useState is held by call order (the picker's own hooks first, children after), effects
-// never run, and handlers are read off the element tree.
-const fixture = vi.hoisted(() => {
-  vi.stubGlobal("window", {});
-  vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
-  return {
-    values: [] as unknown[],
-    index: 0,
-    own: 0,
-    instances: [] as InstanceInfo[],
-    dispatch: (() => {}) as (...args: unknown[]) => void,
-    refreshInstances: (() => Promise.resolve()) as () => Promise<void>,
-    refreshModels: ((_id: string) => Promise.resolve()) as (instanceId: string) => Promise<void>,
-  };
-});
-vi.mock("react", async (original) => ({
-  ...await original<typeof import("react")>(),
-  useState: (initial: unknown) => {
-    const index = fixture.index++;
-    if (!(index in fixture.values)) fixture.values[index] = typeof initial === "function" ? initial() : initial;
-    return [fixture.values[index], (next: unknown) => {
-      fixture.values[index] = typeof next === "function" ? next(fixture.values[index]) : next;
-    }];
-  },
-  useEffect: () => {},
-}));
-// This hook fixture does not emulate React's render-time state retries.
-vi.mock("./MenuMotion", () => ({ useMenuMotion: (open: boolean) => ({ shown: open, closing: false, className: "" }) }));
+const fixture = vi.hoisted(() => ({ dispatch: vi.fn(), instances: [] as InstanceInfo[] }));
+vi.mock("@/lib/use-owner-or-admin", () => ({ useOwnerOrAdmin: () => false }));
 vi.mock("@/state/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/state/store")>()),
-  useStore: () => ({
-    state: { instances: fixture.instances, bots: [], modelVariantSessions: {} },
-    dispatch: fixture.dispatch,
-    refreshInstances: fixture.refreshInstances,
-    refreshModels: fixture.refreshModels,
-  }),
+  useStore: () => ({ state: { instances: fixture.instances, bots: [], modelVariantSessions: {} }, dispatch: fixture.dispatch }),
 }));
-
-// These cases cover the full picker; Simple mode has its own file.
-vi.mock("@/lib/interface-mode", () => ({ useAdvancedMode: () => true, setAdvancedMode: () => {} }));
-
 const { ModelPicker } = await import("./ModelPicker");
-const { LOCAL_PROBE_TIMEOUT_MS, offersLocalModels, probeLocalModels } = await import("./local-model-probe");
-const { ModelEngineRail } = await import("./ModelPickerFull");
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-afterAll(() => vi.unstubAllGlobals());
-
-type Node = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
-function nodes(value: ReactNode): Node[] {
-  return Children.toArray(value).flatMap((child) => {
-    if (!isValidElement(child)) return [];
-    const node = child as Node;
-    return [node, ...nodes(node.props.children)];
-  });
-}
-
-const official = [{ id: "claude-opus-5-5", label: "Opus 5.5" }, { id: "claude-sonnet-5", label: "Sonnet 5" }];
-const qwen = { id: "ollama::qwen3", label: "qwen3 (Ollama)", custom: true };
-const claudeInstall = {
-  command: { darwin: "npm install -g @anthropic-ai/claude-code", linux: "npm install -g @anthropic-ai/claude-code", win32: "npm install -g @anthropic-ai/claude-code" },
-  signInCommand: "claude",
-};
-const claude = (snapshot: InstanceInfo["snapshot"], options: InstanceInfo["models"]["options"] = official): InstanceInfo => ({
-  instanceId: "claude", driverKind: "claudeAgent", displayName: "Claude", access: "subscription", snapshot,
-  models: { default: "claude-opus-5-5", options }, install: claudeInstall,
-  authentication: { method: "paste-code", signOut: true },
-});
-const signedOut = () => claude({ state: "available", version: "2.1.300", authenticated: false });
-const signedIn = () => claude({ state: "available", version: "2.1.300", authenticated: true });
-const notFound = () => claude({ state: "unavailable", reason: "`claude` CLI not found" });
-const codex: InstanceInfo = {
-  instanceId: "codex", driverKind: "codex", displayName: "Codex", access: "subscription",
-  snapshot: { state: "available", version: "1.0.0", authenticated: true },
+const modelInstance = (instanceId: string, driverKind: string, displayName: string): InstanceInfo => ({
+  instanceId, driverKind, displayName, access: "api", snapshot: { state: "available" },
   models: { default: "gpt-5.6", options: [{ id: "gpt-5.6", label: "GPT-5.6" }] },
+});
+const simpleApi = { ...modelInstance("simple", "openai-compat", "SimpleAPI"), models: { default: "kr-pro", options: [
+  { id: "kr-max", label: "Max" }, { id: "kr-pro", label: "Pro" }, { id: "kr-mini", label: "Mini" },
+] } };
+const bot: Bot = {
+  id: "scout", threadId: "thread-scout", name: "Scout", title: "", description: "", notifications: true,
+  color: "green", unread: false, messages: [], modelSelection: { instanceId: "codex", model: "gpt-5.6" },
 };
-
-function bot(instanceId: string, model: string): Bot {
-  return {
-    id: "atlas", threadId: "thread-atlas", name: "Atlas", title: "", description: "", notifications: true,
-    color: "green", unread: false, modelSelection: { instanceId, model }, messages: [],
-  };
-}
-
-function render(forBot: Bot) {
-  fixture.values.length = Math.min(fixture.values.length, fixture.own);
-  let tree: ReactNode = null;
-  function Capture() {
-    fixture.index = 0;
-    tree = ModelPicker({ bot: forBot, threadId: forBot.threadId });
-    fixture.own = fixture.index;
-    return tree;
-  }
-  const html = renderToStaticMarkup(createElement(Capture));
-  return { html, nodes: nodes(tree) };
-}
-
-function open(forBot: Bot) {
-  const trigger = render(forBot).nodes.find((node) => node.props["data-tour"] === "model")!;
-  (trigger.props.onClick as () => void)();
-  return render(forBot);
-}
-
-function rail(rendered: ReturnType<typeof render>) {
-  return rendered.nodes.find((node) => node.type === ModelEngineRail) as ReactElement<{ instances: InstanceInfo[]; onSelect: (instance: InstanceInfo) => void }> | undefined;
-}
-
-const menu = (html: string) => html.slice(html.indexOf("data-model-picker-content"));
-
-const flush = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
-
+let host: HTMLDivElement;
+let root: Root;
+const menu = () => document.querySelector<HTMLElement>("[data-model-picker-content]");
+const open = () => act(() => host.querySelector<HTMLButtonElement>('[data-tour="model"]')!.click());
 beforeEach(() => {
-  fixture.values = [];
-  fixture.index = 0;
-  fixture.own = 0;
-  fixture.dispatch = vi.fn();
-  fixture.refreshInstances = vi.fn(() => Promise.resolve());
-  fixture.refreshModels = vi.fn(() => Promise.resolve());
+  fixture.instances = [modelInstance("codex", "codex", "Codex"), simpleApi];
+  fixture.dispatch.mockReset();
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  act(() => root.render(createElement(ModelPicker, { bot, threadId: bot.threadId })));
 });
-afterEach(() => vi.useRealTimers());
-
-describe("ModelPicker with a signed-out or missing Claude", () => {
-  it("keeps an empty ChatGPT plan catalog on the cloud rail so sign-in is reachable", () => {
-    const plan: InstanceInfo = { ...codex, instanceId: "chatgpt", displayName: "ChatGPT plan", snapshot: { state: "available", authenticated: false, chatgptPlan: true }, models: { default: "", options: [] }, authentication: { method: "browser-pkce" }, install: { signInCommand: "codex login" } };
-    fixture.instances = [codex, plan];
-    const forBot = bot("codex", "gpt-5.6");
-    const opened = open(forBot);
-    expect(rail(opened)!.props.instances.map((instance) => instance.instanceId)).toContain("chatgpt");
-    rail(opened)!.props.onSelect(plan);
-    const html = menu(render(forBot).html);
-    expect(html).toContain("Continue with ChatGPT");
-    expect(html).toContain("Available models appear after");
-    expect(html).not.toContain("codex login");
-    expect(html).not.toContain("Local models will appear");
-  });
-
-  it("keeps a signed-out Claude on the rail and shows its sign-in card instead of pickable cloud models", () => {
-    fixture.instances = [codex, signedOut()];
-    const onCodex = bot("codex", "gpt-5.6");
-    const opened = open(onCodex);
-    expect(rail(opened)!.props.instances.map((instance) => instance.instanceId)).toEqual(["codex", "claude"]);
-    expect(opened.html).toContain('aria-label="Claude"');
-
-    (rail(opened)!.props.onSelect as (instance: InstanceInfo) => void)(fixture.instances[1]);
-    const browsing = menu(render(onCodex).html);
-    expect(browsing).toContain("Sign in to Claude");
-    expect(browsing).toContain("data-claude-sign-in");
-    expect(browsing).toContain("2 models will appear after setup.");
-    expect(browsing).not.toContain(">Opus 5.5<");
-    expect(browsing).not.toContain(">Sonnet 5<");
-    expect(browsing).not.toContain("No model providers are available.");
-    expect(fixture.dispatch).not.toHaveBeenCalled();
-  });
-
-  it("opens on the sign-in card when the bot's own Claude is signed out", () => {
-    fixture.instances = [signedOut()];
-    const html = menu(open(bot("claude", "claude-opus-5-5")).html);
-    expect(html).toContain("Sign in to Claude");
-    expect(html).not.toContain(">Opus 5.5<");
-    expect(html).not.toContain("No model providers are available.");
-  });
-
-  it("keeps the bot's own Claude with its install card when the CLI is not found", () => {
-    fixture.instances = [codex, notFound()];
-    const html = open(bot("claude", "claude-opus-5-5")).html;
-    expect(html).toContain('aria-label="Claude"');
-    expect(html).toContain("Set up Claude");
-    expect(html).toContain("`claude` CLI not found");
-    expect(html).toContain("npm install -g @anthropic-ai/claude-code");
-    expect(html).not.toContain("data-model-local-entry");
-  });
-
-  it("leaves a Claude that is not found and not in use in Settings", () => {
-    fixture.instances = [codex, notFound()];
-    const opened = open(bot("codex", "gpt-5.6"));
-    expect(rail(opened)!.props.instances.map((instance) => instance.instanceId)).toEqual(["codex"]);
-    expect(opened.html).not.toContain('aria-label="Claude"');
-    expect(opened.html).toContain("Model providers and accounts");
-  });
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
 });
 
-describe("the way into API keys", () => {
-  it("opens Settings on the API keys section from the picker footer", () => {
-    fixture.instances = [codex];
-    const opened = open(bot("codex", "gpt-5.6"));
-    const entry = opened.nodes.find((node) => node.props["data-model-add-api-keys"]);
-    expect(opened.html).toContain("Add API keys");
-    (entry!.props.onClick as () => void)();
-    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleAppSettings", open: true, section: "connections" });
-  });
-
-  it("says the shortcut changes keys too once a key is saved", () => {
-    const openai: InstanceInfo = {
-      instanceId: "openai", driverKind: "openai-compat", displayName: "OpenAI", access: "api",
-      snapshot: { state: "available", authenticated: true, version: null },
-      models: { default: "gpt-5", options: [{ id: "gpt-5", label: "GPT-5" }] },
-    };
-    fixture.instances = [codex, openai];
-    const opened = open(bot("codex", "gpt-5.6"));
-    expect(opened.html).toContain("Add or change API keys");
-    expect(opened.html).not.toContain(">Add API keys<");
-  });
-
-  it("ends the rail's API keys group with a way to add one", () => {
-    fixture.instances = [codex];
-    const opened = open(bot("codex", "gpt-5.6"));
-    expect(opened.html).toContain(">API keys<");
-    const add = rail(opened)!.props as { onAddApiKeys?: () => void };
-    add.onAddApiKeys!();
-    expect(fixture.dispatch).toHaveBeenCalledWith({ type: "toggleAppSettings", open: true, section: "connections" });
-  });
-});
-
-describe("the way into local models", () => {
-  it.each([["signed in", signedIn], ["signed out", signedOut]])("shows for a %s Claude with no local models found yet, and re-probes when opened", async (_state, make) => {
-    fixture.instances = [make()];
-    let answer!: () => void;
-    fixture.refreshModels = vi.fn(() => new Promise<void>((resolve) => { answer = resolve; }));
-    const onClaude = bot("claude", "claude-opus-5-5");
-    const opened = open(onClaude);
-    const entry = opened.nodes.find((node) => node.props["data-model-local-entry"]);
-    expect(entry?.props["aria-label"]).toBe("Use a local model");
-    expect(entry?.props.disabled).toBe(false);
-
-    (entry!.props.onClick as () => void)();
-    expect(fixture.refreshModels).toHaveBeenCalledExactlyOnceWith("claude");
-    const looking = render(onClaude).html;
-    expect(looking).toContain("Looking for local models…");
-    expect(looking).toContain('role="status"');
-    expect(looking).not.toContain("No local models found");
-
-    fixture.instances = [make()];
-    fixture.instances[0].models.options = [...official, qwen];
-    answer();
-    await flush();
-    const found = render(onClaude).html;
-    expect(found).not.toContain("Looking for local models…");
-    expect(found).toContain(">qwen3 (Ollama)<");
-  });
-
-  it("says nothing was found once the probe settles empty", async () => {
-    fixture.instances = [signedIn()];
-    const onClaude = bot("claude", "claude-opus-5-5");
-    const entry = open(onClaude).nodes.find((node) => node.props["data-model-local-entry"])!;
-    (entry.props.onClick as () => void)();
-    await flush();
-    const html = render(onClaude).html;
-    expect(html).not.toContain("Looking for local models…");
-    expect(html).toContain("No local models found");
-  });
-
-  it("lets a signed-out Claude run a local model it already found", () => {
-    fixture.instances = [claude({ state: "available", authenticated: false }, [...official, qwen])];
-    const onClaude = bot("claude", "claude-opus-5-5");
-    const entry = open(onClaude).nodes.find((node) => node.props["data-model-local-entry"])!;
-    expect(entry.props["aria-label"]).toBe("Use a local model (1 available)");
-    (entry.props.onClick as () => void)();
-    const local = render(onClaude);
-    const row = local.nodes.find((node) => (node.props.option as { id?: string } | undefined)?.id === qwen.id) as ReactElement<{ onPick: () => void }>;
-    row.props.onPick();
+describe("product model picker interactions", () => {
+  it("offers only tiers and writes the selected service alias on the SimpleAPI instance", () => {
+    open();
+    expect(menu()?.textContent).toContain("Max");
+    expect(menu()?.textContent).toContain("Pro");
+    expect(menu()?.textContent).toContain("Mini");
+    expect(menu()?.textContent).not.toContain("GPT-5.6");
+    expect(menu()?.textContent).not.toContain("Codex");
+    expect(menu()?.querySelectorAll("[data-service-tier]")).toHaveLength(3);
+    act(() => menu()?.querySelector<HTMLButtonElement>('[data-service-tier="kr-mini"]')?.click());
     expect(fixture.dispatch).toHaveBeenCalledWith(expect.objectContaining({
-      type: "setModel", botId: "atlas", threadId: "thread-atlas", selection: { instanceId: "claude", model: qwen.id },
+      type: "setModel", updateBotDefault: false, selection: { instanceId: "simple", model: "kr-mini" },
     }));
+    expect(menu()).toBeNull();
   });
 
-  it("is offered by Claude whenever its CLI is present, and by other engines once they list a local model", () => {
-    expect(offersLocalModels(signedIn(), 0)).toBe(true);
-    expect(offersLocalModels(signedOut(), 0)).toBe(true);
-    expect(offersLocalModels(notFound(), 0)).toBe(false);
-    expect(offersLocalModels({ ...signedIn(), policy: { organizationName: "Fixture", reason: "Not allowed" } }, 0)).toBe(false);
-    expect(offersLocalModels(codex, 0)).toBe(false);
-    expect(offersLocalModels(codex, 2)).toBe(true);
-    expect(offersLocalModels(undefined, 0)).toBe(false);
+  it("does not expose provider setup or allow a pick when the product instance is absent", () => {
+    fixture.instances = [modelInstance("codex", "codex", "Codex")];
+    act(() => root.render(createElement(ModelPicker, { bot, threadId: bot.threadId })));
+    open();
+    expect(menu()?.textContent).toContain("乖乖 AI 服务暂未连接");
+    expect(menu()?.textContent).not.toContain("Codex");
+    expect(menu()?.textContent).not.toContain("设置");
+    expect(Array.from(menu()?.querySelectorAll<HTMLButtonElement>("button") ?? []).every((button) => button.disabled)).toBe(true);
   });
 
-  it("stops looking after a short timeout and never throws", async () => {
-    vi.useFakeTimers();
-    let settled = false;
-    void probeLocalModels("claude", () => new Promise(() => {})).then(() => { settled = true; });
-    await vi.advanceTimersByTimeAsync(LOCAL_PROBE_TIMEOUT_MS - 1);
-    expect(settled).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(settled).toBe(true);
-    await expect(probeLocalModels("claude", () => Promise.reject(new Error("offline")))).resolves.toBeUndefined();
+  it("closes on Escape", () => {
+    open();
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+    expect(menu()).toBeNull();
   });
 });

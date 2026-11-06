@@ -64,17 +64,22 @@ export function LibraryTab({ bot, onOpen }: { bot: Bot; onOpen: (page: SimplePag
   const skillsOn = skills.skills.filter((skill) => skill.enabled).length;
   const notes = memory.docs ? panelMemoryNotes(memory.docs).length : null;
   const memoryValue = bot.memoryEnabled === false ? t("botPanel.memory.off")
-    : notes === null ? (memory.error ? t("botPanel.memory.nothingYet") : undefined)
+    : notes === null ? (memory.error ? "读取失败" : undefined)
     : notes === 0 ? t("botPanel.memory.nothingYet")
     : notes === 1 ? t("botPanel.memory.note") : t("botPanel.memory.notes", { count: notes });
+  const loadError = memory.error || Boolean(skills.error);
   const keeps = (
     <Card anchor="keeps">
+      {loadError && <div role="alert" className="px-3 py-2 text-[12px] text-danger">
+        资料读取失败，请重试。
+        <button type="button" className="ml-2 underline" onClick={() => { void memory.reload(); void skills.refresh(); }}>重试</button>
+      </div>}
       <NavRow data-panel-page="memory" icon={Brain} title={t("botPanel.memoryRow")} value={memoryValue} onClick={() => onOpen("memory")} />
       <NavRow
         data-panel-page="skills"
         icon={Zap}
         title={t("botSettings.simple.skills")}
-        value={skills.loading ? undefined : skillsOn > 0 ? skillsOn : t("botPanel.none")}
+        value={skills.loading ? undefined : skills.error ? "读取失败" : skillsOn > 0 ? skillsOn : t("botPanel.none")}
         onClick={() => onOpen("skills")}
       />
       <NavRow

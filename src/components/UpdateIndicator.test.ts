@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UpdaterState } from "@/lib/updater";
 import { UpdateIndicator, updateIndicatorLabel, updateIndicatorShown } from "./UpdateIndicator";
-import { updateHasButton } from "./SidebarProfileMenu";
 
 const NOTES = "- **Faster start.** Opens at once. (#1)\n- **Rooms keep actions.** Same as chats. (#2)\n- **Mentions say who they reach.** (#3)";
 
@@ -60,12 +59,6 @@ describe("the update button", () => {
     expect(updateIndicatorLabel({ status: "downloading" })).toBe("Downloading an update");
   });
 
-  it("takes over the profile row's own update badge for those phases", () => {
-    expect(updateHasButton("downloaded")).toBe(true);
-    expect(updateHasButton("downloading")).toBe(true);
-    expect(updateHasButton("error")).toBe(false);
-    expect(updateHasButton("handed-off")).toBe(false);
-  });
 
   it("appears when an update arrives and goes when there is none", async () => {
     expect(button()).toBeNull();

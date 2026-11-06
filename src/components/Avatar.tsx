@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/cn";
-import { CHROME_EYES, CHROME_GRADIENT, MAUS_COLORS, type MausColor, type MausMotion, type MausState } from "@/lib/mascot";
+import { CHROME_EYES, CHROME_GRADIENT, MAUS_COLORS, colorSwatch, type MausColor, type MausMotion, type MausState } from "@/lib/mascot";
 import { CursorAvatar, type CursorAvatarHandle } from "./CursorAvatar";
 import { avatarCropRadius, botAvatarProfile, clampAvatarFocus, clampAvatarZoom, mascotFaceInk, type BotAvatarCrop, type MascotFaceColor } from "../../shared/bot-avatar";
 import { MASCOT_BODIES, botMascotBody } from "../../shared/mascot-bodies";
@@ -17,6 +17,7 @@ import { isHalloweenBody, type BotBodyId } from "../../shared/bot-body";
 import { useHalloweenDressed, wornBody } from "@/lib/halloween-dress";
 import { CarvedAvatar } from "./CarvedAvatar";
 import { steelBodyImage } from "@/lib/steel-body";
+import { resolveMbtiAvatar } from "@/lib/mbti-avatar";
 
 export const EYE_SCALE = 1.12;
 export const MOUTH_WEIGHT = 11;
@@ -218,6 +219,10 @@ export type BotAvatarProps = Omit<MausAvatarProps, "color" | "gradient"> & {
   readable?: boolean;
   bot: {
     name?: string;
+    title?: string;
+    description?: string;
+    soul?: string;
+    chiefOfStaff?: boolean;
     color: MausColor;
     avatarUrl?: string | null;
     avatarCrop?: BotAvatarCrop;
@@ -258,6 +263,29 @@ export function BotAvatar({ bot, size = 44, label, readable = false, ...mascotPr
   });
 
   if (outcome !== "flatImage") {
+    const resolvedMbtiAvatar = resolveMbtiAvatar(bot);
+    const mbtiAvatar = !profile.avatarUrl && (bot.avatarCrop === undefined || resolvedMbtiAvatar?.source === "configured-mbti")
+      ? resolvedMbtiAvatar
+      : null;
+    if (mbtiAvatar) {
+      return (
+        <span
+          className="relative block shrink-0 overflow-hidden p-[3px]"
+          style={{ width: size, height: size, borderRadius: "50%", background: colorSwatch(bot.color) }}
+          data-mbti-type={mbtiAvatar.type}
+          data-mbti-source={mbtiAvatar.source}
+        >
+          <img
+            src={mbtiAvatar.image}
+            alt={`${label ?? bot.name ?? "机器人"} ${mbtiAvatar.type} ${mbtiAvatar.source === "role-recommendation" ? "岗位推荐头像" : "性格头像"}`}
+            width={size}
+            height={size}
+            draggable={false}
+            className="block size-full rounded-full object-cover"
+          />
+        </span>
+      );
+    }
     return (
       <MausAvatar
         bodyId={wornBody(bot.mascotBody, bot.color, dressed)}

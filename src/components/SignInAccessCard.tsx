@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
 import { t } from "@/lib/i18n";
@@ -91,7 +92,7 @@ export function SignInAccessCard() {
     <Card title={t("remote.signInAccess.title")} subtitle={t("remote.signInAccess.subtitle")}>
       {publicUrl ? (
         <p className="mt-2 text-[13px] text-ink-secondary">
-          {t("remote.signInAccess.link")} <code className="select-all text-ink">{publicUrl}/pair</code>
+          {t("remote.signInAccess.link")} <code className="select-all text-ink">{publicUrl}{translateUi("ui.literal.2fa96281135e")}</code>
         </p>
       ) : null}
       <form

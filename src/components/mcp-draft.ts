@@ -47,6 +47,7 @@ export interface SecretRow {
 }
 
 export interface McpDraft extends McpResultBudgetDraft {
+  bot?: string;
   name: string;
   transport: "stdio" | "remote";
   command: string;
@@ -114,7 +115,7 @@ export function draftFromPaste(server: PastedMcpServer): McpDraft {
       oauthClientId: server.oauthClientId ?? "",
     };
   }
-  return { ...emptyDraft(), name: server.name, transport: "stdio", command: server.command, args: server.args.join("\n"), env: pastedRows(server.env) };
+  return { ...emptyDraft(), name: server.name, transport: "stdio", command: server.command, args: server.args.join("\n"), env: pastedRows(server.env), ...(server.bot ? { bot: server.bot } : {}) };
 }
 
 /** What a row saves: for a value that was a variable, what was pasted put back between the text around it. */
@@ -191,7 +192,7 @@ export function draftBody(
   if (!name || !command) return { ok: false, error: { key: "mcp.err.nameAndCommand" } };
   const env = rowsBody(draft.env, "env");
   if (!env.ok) return env;
-  return { ok: true, body: { command, args: parseMcpArguments(draft.args), env: env.values } };
+  return { ok: true, body: { command, args: parseMcpArguments(draft.args), env: env.values, ...(draft.bot ? { bot: draft.bot } : {}) } };
 }
 
 /** The one key a URL server is reached with, which a Team Cloud keeps as this person's own when it's only for them. */

@@ -113,7 +113,7 @@ export function deriveCompanionPanelStatus(
   const pairedCount = state.devices.length;
   if (!pairedCount) return null;
   return {
-    label: `${pairedCount} ${pairedCount === 1 ? "device" : "devices"} paired`,
+    label: `已配对 ${pairedCount} 台设备`,
     good: true,
   };
 }

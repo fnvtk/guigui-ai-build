@@ -1,7 +1,7 @@
 // Packaged: an embedded cua-driver daemon, so macOS TCC grants attribute to OpenMausBot; dev attaches to CuaDriver.app.
 // Agents use the stdio MCP proxy, which executes nothing; the host-owned daemon does.
 
-import { app, ipcMain } from "electron";
+import { app, ipcMain, systemPreferences, desktopCapturer } from "electron";
 import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
 import { promisify } from "node:util";
@@ -233,6 +233,12 @@ async function startEmbedded(binary, signal) {
   // CUA's embedding contract needs grants before the daemon starts, asked from Electron main so macOS attributes them here.
   if (process.platform === "darwin") {
     const permissionStatus = sdk.requestMacOSPermissions();
+    fs.writeFileSync(path.join(app.getPath("userData"), "mac-permission-status.json"), JSON.stringify({
+      checkedAt: new Date().toISOString(),
+      sdk: permissionStatus,
+      accessibility: systemPreferences.isTrustedAccessibilityClient(false),
+      screenRecording: systemPreferences.getMediaAccessStatus("screen"),
+    }), { mode: 0o600 });
     if (!sdk.hasRequiredMacOSPermissions(permissionStatus)) {
       const missing = [
         !permissionStatus.accessibility && "Accessibility",
@@ -409,7 +415,17 @@ function restartCua() {
 /** The person asked for computer control: started again on macOS and Windows (the Retry button's path), turned on on
  * Linux (its Enable button's). */
 export async function requestComputerUse() {
-  if (process.platform === "darwin" || process.platform === "win32") return restartCua();
+  if (process.platform === "darwin") {
+    const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 8, height: 8 } });
+    fs.writeFileSync(path.join(app.getPath("userData"), "mac-screen-capture-status.json"), JSON.stringify({
+      checkedAt: new Date().toISOString(),
+      sourceCount: sources.length,
+      nonEmptyThumbnails: sources.filter(source => !source.thumbnail.isEmpty()).length,
+      screenRecording: systemPreferences.getMediaAccessStatus("screen"),
+    }), { mode: 0o600 });
+    return restartCua();
+  }
+  if (process.platform === "win32") return restartCua();
   if (process.platform !== "linux") return null;
   try {
     await ensureLinuxRuntime().enable();
@@ -450,7 +466,7 @@ export function registerCuaIpc() {
     return ensureLinuxRuntime().getStatus();
   }));
   ipcMain.handle("cua:linux-retry", localOnly("cua:linux-retry", async () => {
-    if (process.platform === "darwin" || process.platform === "win32") return restartCua();
+    if (process.platform === "darwin" || process.platform === "win32") return requestComputerUse();
     if (process.platform !== "linux") {
       return { enabled: false, status: "unavailable", reasonCode: "unsupported-platform" };
     }

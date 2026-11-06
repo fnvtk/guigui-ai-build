@@ -48,7 +48,7 @@ export function activeLocale(): string {
 
 let active = "en";
 let activePack: LocalePack = en;
-setLocale(globalThis.navigator?.language);
+setLocale("zh");
 
 export function tFromServer(key: string | undefined, fallback: string | undefined): string | undefined {
   return key && Object.hasOwn(en, key) ? t(key as LocaleKey) : fallback;

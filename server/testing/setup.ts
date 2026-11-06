@@ -17,11 +17,13 @@ delete process.env.HERMES_HOME;
 // Named explicitly although homedir() already covers it: the device tests delete this directory wholesale.
 process.env.OMB_COMPANION_DIR = join(home, ".openmausbot-companion");
 
-// Product code follows navigator.language; pin it so English assertions do not depend on the host locale.
+// Tests selecting the system language must not depend on the host locale.
 Object.defineProperty(globalThis.navigator, "language", { value: "en", configurable: true });
 
 // Windows will not remove a directory holding an open SQLite database: close it before the reset.
-const { closeMessageDb } = await import("../message-db.ts");
+const closeMessageDb = !("document" in globalThis)
+  ? (await import(/* @vite-ignore */ "../" + "message-db.ts")).closeMessageDb
+  : () => {};
 afterEach(closeMessageDb);
 
 // Windows holds a live process's cwd, and a just-killed CLI lets go a beat after the kill returns.

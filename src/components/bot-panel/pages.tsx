@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { parseSkillMd } from "../../../shared/skill-md";
 import { FolderOpen, Plus } from "lucide-react";
 
 import { appSwitchPatch } from "@/lib/bot-app-access";
@@ -217,6 +218,7 @@ export function SkillsPage({ bot }: PageContext) {
   const { state, dispatch } = useStore();
   const skills = useManagedSkills(bot);
   const [source, setSource] = useState("");
+  const [skillText, setSkillText] = useState("");
   const [importing, setImporting] = useState(false);
   const libraryOn = skillsLibraryEnabled(state.config);
 
@@ -251,6 +253,22 @@ export function SkillsPage({ bot }: PageContext) {
     } finally {
       setImporting(false);
     }
+  };
+  const importText = async () => {
+    if (importing) return;
+    const parsed = parseSkillMd(skillText);
+    if ("error" in parsed) { skills.setError(parsed.error); return; }
+    setImporting(true);
+    skills.setError("");
+    try {
+      await api(`/api/bots/${bot.id}/skill-template`, {method:"POST",body:JSON.stringify({
+        name:parsed.name, description:parsed.description, text:skillText, source:"manual-text", enabled:false, warnings:[],
+      })});
+      setSkillText("");
+      await skills.refresh();
+    } catch (cause) {
+      skills.setError(errorText(cause, t("botPanel.skills.importFailed")));
+    } finally { setImporting(false); }
   };
   const browse = () => {
     if (libraryOn) {
@@ -295,6 +313,12 @@ export function SkillsPage({ bot }: PageContext) {
           onChange={setSource}
           onSubmit={() => void importSkill()}
         />
+        <details className="px-3 py-2">
+          <summary className="cursor-pointer text-[13px]">粘贴 Skill 正文</summary>
+          <p className="my-2 text-[12px] text-ink-secondary">导入后保持关闭。阅读内容并确认后，再单独启用。</p>
+          <textarea aria-label="Skill 正文" value={skillText} onChange={event => setSkillText(event.target.value)} rows={8} className="w-full rounded-lg border border-hairline bg-inset p-2 text-[12px]" />
+          <button type="button" data-panel-action="import-skill-text" disabled={importing || !skillText.trim()} onClick={() => void importText()} className={buttonCls}>导入正文</button>
+        </details>
         <LinkRow data-panel-link="browse-skills" onClick={browse}>{t("botPanel.skills.browse")}</LinkRow>
       </Card>
       {skills.reviewing && (

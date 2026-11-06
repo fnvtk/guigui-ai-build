@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { ArrowUpRight, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useStore } from "@/state/store";
@@ -28,9 +29,9 @@ export function NoEngines() {
       <main className="relative flex h-full min-w-0 flex-1 items-center justify-center bg-app px-6">
         <WindowDragStrip />
         <div className="max-w-[520px] rounded-2xl border border-hairline/40 bg-card p-6 text-center">
-          <h1 className="text-[20px] font-semibold text-ink">The host needs an AI</h1>
+          <h1 className="text-[20px] font-semibold text-ink">{translateUi("ui.literal.3f06b26a503a")}</h1>
           <p className="mt-2 text-[14px] leading-relaxed text-ink-secondary">
-            Set up Claude or another supported AI in {productName()} on the host computer, then come back here.
+            {translateUi("ui.literal.851cdf479b19")} {productName()} {translateUi("ui.literal.9768c69709a1")}
           </p>
           <button onClick={() => void recheck()} disabled={rechecking} className="mt-5 rounded-lg bg-raised px-3 py-2 text-[13px] text-ink hover:bg-raised-hover disabled:opacity-60">
             {rechecking ? "Checking…" : "Check again"}

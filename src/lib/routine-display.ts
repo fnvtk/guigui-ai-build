@@ -47,13 +47,13 @@ export function routineNextLabel(routine: Routine): string {
   return routine.nextRunAt == null ? t("routines.noNextRun") : t("routines.nextRun", { time: routineDateTime(routine.nextRunAt) });
 }
 
-export function routineRunsOn({ roomGoal, runOn, computer, cloudHome }: {
+export function routineRunsOn({ roomGoal, runOn, computer }: {
   roomGoal: boolean; runOn?: string; computer?: string | null; cloudHome: boolean;
 }): { label: string; hint: string } {
-  const hint = t(cloudHome ? "routines.runsOn.cloudHomeHint" : "routines.runsOn.localHint");
-  if (roomGoal) return { label: t(cloudHome ? "routines.runsOn.teamCloudHome" : "routines.runsOn.team"), hint };
-  if (runOn === "cloud") return { label: t("routines.runsOn.boat"), hint: t(cloudHome ? "routines.runsOn.boatHintCloudHome" : "routines.runsOn.boatHint") };
-  if (computer === "cloud") return { label: t("routines.runsOn.botCloud"), hint };
-  if (computer === "vm" && !cloudHome) return { label: t("routines.runsOn.botVm"), hint };
-  return { label: t(cloudHome ? "routines.runsOn.cloudHome" : "routines.runsOn.local"), hint };
+  if (runOn === "cloud" || computer === "cloud" || computer === "vm") {
+    return { label: "已停用的执行位置，请改为本机", hint: "" };
+  }
+  const hint = t("routines.runsOn.localHint");
+  if (roomGoal) return { label: t("routines.runsOn.team"), hint };
+  return { label: t("routines.runsOn.local"), hint };
 }

@@ -224,8 +224,8 @@ function routineFields(args: Json): { fields: Json; error?: string } {
   }
   const runOn = destination(args.run_on ?? args.runOn);
   const timeoutMinutes = args.timeout_minutes ?? args.timeoutMinutes;
-  if (runOn != null && runOn !== "maus" && runOn !== "cloud") {
-    return { fields, error: 'Use run_on="maus" for the bot’s current model and configured computer (including VPS), or run_on="box" only for the bot’s cloud computer. Legacy "cloud" also means box.' };
+  if (runOn != null && runOn !== "maus") {
+    return { fields, error: 'This version only supports run_on="maus" for trigger creation and updates. No cloud request was sent.' };
   }
   if (timeoutMinutes != null && (
     typeof timeoutMinutes !== "number" || !Number.isInteger(timeoutMinutes) || timeoutMinutes < 5 || timeoutMinutes > 240
@@ -357,8 +357,9 @@ const CREATE_ONLY = ["when", "app", "event", "account", "engine", "repeat"] as c
 export async function callTriggerTool(name: string, args: Json, context: ToolCallContext): Promise<ToolCallResult> {
   const forBotId = typeof args.for_bot_id === "string" && args.for_bot_id.trim() ? args.for_bot_id.trim() : undefined;
   if (name === "trigger_info") {
-    if (args.action === "events") return listEvents(args, context);
-    if (args.action !== undefined && args.action !== null && args.action !== "list") return { text: "trigger_info action is list or events.", isError: true };
+    const action = args.action === undefined ? "list" : args.action;
+    if (action !== "list" && action !== "events") return { text: "trigger_info action is list or events.", isError: true };
+    if (action === "events") return listEvents(args, context);
     return listTriggers(args, forBotId, context);
   }
   if (name === "trigger" && args.action === "create") {

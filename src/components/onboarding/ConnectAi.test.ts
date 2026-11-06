@@ -101,6 +101,18 @@ describe("connecting an AI on the first screen", () => {
     for (const word of [/\bengines?\b/i, /\bReady\b/, /Needs setup/i, /to set up/i, /provider/i]) expect(text()).not.toMatch(word);
   });
 
+  it("offers a configured API endpoint in onboarding even though it has no provider install step", async () => {
+    const simpleApi: InstanceInfo = {
+      ...engine("openai-compat-fixture", "openai-compat", "SimpleAPI", false),
+      install: undefined,
+      access: "api",
+    };
+    f.instances = [engine("claude", "claudeAgent", "Claude", false), simpleApi];
+    await show();
+    expect(host.querySelector("[data-ai-recommended]")?.getAttribute("data-ai-recommended")).toBe("openai-compat-fixture");
+    expect(host.querySelector('[data-engine-setup="openai-compat-fixture"]')).not.toBeNull();
+  });
+
   it("says one plain line on a sign-in at the provider's website, and leaves a step finished in Terminal and a local-model setup their own words", async () => {
     const signsIn = (instance: InstanceInfo, method?: "paste-code" | "device-code"): InstanceInfo =>
       ({ ...instance, snapshot: { state: "available", authenticated: false }, ...(method ? { authentication: { method } } : {}) });

@@ -4,7 +4,7 @@
 // (third_party/t3-code/LICENSE).
 
 import type { CdpSession, Params } from "./connection.ts";
-import { DriverError } from "./errors.ts";
+import { DriverError, isMissingContext } from "./errors.ts";
 import { callOnNode, valueInWorld } from "./evaluate.ts";
 import type { FrameTree } from "./frames.ts";
 import { parseRef, type RefTable } from "./refs.ts";
@@ -130,6 +130,12 @@ export interface WaitContext {
   url(): string;
 }
 
+export interface WaitResult {
+  matched: boolean;
+  timedOut: boolean;
+  timeoutMs: number;
+}
+
 const CONNECTED = "function () { return this.isConnected && (!this.checkVisibility || this.checkVisibility()); }";
 
 async function elementPresent(context: WaitContext, target: { ref?: string; selector?: string }): Promise<boolean> {
@@ -152,13 +158,19 @@ async function elementPresent(context: WaitContext, target: { ref?: string; sele
 }
 
 /** Every condition at once, checked every 100 ms; a navigation in between counts as not yet. */
-export async function waitFor(context: WaitContext, conditions: WaitConditions): Promise<void> {
+export async function waitFor(context: WaitContext, conditions: WaitConditions): Promise<WaitResult> {
   const timeoutMs = Math.min(Math.max(0, conditions.timeoutMs ?? DEFAULT_WAIT_MS), MAX_WAIT_MS);
   const started = Date.now();
   const checks: Array<() => Promise<boolean>> = [];
   const { text, target, urlIncludes, load } = conditions;
   if (text !== undefined) {
-    checks.push(() => valueInWorld<boolean>(context.frames, context.frames.mainFrameId, `(document.body ? document.body.innerText : "").includes(${JSON.stringify(text)})`).then((found) => found === true, () => false));
+    checks.push(() => valueInWorld<boolean>(context.frames, context.frames.mainFrameId, `(document.body ? document.body.innerText : "").includes(${JSON.stringify(text)})`).then(
+      (found) => found === true,
+      (error: unknown) => {
+        if (isMissingContext(error)) return false;
+        throw error;
+      },
+    ));
   }
   if (target !== undefined) {
     const wantGone = conditions.gone === true;
@@ -171,11 +183,11 @@ export async function waitFor(context: WaitContext, conditions: WaitConditions):
     if (ms > timeoutMs && checks.length) throw new DriverError("refused", `The wait of ${ms} ms is longer than its ${timeoutMs} ms timeout.`);
     await sleep(ms);
   }
-  if (!checks.length) return;
+  if (!checks.length) return { matched: true, timedOut: false, timeoutMs };
   for (;;) {
     const results = await Promise.all(checks.map((check) => check()));
-    if (results.every(Boolean)) return;
-    if (Date.now() - started >= timeoutMs) throw new DriverError("timeout", `Waited ${timeoutMs}ms without every condition holding.`);
+    if (results.every(Boolean)) return { matched: true, timedOut: false, timeoutMs };
+    if (Date.now() - started >= timeoutMs) return { matched: false, timedOut: true, timeoutMs };
     await sleep(POLL_MS);
   }
 }

@@ -46,7 +46,21 @@ describe("browser tool shaping", () => {
     expect(readsAroundBrowser({ name: "agent_browser_open", arguments: { url: "https://example.com" } })).toBe(false);
   });
 
+  it("offers a no-llms value to models that fill every optional enum and forwards explicit file requests unchanged", () => {
+    const tool = { name: "agent_browser_read", inputSchema: { type: "object", properties: { llms: { type: "string", enum: ["index", "full"] } } } };
+    const slim = slimBrowserToolList({ tools: [tool] }) as { tools: Array<typeof tool> };
+    expect(slim.tools[0].inputSchema.properties.llms.enum).toEqual(["", "index", "full"]);
+    expect(tool.inputSchema.properties.llms.enum).toEqual(["index", "full"]);
+    expect(stripHarnessOwnedArguments({ name: "agent_browser_read", arguments: { llms: "", raw: true } })).toEqual({ name: "agent_browser_read", arguments: { raw: true } });
+    const explicit = { name: "agent_browser_read", arguments: { llms: "full" } };
+    expect(stripHarnessOwnedArguments(explicit)).toBe(explicit);
+  });
+
   it("drops harness-owned arguments from a call and leaves ordinary calls identical", () => {
+    expect(stripHarnessOwnedArguments({ name: "agent_browser_snapshot", arguments: { selector: "", compact: true } }))
+      .toEqual({ name: "agent_browser_snapshot", arguments: { compact: true } });
+    const invalidClick = { name: "agent_browser_click", arguments: { selector: "" } };
+    expect(stripHarnessOwnedArguments(invalidClick)).toBe(invalidClick);
     const ordinary = { name: "agent_browser_click", arguments: { ref: "@e3" } };
     expect(stripHarnessOwnedArguments(ordinary)).toBe(ordinary);
     expect(stripHarnessOwnedArguments({ name: "agent_browser_open", arguments: { url: "https://example.com", session: "other-bot", extraArgs: ["--remote-debugging-port=9222"], caCert: "/tmp/x.pem" } }))
@@ -72,6 +86,17 @@ describe("browser tool shaping", () => {
     const imageOnly = { content: [{ type: "image", data: "AAAA", mimeType: "image/png" }], structuredContent: { ok: true } };
     expect(shapeBrowserToolResult(imageOnly)).toEqual(imageOnly);
     expect(shapeBrowserToolResult({ error: "x" })).toEqual({ error: "x" });
+  });
+
+  it("keeps stale-ref and missing llms errors while explaining recovery without retrying actions", () => {
+    const stale = shapeBrowserToolResult({ isError: true, content: [{ type: "text", text: "Unknown ref: e4" }] }, { toolName: "agent_browser_fill" }) as { isError: boolean; content: Array<{ text: string }> };
+    expect(stale.isError).toBe(true);
+    expect(stale.content[0].text).toContain("Unknown ref: e4");
+    expect(stale.content[0].text).toContain("Do not guess refs");
+    const missing = shapeBrowserToolResult({ isError: true, content: [{ type: "text", text: "llms-full.txt failed with HTTP 404" }] }, { toolName: "agent_browser_read" }) as typeof stale;
+    expect(missing.isError).toBe(true);
+    expect(missing.content[0].text).toContain("without llms");
+    expect(shapeBrowserToolResult({ isError: true, content: [{ type: "text", text: "HTTP 403" }] }, { toolName: "agent_browser_read" })).toEqual({ isError: true, content: [{ type: "text", text: "HTTP 403" }] });
   });
 
   it("cuts oversized text to the budget and says how to narrow the next call", () => {

@@ -183,9 +183,11 @@ function recallWhen(at: unknown, dateOnly: boolean): string {
 
 export async function callTool(called: string, input: Json, context: ToolCallContext): Promise<ToolCallResult> {
   const { name, arguments: args } = resolveAgentsCall(called, input);
+  if (name === "memory_update" && (args.action === "append" || args.action === "prefer")
+    && typeof args.old_text === "string" && !args.old_text.trim()) delete args.old_text;
   const refused = outOfBounds(name, fullInputSchema(name), args);
   if (refused) return { text: refused, isError: true };
-  const member = agentsCallMember(name, args);
+  const member = called === "session_read" ? "session_read" : agentsCallMember(name, args);
   const { botId: BOT_ID, threadId: THREAD_ID, depth: DEPTH } = context;
   const { api, apiResponse } = context.client;
   if (name === "vm_exec") {
@@ -272,7 +274,7 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
       };
     }
     const r = await api("/api/internal/coordinate-bots", { method: "POST", body: JSON.stringify({
-      groupId: canonical.group_id, botIds: ids, message: canonical.message,
+      groupId: typeof canonical.group_id === "string" && canonical.group_id.trim() ? canonical.group_id.trim() : undefined, botIds: ids, message: canonical.message,
       reason: typeof canonical.reason === "string" && canonical.reason.trim() ? canonical.reason.trim() : undefined,
       rework: canonical.rework,
       thread: canonical.thread, reply: canonical.reply,
@@ -363,8 +365,8 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     };
   }
   if (name === "select_computer") {
-    if (args.surface !== undefined && (typeof args.surface !== "string" || !["auto", "cloud", "vm", "local", "browser"].includes(args.surface))) {
-      return { text: "Choose auto, cloud, vm, local or browser; omit surface to inspect connected choices.", isError: true };
+    if (args.surface !== undefined && (typeof args.surface !== "string" || !["auto", "local", "browser"].includes(args.surface))) {
+      return { text: "Choose auto, local or browser; omit surface to inspect available choices.", isError: true };
     }
     const result = await api("/api/internal/computer/select", args.surface === undefined ? undefined : {
       method: "POST", body: JSON.stringify({ surface: args.surface }),
@@ -619,7 +621,7 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
         fromBotId: BOT_ID,
         fromThreadId: THREAD_ID,
         changes,
-        reason: args.reason,
+        reason: args.reason ?? `Profile update proposal (${Object.keys(changes).join(", ")}); the model supplied no explanation.`,
         forBotId: forBotId || undefined,
       }),
     });
@@ -727,11 +729,8 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
   }
   if (member === "session_search") {
     const q = String(args.query ?? "").trim();
-    const since = typeof args.since === "string" ? args.since.trim() : "";
+    const since = (typeof args.since === "string" ? args.since.trim() : "") || (!q ? "24h" : "");
     const until = typeof args.until === "string" ? args.until.trim() : "";
-    if (!q && !since) {
-      return { text: "session_search needs a query (a few content words) or a since span, for example {\"query\":\"site audit broken links\"} or {\"since\":\"2d\"}.", isError: true };
-    }
     const query = new URLSearchParams({ fromBotId: BOT_ID, fromThreadId: THREAD_ID });
     if (q) query.set("q", q);
     if (since) query.set("since", since);
@@ -773,8 +772,8 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     };
   }
   if (member === "session_read") {
-    const threadId = String(args.thread_id ?? "").trim();
-    const messageId = String(args.message_id ?? "").trim();
+    const threadId = typeof args.thread_id === "string" ? args.thread_id.trim() : "";
+    const messageId = typeof args.message_id === "string" ? args.message_id.trim() : "";
     if (!threadId || !messageId) {
       return { text: "Reading a message needs both thread_id and message_id, copied from a session_search hit.", isError: true };
     }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, Shield } from "lucide-react";
 import { useDesktopCapabilities } from "./DesktopCapabilities";
-import { macCuaPermissionMessage, missingMacCuaPermissions } from "@/lib/mac-cua-permissions";
+import { macCuaDriverDetail, macCuaPermissionMessage, missingMacCuaPermissions } from "@/lib/mac-cua-permissions";
 import { MacCuaRecoveryActions } from "./MacCuaRecoveryActions";
 import { t } from "@/lib/i18n";
 
@@ -63,11 +63,11 @@ export function MacLocalControl() {
       <div className="flex items-start gap-3">
         <Shield size={16} className="mt-0.5 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-medium text-ink">Allow control of this computer</div>
+          <div className="text-[14px] font-medium text-ink">{t("computer.mac.permission.allowControl")}</div>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">
             {permissionMessage ?? t("computer.mac.permission.generic")}
           </p>
-          {reason && <details className="mt-2 text-[12px] text-ink-secondary"><summary className="cursor-pointer">{t("computer.mac.permission.driverDetail")}</summary><p className="mt-1 break-words">{reason}</p></details>}
+          {reason && <details className="mt-2 text-[12px] text-ink-secondary"><summary className="cursor-pointer">{t("computer.mac.permission.driverDetail")}</summary><p className="mt-1 break-words">{macCuaDriverDetail(reason)}</p></details>}
           {error && (
             <div className="mt-2 flex gap-1.5 text-[12px] text-danger">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
@@ -83,7 +83,7 @@ export function MacLocalControl() {
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-50"
               >
-                Open System Settings
+                {t("permissions.openSystemSettings")}
               </button>
             )}
             <button
@@ -93,7 +93,7 @@ export function MacLocalControl() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-hairline/50 px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-raised disabled:opacity-50"
             >
               {pending && <Loader2 size={13} className="animate-spin" />}
-              Retry
+              {t("settings.profile.retry")}
             </button>
           </div>
         </div>

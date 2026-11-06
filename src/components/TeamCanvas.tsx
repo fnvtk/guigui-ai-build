@@ -14,8 +14,8 @@ import { computerStepLine } from "@/lib/computer-step";
 import type { MapComputer, MapComputerState } from "../../shared/map-computer";
 import { BotAvatar } from "./Avatar";
 import { ComputerNode } from "./ComputerNode";
-import { InstanceProviderMark, ProviderMark } from "./ProviderIcons";
 import { openBotSettings } from "./bot-panel/panel-link";
+import { guaiServiceLabel } from "../../shared/guai-service-tiers";
 
 type Gesture = {
   id: number;
@@ -39,12 +39,11 @@ function BotCard({ bot, selected, moving, connected, tagged = false, sent, onCom
   onComputer?: (bot: Bot) => void;
   onArrange?: (bot: Bot, delta: number) => void;
 }) {
-  const { state, dispatch } = useStore();
+  const { dispatch } = useStore();
   const showThreads = useShowThreads();
   const status = teamMapStatus(bot);
   const name = teamBotName(bot, useTeamPeople());
-  const instance = state.instances.find((item) => item.instanceId === bot.modelSelection.instanceId);
-  const model = instance?.models.options.find((item) => item.id === bot.modelSelection.model)?.label ?? bot.modelSelection.model;
+  const model = guaiServiceLabel(bot.modelSelection.model);
   return <article className={cn("relative h-[126px] w-[236px] shrink-0 rounded-xl border bg-card shadow-sm transition-colors",
     selected ? "border-accent/60 ring-1 ring-accent/15" : connected ? "border-accent/40" : "border-hairline/50 hover:border-ink-secondary/40", tagged && "border-accent ring-4 ring-accent/25", moving && "opacity-35")}>
     {sent !== undefined && <span key={sent} data-sent-highlight aria-hidden className="pointer-events-none absolute -inset-px animate-sent-border rounded-xl border-2 border-accent" />}
@@ -73,13 +72,10 @@ function BotCard({ bot, selected, moving, connected, tagged = false, sent, onCom
       </span>}
       {selected && onComputer && <button className={cn(iconButton, "size-8")} aria-label={t("canvas.botComputer", { name: bot.name })} title={t("computer.tab.computer")}
         onClick={() => onComputer(bot)}><Monitor size={13} /></button>}
-      <button aria-label={t("canvas.changeModel", { name: bot.name })} title={`${t("canvas.defaultModel")}: ${model}`}
+      <button aria-label={t("canvas.changeModel", { name: bot.name })} title={`服务档位：${model}`}
         onClick={() => openBotSettings(dispatch, "model", { botId: bot.id })}
         className="ml-auto flex h-8 min-w-0 max-w-[130px] items-center gap-1.5 rounded-md px-2 text-[10px] text-ink-secondary hover:bg-control hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">
-        <span className="flex size-3.5 shrink-0 items-center justify-center">{instance
-          ? <InstanceProviderMark instance={instance} size={13} />
-          : <ProviderMark driverKind="" size={13} />}</span>
-        <span className="truncate">{model || t("canvas.defaultModel")}</span>
+        <span className="truncate">{model}</span>
       </button>
     </div>
   </article>;

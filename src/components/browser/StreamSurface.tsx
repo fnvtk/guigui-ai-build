@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 // Adapted from pingdotgg/t3code@00cdceb1 apps/web/src/browser/ServerBrowserSurface.tsx, MIT License, Copyright (c)
 // 2026 T3 Tools Inc. (full text in third_party/t3-code/LICENSE); modified: OpenMausBot's UI, the panel picks the
 // transport (the v2 stream, or the v1 view as a fallback), page input goes through the panel's control rules so the
@@ -693,8 +694,8 @@ export function StreamSurface(props: {
           />
         ) : null}
         {fileChooser && you ? (
-          <div className="absolute inset-x-3 top-3 z-20 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-hairline/60 bg-card p-3 text-ink shadow-xl" role="dialog" aria-label="Choose files for the page">
-            <p className="flex items-center gap-2 text-[13px]"><FileUp size={14} aria-hidden="true" />The page asks for {fileChooser.multiple ? "files" : "a file"}.</p>
+          <div className="absolute inset-x-3 top-3 z-20 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-hairline/60 bg-card p-3 text-ink shadow-xl" role="dialog" aria-label={translateUi("ui.literal.de26ff2b89c3")}>
+            <p className="flex items-center gap-2 text-[13px]"><FileUp size={14} aria-hidden="true" />{translateUi("ui.literal.e781334e39d9")} {fileChooser.multiple ? "files" : "a file"}.</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -708,23 +709,23 @@ export function StreamSurface(props: {
               }}
             />
             <div className="flex justify-end gap-2">
-              <button type="button" className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-inset" onClick={() => answerFileChooser([])}>Cancel</button>
-              <button type="button" className="rounded-lg bg-accent px-3 py-1.5 text-[12px] text-accent-ink" onClick={() => fileInputRef.current?.click()}>Choose {fileChooser.multiple ? "files" : "file"}</button>
+              <button type="button" className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-inset" onClick={() => answerFileChooser([])}>{translateUi("ui.literal.77dfd2135f4d")}</button>
+              <button type="button" className="rounded-lg bg-accent px-3 py-1.5 text-[12px] text-accent-ink" onClick={() => fileInputRef.current?.click()}>{translateUi("ui.literal.78b7c9f6d6d7")} {fileChooser.multiple ? "files" : "file"}</button>
             </div>
           </div>
         ) : null}
         {control?.dialog && control.controller !== "another-viewer" ? (
-          <div className="absolute inset-x-3 top-3 z-20 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-hairline/60 bg-card p-3 text-ink shadow-xl" role="dialog" aria-label="Browser dialog">
+          <div className="absolute inset-x-3 top-3 z-20 mx-auto flex max-w-sm flex-col gap-2 rounded-xl border border-hairline/60 bg-card p-3 text-ink shadow-xl" role="dialog" aria-label={translateUi("ui.literal.9205a106bffd")}>
             <p className="break-words text-[13px]">{control.dialog.message}</p>
             {you ? (
               <>
-                {control.dialog.type === "prompt" ? <input aria-label="Dialog response" value={promptText} onChange={(event) => setPromptText(event.target.value)} className="rounded-lg bg-inset px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-accent" /> : null}
+                {control.dialog.type === "prompt" ? <input aria-label={translateUi("ui.literal.ca44e955fc5e")} value={promptText} onChange={(event) => setPromptText(event.target.value)} className="rounded-lg bg-inset px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-accent" /> : null}
                 <div className="flex justify-end gap-2">
-                  <button type="button" className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-inset" onClick={() => direct({ type: "dialog", accept: false })}>Dismiss</button>
-                  <button type="button" className="rounded-lg bg-accent px-3 py-1.5 text-[12px] text-accent-ink" onClick={() => direct({ type: "dialog", accept: true, ...(control.dialog?.type === "prompt" ? { promptText } : {}) })}>Accept</button>
+                  <button type="button" className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-inset" onClick={() => direct({ type: "dialog", accept: false })}>{translateUi("ui.literal.70afe9eff3f2")}</button>
+                  <button type="button" className="rounded-lg bg-accent px-3 py-1.5 text-[12px] text-accent-ink" onClick={() => direct({ type: "dialog", accept: true, ...(control.dialog?.type === "prompt" ? { promptText } : {}) })}>{translateUi("ui.literal.bb54db510a92")}</button>
                 </div>
               </>
-            ) : <p className="text-[12px] text-ink-secondary">Take control to respond.</p>}
+            ) : <p className="text-[12px] text-ink-secondary">{translateUi("ui.literal.e2505fc2c127")}</p>}
           </div>
         ) : null}
         {authPrompt && you ? (
@@ -745,16 +746,16 @@ export function StreamSurface(props: {
                 {notice.kind === "download" ? (
                   <>
                     <Download size={13} aria-hidden="true" className="shrink-0" />
-                    <span className="min-w-0 truncate">Downloaded {notice.download.fileName}</span>
-                    <button type="button" className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-accent-ink" onClick={() => { save(notice.download); dismiss(notice.id); }}>Save</button>
+                    <span className="min-w-0 truncate">{translateUi("ui.literal.c61970292546")} {notice.download.fileName}</span>
+                    <button type="button" className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-accent-ink" onClick={() => { save(notice.download); dismiss(notice.id); }}>{translateUi("ui.literal.efc007a393f6")}</button>
                   </>
                 ) : notice.kind === "clipboard" ? (
                   <>
-                    <span className="min-w-0 truncate">The page copied text</span>
-                    <button type="button" className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-accent-ink" onClick={() => { void copyText(notice.text); dismiss(notice.id); }}>Copy</button>
+                    <span className="min-w-0 truncate">{translateUi("ui.literal.81c846e12522")}</span>
+                    <button type="button" className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-accent-ink" onClick={() => { void copyText(notice.text); dismiss(notice.id); }}>{translateUi("ui.literal.af74f7c5362a")}</button>
                   </>
                 ) : <span role="alert" className="min-w-0 text-danger">{notice.message}</span>}
-                <button type="button" aria-label="Dismiss" className="shrink-0 rounded-md p-0.5 text-ink-secondary hover:bg-inset" onClick={() => dismiss(notice.id)}><X size={12} /></button>
+                <button type="button" aria-label={translateUi("ui.literal.70afe9eff3f2")} className="shrink-0 rounded-md p-0.5 text-ink-secondary hover:bg-inset" onClick={() => dismiss(notice.id)}><X size={12} /></button>
               </div>
             ))}
           </div>
@@ -764,7 +765,7 @@ export function StreamSurface(props: {
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-card p-4 text-center">
           <p role="alert" className="max-w-sm text-[13px] text-ink-secondary">{previewStreamHostSetupMessage(hostSetup)}</p>
           <code className="max-w-md select-all break-all rounded-lg bg-inset px-3 py-2 text-left text-[12px] text-ink">{hostSetup.command}</code>
-          <button type="button" className="rounded-lg border border-hairline px-3 py-1.5 text-[12px] text-ink hover:bg-inset" onClick={() => setHostSetup(null)}>Try again</button>
+          <button type="button" className="rounded-lg border border-hairline px-3 py-1.5 text-[12px] text-ink hover:bg-inset" onClick={() => setHostSetup(null)}>{translateUi("ui.literal.042c862e4467")}</button>
         </div>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { api, useStore, type Bot } from "@/state/store";
@@ -169,7 +170,7 @@ export function HistoryRollbackDialog({ history, returnFocusRef }: {
   return (
     <ConfirmDialog
       open={rollbackTarget !== null}
-      title="Restore previous instructions?"
+      title={translateUi("ui.literal.e57bc791e7a4")}
       body="Replaces current SOUL with the version before this change. Current version stays in History."
       confirmLabel="Restore instructions"
       tone="neutral"

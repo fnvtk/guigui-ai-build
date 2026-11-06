@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Loader2, MoreHorizontal, Plus } from "lucide-react";
 import { api, useStore, type InstanceInfo } from "@/state/store";
@@ -298,7 +299,7 @@ export function AddAccount({ label, endpoint, extra, folder: offerFolder = false
       {offerFolder && (
         <details className="text-[12px] text-ink-secondary">
           <summary className="cursor-pointer select-none hover:text-ink">{t("accounts.folderToggle")}</summary>
-          <input value={folder} onChange={(event) => setFolder(event.target.value)} placeholder="~/.claude-work" maxLength={4096} spellCheck={false} disabled={saving}
+          <input value={folder} onChange={(event) => setFolder(event.target.value)} placeholder={translateUi("ui.literal.0b6e5d135255")} maxLength={4096} spellCheck={false} disabled={saving}
             aria-label={t("accounts.folderToggle")}
             className="mt-2 w-full rounded-lg border border-hairline/40 bg-inset px-3 py-2 font-mono text-[12px] text-ink outline-none focus:border-accent-border disabled:opacity-50" />
           <p className="mt-1 leading-relaxed">{t("accounts.folderHint")}</p>

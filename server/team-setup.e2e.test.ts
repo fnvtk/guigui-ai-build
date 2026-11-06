@@ -50,8 +50,9 @@ it("Clive sets up multi-provider teams at Ask with no card, keeps existing threa
       writeFileSync(gate, "finish");
       await expect.poll(async () => !(await state()).find((bot: any) => bot.id === chief.id).busy, { timeout: 20_000 }).toBe(true);
     };
-    const build = (name: string, team: string, modelSelection: unknown) => ({ action: "create", key: name, fields: {
-      name, title: `${team} specialist`, soul: `Own ${team.toLowerCase()} work. Return evidence and state uncertainty.`, section: team, modelSelection,
+    const build = (name: string, team: string, modelSelection: unknown) => ({ action: "create", key: name, botId: "", fields: {
+      name, title: `${team} specialist`, soul: `Own ${team.toLowerCase()} work. Return evidence and state uncertainty.`, section: team,
+      modelSelection: { ...(modelSelection as Record<string, unknown>), effort: "", variant: "" },
     } });
     const plan = { reason: "Set up Research, Engineering and Growth specialists as requested", newTeams: ["Research", "Engineering", "Growth"], operations: [
       build("Mira", "Research", selection(claude)), build("Patch", "Engineering", selection(codex)), build("Quill", "Growth", selection(claude)),
@@ -83,7 +84,7 @@ it("Clive sets up multi-provider teams at Ask with no card, keeps existing threa
 
     token = await start("Move Patch to Growth and switch its default engine to Claude; retain its existing thread.");
     const updated = await api("POST", "/api/internal/team-setup-requests", { plan: { reason: "Requested default and team change", operations: [
-      { action: "update", botId: engineer.id, fields: { section: "Growth", modelSelection: selection(claude) } },
+      { action: "update", botId: engineer.id, key: "Patch", fields: { section: "Growth", cwd: "", modelSelection: selection(claude) } },
       { action: "update", botId: engineer.id, fields: { description: "Shared delivery specialist" } },
     ] } }, 201, token);
     expect(updated.state).toBe("applied");

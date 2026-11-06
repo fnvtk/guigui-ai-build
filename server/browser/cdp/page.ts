@@ -17,7 +17,7 @@ import { SecretGuard } from "./secrets.ts";
 import { resolveElement } from "./selectors.ts";
 import { takeSnapshot, visibleText, type Snapshot } from "./snapshot.ts";
 import { releaseSession, setUpDocumentSession, setUpWorkerSession, type TargetSetup } from "./targets.ts";
-import { Lifecycle, waitFor, type LoadState, type WaitConditions, type WaitContext } from "./wait.ts";
+import { Lifecycle, waitFor, type LoadState, type WaitConditions, type WaitContext, type WaitResult } from "./wait.ts";
 
 export const DEFAULT_NAVIGATION_TIMEOUT_MS = 15_000;
 
@@ -344,7 +344,7 @@ export class CdpPage implements ActionContext, WaitContext {
     return evaluate(this.frames, expression, options);
   }
 
-  async waitFor(conditions: WaitConditions): Promise<void> {
+  async waitFor(conditions: WaitConditions): Promise<WaitResult> {
     this.#usable();
     return waitFor(this, conditions);
   }

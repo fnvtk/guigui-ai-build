@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, LoaderCircle, RefreshCw, X } from "lucide-react";
-import { EngineSetup } from "@/components/EngineSetup";
+import { EngineSetup, isApiKeyEngine } from "@/components/EngineSetup";
 import { engineReady } from "@/components/EngineLibrary";
 import { InstanceProviderMark } from "@/components/ProviderIcons";
 import { cn } from "@/lib/cn";
@@ -75,7 +75,7 @@ export function ConnectAi({ hosted = false, tested }: { hosted?: boolean; tested
 
   const connected = tested && aiWorks(tested) ? tested.instance : undefined;
   const backup = state.instances.find((instance) => engineReady(instance) && freeFallback(instance));
-  const { recommended, others } = aiChoices(state.instances.filter((instance) => instance.install && !engineReady(instance)));
+  const { recommended, others } = aiChoices(state.instances.filter((instance) => (instance.install || isApiKeyEngine(instance)) && !engineReady(instance)));
 
   return (
     <div className="flex w-full flex-col">

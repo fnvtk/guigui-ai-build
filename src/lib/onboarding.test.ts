@@ -152,7 +152,7 @@ describe("organisation sign-in in the engines beat", () => {
 });
 
 describe("connecting an AI in the welcome", () => {
-  type Row = { id: string; driverKind: string; access?: string; readOnly?: boolean };
+  type Row = { id: string; driverKind: string; displayName?: string; access?: string; readOnly?: boolean };
   const row = (id: string, driverKind: string, extra: Partial<Row> = {}): Row => ({ id, driverKind, ...extra });
 
   it("recommends a Claude account first, then a ChatGPT plan, and folds every other way under it", () => {
@@ -165,6 +165,13 @@ describe("connecting an AI in the welcome", () => {
     expect(aiChoices([grok, claudeKey]).recommended).toBe(grok);
     expect(aiChoices([row("company", "claudeAgent", { readOnly: true }), grok]).recommended, "an organization's model is not a sign-in").toBe(grok);
     expect(aiChoices([])).toEqual({ recommended: undefined, others: [] });
+  });
+
+  it("recommends the named SimpleAPI endpoint ahead of providers that need sign-in", () => {
+    const simpleApi = row("custom-endpoint", "openai-compat", { displayName: " simpleapi ", access: "api" });
+    const claude = row("claude", "claudeAgent");
+    expect(aiChoices([claude, simpleApi])).toEqual({ recommended: simpleApi, others: [claude] });
+    expect(aiChoices([row("openaiCompat", "openai-compat", { displayName: "OpenAI-compatible", access: "api" }), claude]).recommended).toBe(claude);
   });
 
   it("recommends in the same order the new-bot default uses: then Gemini, then Grok, then the rest as listed", () => {

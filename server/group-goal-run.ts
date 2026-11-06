@@ -235,6 +235,7 @@ export async function runGoalRun<Bot extends GoalRunMember>(deps: GoalRunDeps<Bo
       solo: deps.solo,
     }));
     if (deps.cancelled()) return;
+    if (coordinatorResult.outcome === "cancelled") return;
     if (coordinatorResult.outcome === "unavailable") {
       deps.finish("blocked", `${coordinator.name} is not available.`);
       return;
@@ -302,6 +303,7 @@ export async function runGoalRun<Bot extends GoalRunMember>(deps: GoalRunDeps<Bo
       maxTurns: run.maxTurns,
     }));
     if (deps.cancelled()) return;
+    if (workerResult.outcome === "cancelled") return;
     if (workerResult.outcome === "unavailable") {
       deps.finish("blocked", `${workerBot.name} is not available.`);
       return;

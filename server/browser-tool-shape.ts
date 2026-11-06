@@ -40,6 +40,10 @@ export function slimBrowserToolList(result: unknown): unknown {
     const properties = isRecord(schema.properties)
       ? Object.fromEntries(Object.entries(schema.properties).filter(([name]) => !hidden(name)))
       : schema.properties;
+    if (tool.name === READ_TOOL && isRecord(properties) && isRecord(properties.llms) && Array.isArray(properties.llms.enum)) {
+      properties.llms = { ...properties.llms, enum: ["", ...properties.llms.enum.filter((value) => value !== "")], default: "",
+        description: "Use an empty string for the current visible page. index/full explicitly request an optional llms text file, which many sites do not provide." };
+    }
     const required = Array.isArray(schema.required)
       ? schema.required.filter((name) => typeof name !== "string" || !hidden(name))
       : schema.required;
@@ -50,8 +54,27 @@ export function slimBrowserToolList(result: unknown): unknown {
 
 export function stripHarnessOwnedArguments(params: unknown): unknown {
   if (!isRecord(params) || !isRecord(params.arguments)) return params;
-  const kept = Object.entries(params.arguments).filter(([name]) => !HARNESS_OWNED_BROWSER_PARAMS.has(name));
+  const kept = Object.entries(params.arguments).filter(([name, value]) => !HARNESS_OWNED_BROWSER_PARAMS.has(name)
+    && !(((params.name === "agent_browser_snapshot" && name === "selector") || (params.name === READ_TOOL && name === "llms"))
+      && typeof value === "string" && !value.trim()));
   return kept.length === Object.keys(params.arguments).length ? params : { ...params, arguments: Object.fromEntries(kept) };
+}
+
+/** The installed agent-browser reports an ordinary text-condition timeout as isError; normalize only its known timeout reply. */
+export function normalizeTextWaitTimeout(result: unknown, args: unknown): unknown {
+  if (!isRecord(result) || result.isError !== true || !Array.isArray(result.content) || !isRecord(args) || typeof args.text !== "string") return result;
+  const textPart = result.content.find((part) => isRecord(part) && part.type === "text" && typeof part.text === "string");
+  const raw = isRecord(textPart) ? textPart.text as string : "";
+  const timeout = /^(?:Wait timed out after\s+(\d+)ms|Waited\s+(\d+)ms without every condition holding\.?)$/u.exec(raw.trim());
+  if (!timeout) return result;
+  const timeoutMs = Number(timeout[1] ?? timeout[2]);
+  const message = `等待超时：尚未确认页面出现目标文字“${args.text}”，该条件未满足。`;
+  const settled = Object.fromEntries(Object.entries(result).filter(([key]) => key !== "isError"));
+  return {
+    ...settled,
+    content: [{ type: "text", text: message }],
+    structuredContent: { matched: false, timedOut: true, text: args.text, timeoutMs, message },
+  };
 }
 
 /** agent-browser's `lifecycle` block is ~330 of a click's 420 characters; only a relaunch (pages and refs gone) is kept. */
@@ -152,11 +175,21 @@ export function shapeBrowserToolResult(result: unknown, options: { toolName?: st
   const content = (result.content as unknown[]).map((part) => {
     if (!isRecord(part) || part.type !== "text" || typeof part.text !== "string") return part;
     textParts++;
-    const outcome = trimResultText({ text: withoutLifecycle(part.text), budget, toolName: options.toolName });
+    let text = withoutLifecycle(part.text);
+    if (result.isError === true && /Unknown ref:/.test(text)) {
+      text += "\nThe element ref is no longer available. Take agent_browser_snapshot, identify the intended element again, then use its current ref. Do not guess refs or repeat the action blindly.";
+    }
+    if (result.isError === true && options.toolName === READ_TOOL && /llms(?:-full)?\.txt failed with HTTP 404/.test(text)) {
+      text += "\nThis site does not provide the requested llms text file. To read the current visible page, call agent_browser_read without llms (or set llms to an empty string), or agent_browser_get_text with a current selector. This failure does not prove the page itself is unavailable.";
+    }
+    const outcome = trimResultText({ text, budget, toolName: options.toolName });
     return { ...part, text: outcome.trimmed ? outcome.text + BROWSER_NARROWING_HINT : outcome.text };
   });
   if (!textParts) return { ...result, content };
-  return { ...Object.fromEntries(Object.entries(result).filter(([key]) => key !== "structuredContent")), content };
+  const status = isRecord(result.structuredContent) && result.structuredContent.matched === false && result.structuredContent.timedOut === true
+    ? result.structuredContent
+    : undefined;
+  return { ...Object.fromEntries(Object.entries(result).filter(([key]) => key !== "structuredContent")), ...(status ? { structuredContent: status } : {}), content };
 }
 
 /** Images and binary data pass through: a screenshot cannot be scrubbed. */

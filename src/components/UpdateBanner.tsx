@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { Loader2, PackageOpen, RefreshCw, Sparkles, X } from "lucide-react";
 import { useUpdaterState } from "@/lib/updater";
@@ -51,6 +52,7 @@ export function UpdateBanner({ sidebarIndicator = false }: UpdateBannerProps) {
   if (s?.updated && ["idle", "checking", "downloading", "preparing"].includes(s.status)) {
     return <UpdatedLine version={s.updated} onSeen={() => void window.ogb?.updater?.seen?.().catch(() => {})} />;
   }
+  if (s?.status === "error") return null;
   if (!s || s.status === "idle" || s.status === "checking" || s.status === "downloading" || s.status === "preparing") return null;
   if (sidebarIndicator && (s.status === "downloaded" || s.status === "installing")) return null;
   const key = `${s.status}:${s.version ?? ""}`;
@@ -109,7 +111,7 @@ export function UpdateBanner({ sidebarIndicator = false }: UpdateBannerProps) {
           <button
             onClick={() => setDismissed(key)}
             className="shrink-0 rounded-md p-1 text-ink-secondary hover:bg-control hover:text-ink"
-            title="Dismiss"
+            title={translateUi("ui.literal.70afe9eff3f2")}
           >
             <X size={14} />
           </button>
@@ -150,30 +152,12 @@ export function UpdateBanner({ sidebarIndicator = false }: UpdateBannerProps) {
                 </>
               ) : handoff ? (
                 <>
-                  <PackageOpen size={13} /> Install
+                  <PackageOpen size={13} /> {translateUi("ui.literal.fd6c3ebf7bef")}
                 </>
               ) : (
                 <>
-                  <RefreshCw size={13} /> Restart to update
+                  <RefreshCw size={13} /> {translateUi("ui.literal.13ada5b1d07c")}
                 </>
-              )}
-            </button>
-          )}
-          {s.status === "error" && s.retryable !== false && (
-            <button
-              onClick={() => {
-                setPending("check");
-                void updater.check();
-              }}
-              disabled={pending !== null}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-control py-1.5 text-[13px] text-ink hover:bg-raised-hover disabled:text-ink-secondary disabled:hover:bg-control"
-            >
-              {pending === "check" ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" /> Checking…
-                </>
-              ) : (
-                "Try again"
               )}
             </button>
           )}

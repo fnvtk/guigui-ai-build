@@ -16,7 +16,6 @@ import { SoulField } from "../SoulField";
 import { useBotApps } from "../bot-settings/useBotApps";
 import type { useBotSettingsDerived } from "../bot-settings/useBotSettingsDerived";
 import { useThreadApproval } from "../thread-approval";
-import { BackupAis } from "./BackupAis";
 import type { SimplePageId } from "./page-registry";
 import { buttonCls, Card, ColRow, NavRow, RowIcon, rowCls, RowText, Segmented, type SegmentOption } from "./rows";
 
@@ -142,8 +141,6 @@ export function SettingsPage({ bot, derived, onOpen, editingInstructions = false
           )}
         </ColRow>
       </Card>
-
-      <BackupAis bot={bot} onChange={(fallback) => patch({ fallback })} />
 
       <Card anchor="call">
         <ColRow data-panel-row="call-mode">

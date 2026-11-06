@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
@@ -464,7 +465,7 @@ export function McpServersPanel({ embedded = false, whopCard = false, hideWhop =
         <WhopIcon />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[14px] font-semibold leading-5 text-ink">Whop</span>
+            <span className="truncate text-[14px] font-semibold leading-5 text-ink">{translateUi("ui.literal.c5f472b3923c")}</span>
             {whopConnected && <Check size={13} strokeWidth={2.5} className="shrink-0 text-success" aria-label={t("apps.connected")} />}
           </div>
           <p className="truncate text-[13px] leading-[18px] text-ink-secondary" title={t("whop.description")}>{t("whop.description")}</p>

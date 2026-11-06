@@ -633,7 +633,6 @@ describe("agents-proxy MCP surface", () => {
       "list_threads",
       "close_thread",
       "start_thread",
-      "vm_exec",
       "attach_file",
       "show_widget",
       "show_html",
@@ -672,6 +671,7 @@ describe("agents-proxy MCP surface", () => {
     const tool = (name: string) => list.result.tools.find((entry: { name: string }) => entry.name === name);
     const coordinate = tool("coordinate_bots");
     expect(coordinate.description).toContain("The one way to hand work on");
+    expect(coordinate.description).toContain("Never send work back to your assigning bot or an ancestor");
     expect(coordinate.description).toContain("consult true asks a question");
     expect(coordinate.description).toContain('reply "none" is a one-way notice');
     expect(coordinate.description).toContain("never call assignment_status in the same turn");
@@ -707,16 +707,17 @@ describe("agents-proxy MCP surface", () => {
     const list = await rpc("tools/list");
     const tool = list.result.tools.find((entry: { name: string }) => entry.name === "select_computer");
     expect(tool.inputSchema).toMatchObject({ type: "object", additionalProperties: false,
-      properties: { surface: { type: "string", enum: ["auto", "cloud", "vm", "local", "browser"] } } });
+      properties: { surface: { type: "string", enum: ["auto", "local", "browser"] } } });
     expect(tool.inputSchema.required ?? []).not.toContain("surface");
     expect(tool.description).toContain("end this turn immediately");
-    expect(tool.description).toContain("with a configured provider it can start or provision one when needed");
-    expect(tool.description).toContain("Do not provision for ordinary chat or just to inspect availability");
+    expect(tool.description).toContain("Only a person's own message may call this once per request");
+    expect(tool.description).toContain("Never call it from a teammate, routine, webhook, continuation or room");
+    expect(tool.description).not.toMatch(/provision|boat|cloud|vps|local vm/i);
     expect(tool.annotations?.readOnlyHint).not.toBe(true);
   });
 
-  it.each(["auto", "cloud", "vm", "local", "browser"])("select_computer posts the requested %s target without inventing success", async (surface) => {
-    computerResponse = { state: "pending", surface: surface === "auto" ? "vm" : surface, instruction: "End this turn; the original request will resume." };
+  it.each(["auto", "local", "browser"])("select_computer posts the requested %s target without inventing success", async (surface) => {
+    computerResponse = { state: "pending", surface: surface === "auto" ? "browser" : surface, instruction: "End this turn; the original request will resume." };
     const response = await callTool("select_computer", { surface });
     expect(response.result.isError).toBeFalsy();
     expect(JSON.parse(response.result.content[0].text)).toEqual(computerResponse);
@@ -724,15 +725,15 @@ describe("agents-proxy MCP surface", () => {
     expect(lastAuth).toBe(`Bearer ${TOKEN}`);
   });
 
-  it.each(["other", "off", " VM ", 42, null, {}, ["vm"]].map((surface) => ({ surface })))("select_computer rejects invalid target $surface before contacting the server", async ({ surface }) => {
+  it.each(["other", "off", " VM ", "cloud", "vm", 42, null, {}, ["vm"]].map((surface) => ({ surface })))("select_computer rejects invalid target $surface before contacting the server", async ({ surface }) => {
     const response = await callTool("select_computer", { surface });
     expect(response.result.isError).toBe(true);
-    expect(response.result.content[0].text).toContain("Choose auto, cloud, vm, local or browser");
+    expect(response.result.content[0].text).toContain("Choose auto, local or browser");
     expect(computerRequests).toEqual([]);
   });
 
   it.each([
-    { status: 409, args: { surface: "cloud" }, error: "No existing cloud computer. Create one in the Computer panel first." },
+    { status: 409, args: { surface: "local" }, error: "The local computer is unavailable." },
     { status: 503, args: {}, error: "Computer discovery is temporarily unavailable." },
   ])("select_computer relays a $status server refusal as a tool error", async ({ status, args, error }) => {
     computerStatus = status;
@@ -892,31 +893,12 @@ describe("agents-proxy MCP surface", () => {
     });
   });
 
-  it("vm_exec returns the exit code and output as text, and marks a failure as an error", async () => {
-    const ok = await callTool("vm_exec", { command: "python3 make.py && ls -l report.pdf", timeout_seconds: 120 });
-    expect(ok.result.isError).toBeFalsy();
-    expect(ok.result.content[0].text).toBe("exit code 0\n--- stdout ---\nPDF_OK");
-    expect(lastExecBody).toEqual({ command: "python3 make.py && ls -l report.pdf", timeout_seconds: 120 });
-
-    execResponse = { exitCode: 1, stdout: "", stderr: "ModuleNotFoundError: No module named 'reportlab'\n", timedOut: false };
-    const failed = await callTool("vm_exec", { command: "python3 make.py" });
-    expect(failed.result.isError).toBe(true);
-    expect(failed.result.content[0].text).toBe("exit code 1\n--- stderr ---\nModuleNotFoundError: No module named 'reportlab'");
-    expect(lastExecBody).toEqual({ command: "python3 make.py" });
-
-    execResponse = { exitCode: 124, stdout: "partial", stderr: "", timedOut: true };
-    const slow = await callTool("vm_exec", { command: "sleep 999" });
-    expect(slow.result.isError).toBe(true);
-    expect(slow.result.content[0].text).toContain("ran past its time limit");
-    expect(slow.result.content[0].text).toContain("partial");
-
-    execStatus = 409;
-    execResponse = { error: "You have no Local VM desktop in this turn, so there is nowhere to run a command." };
-    const none = await callTool("vm_exec", { command: "ls" });
-    expect(none.result.isError).toBe(true);
-    expect(none.result.content[0].text).toContain("no Local VM desktop");
-    execStatus = 200;
-    execResponse = { exitCode: 0, stdout: "PDF_OK\n", stderr: "", timedOut: false };
+  it("does not list or accept vm_exec in the local product catalog", async () => {
+    const listed = await rpc("tools/list");
+    expect(listed.result.tools.map((tool: { name: string }) => tool.name)).not.toContain("vm_exec");
+    const refused = await rpc("tools/call", { name: "vm_exec", arguments: { command: "ls" } });
+    expect(refused.error).toBeDefined();
+    expect(lastExecBody).toBeNull();
   });
 
   it("attach_file sends only the path and name, and tells the model the file is in the chat", async () => {
@@ -1398,7 +1380,10 @@ describe("agents-proxy MCP surface", () => {
     expect(empty.result.content[0].text).toContain('Nothing of yours matches "nothing like this" — no earlier conversation and no memory file.');
 
     const missing = await callTool("session_search", {});
-    expect(missing.result.isError).toBe(true);
+    expect(missing.result.isError).toBeFalsy();
+    expect(lastSessionSearchUrl).toContain("since=24h");
+    expect(lastSessionSearchUrl).not.toContain("q=");
+    expect(missing.result.content[0].text).toContain("since 24h");
   });
 
   it("session_search by time forwards since/until without words, and names the room a hit came from", async () => {
@@ -1409,7 +1394,7 @@ describe("agents-proxy MCP surface", () => {
       ],
       memoryHits: [],
     };
-    const res = await callTool("session_search", { since: "2d" });
+    const res = await callTool("session_search", { since: "2d", thread_id: "", message_id: "" });
     expect(lastSessionSearchUrl).toContain("since=2d");
     expect(lastSessionSearchUrl).not.toContain("q=");
     const text = res.result.content[0].text as string;
@@ -1607,28 +1592,32 @@ describe("agents-proxy MCP surface", () => {
     expect(res.result.isError).toBeFalsy();
   });
 
-  it.each(["box", "cloud"])("maps %s execution to the explicit Boat runner without changing stored wire values", async (run_on) => {
+  it.each(["box", "cloud"])("rejects %s execution before sending a trigger request", async (run_on) => {
+    lastRoutineRequestBody = null;
     const res = await callTool("create_trigger", { when: "schedule",
       name: "Boat check", instructions: "Check explicitly on Boat.",
       schedule: { type: "daily", time: "09:00" }, run_on,
     });
-    expect(res.result.isError).toBeFalsy();
-    expect(lastRoutineRequestBody.routine.runOn).toBe("cloud");
+    expect(res.result.isError).toBe(true);
+    expect(res.result.content[0].text).toContain("No cloud request was sent");
+    expect(lastRoutineRequestBody).toBeNull();
     const update = await callTool("manage_trigger", {
       action: "update", trigger_id: "routine-morning", changes: { run_on, runOn: "cloud" },
     });
-    expect(update.result.isError).toBeFalsy();
-    expect(lastRoutineRequestBody.changes.runOn).toBe("cloud");
+    expect(update.result.isError).toBe(true);
+    expect(update.result.content[0].text).toContain("No cloud request was sent");
+    expect(lastRoutineRequestBody).toBeNull();
   });
 
-  it("advertises VPS-compatible default execution separately from the Boat runner", async () => {
+  it("advertises only the local routine destination", async () => {
     const list = await rpc("tools/list");
     const routine = list.result.tools.find((entry: { name: string }) => entry.name === "trigger");
-    expect(routine.inputSchema.properties.run_on.enum).toEqual(["maus", "box"]);
-    expect(routine.inputSchema.properties.run_on.description).toContain("INCLUDING a self-hosted VPS");
+    expect(routine.inputSchema.properties.run_on.enum).toEqual(["maus"]);
+    expect(routine.inputSchema.properties.run_on.description).not.toMatch(/cloud|boat|vps/i);
   });
 
-  it("preserves execution settings copied from list_triggers", async () => {
+  it("rejects legacy cloud execution settings copied from list_triggers", async () => {
+    lastRoutineRequestBody = null;
     const res = await callTool("create_trigger", { when: "schedule",
       name: "Cloud check",
       instructions: "Check the queue.",
@@ -1636,12 +1625,9 @@ describe("agents-proxy MCP surface", () => {
       runOn: "cloud",
       timeoutMinutes: 20,
     });
-    expect(res.result.isError).toBeFalsy();
-    expect(lastRoutineRequestBody.routine).toMatchObject({
-      runOn: "cloud",
-      timeoutMinutes: 20,
-      schedule: { type: "interval", everyMinutes: 15, anchorAt: "2026-09-01T09:00:00+05:30" },
-    });
+    expect(res.result.isError).toBe(true);
+    expect(res.result.content[0].text).toContain("No cloud request was sent");
+    expect(lastRoutineRequestBody).toBeNull();
   });
 
   it.each([
@@ -1908,6 +1894,14 @@ describe("agents-proxy MCP surface", () => {
     });
     expect(res.result.content[0].text).toContain("confirmation card is now visible");
     expect(res.result.content[0].text).toContain("do not claim the profile was created or changed");
+    expect(res.result.isError).toBeFalsy();
+  });
+
+  it("propose_profile records omitted explanation honestly and keeps the approval route", async () => {
+    lastProfileRequestBody = null;
+    const res = await callTool("propose_profile", { name: "Kiwi" });
+    expect(lastProfileRequestBody).toMatchObject({changes:{name:"Kiwi"},reason:"Profile update proposal (name); the model supplied no explanation."});
+    expect(res.result.content[0].text).toContain("confirmation card is now visible");
     expect(res.result.isError).toBeFalsy();
   });
 
@@ -2239,6 +2233,14 @@ describe("with computer sharing off and no Chief of Staff (the defaults)", () =>
 });
 
 describe("coordinate_bots arguments", () => {
+  it("omits an empty optional room ID when coordinating a direct teammate", async () => {
+    const res = await callTool("coordinate_bots", {
+      bot_ids: ["bot-helper"], group_id: "", message: "Please confirm your role.",
+    });
+    expect(res.result.isError).toBeFalsy();
+    expect(lastCoordinateBody).toEqual({ botIds: ["bot-helper"], message: "Please confirm your role." });
+  });
+
   it("maps camelCase aliases onto the canonical snake_case fields", async () => {
     const res = await callTool("coordinate_bots", {
       botIds: ["bot-helper"], message: "please review the patch",

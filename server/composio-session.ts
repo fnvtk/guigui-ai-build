@@ -16,6 +16,7 @@ import {
   type AuthConfigChoice,
   type AuthConfigMap,
 } from "./composio-project.ts";
+import { networkFetch } from "./network-fetch.ts";
 
 const sessionResponseSchema = z.object({
   session_id: z.string().min(1),
@@ -96,7 +97,7 @@ export function authConfigRefusal(id: string): string | undefined {
 }
 
 async function getProjectSession(apiKey: string, sessionId: string): Promise<SessionResponse | null> {
-  const res = await fetch(`${apiBase()}/tool_router/session/${encodeURIComponent(sessionId)}`, {
+  const res = await networkFetch(`${apiBase()}/tool_router/session/${encodeURIComponent(sessionId)}`, {
     headers: projectHeaders(apiKey),
     signal: AbortSignal.timeout(15_000),
   });
@@ -131,7 +132,7 @@ async function createProjectSession(apiKey: string, userId: string, authConfigs:
       multi_account: MULTI_ACCOUNT_CONFIG,
     };
     if (Object.keys(configs).length) sessionRequest.auth_configs = configs;
-    return fetch(`${apiBase()}/tool_router/session`, {
+    return networkFetch(`${apiBase()}/tool_router/session`, {
       method: "POST",
       headers: projectHeaders(apiKey, true),
       body: JSON.stringify(sessionRequest),
@@ -202,7 +203,7 @@ async function adoptProjectSession(
 
 /** The same Session naming `configs`, so a bot mid-conversation keeps its MCP endpoint; null when Composio won't. */
 async function nameAuthConfigsInPlace(apiKey: string, session: SessionResponse, configs: AuthConfigMap): Promise<SessionResponse | null> {
-  const res = await fetch(`${apiBase()}/tool_router/session/${encodeURIComponent(session.session_id)}`, {
+  const res = await networkFetch(`${apiBase()}/tool_router/session/${encodeURIComponent(session.session_id)}`, {
     method: "PATCH",
     headers: projectHeaders(apiKey, true),
     body: JSON.stringify({ auth_configs: configs }),

@@ -210,6 +210,50 @@ describe("one goal-run loop for a room and a one-on-one chat", () => {
     expect(goal.finished).toEqual([{ status: "blocked", detail: "Solo did not provide a valid next-step decision." }]);
   });
 
+  it("does not turn a canceled coordinator step into a blocked decision", async () => {
+    const goal = goalRun({ solo: true, steps: [{ ran: false, replyText: "", outcome: "cancelled" }] });
+    await goal.done;
+    expect(goal.finished).toEqual([]);
+  });
+
+  it("does not turn a canceled worker step into a failed run", async () => {
+    const goal = goalRun({
+      members: [{ id: "lead-id", name: "Lead" }, { id: "worker-id", name: "Worker" }],
+      steps: [
+        settled(envelope({ status: "continue", next: "worker-id", instruction: "Check the change", detail: "Checking" })),
+        { ran: false, replyText: "", outcome: "cancelled" },
+      ],
+    });
+    await goal.done;
+    expect(goal.finished).toEqual([]);
+  });
+
+  it("lets cancellation during an awaited step win over its invalid reply", async () => {
+    const members = [{ id: "solo-id", name: "Solo" }];
+    const run = { goal: "Get every test passing", turnCount: 0, maxTurns: GROUP_GOAL_MAX_TURNS, finished: false };
+    const finished: Array<{ status: GoalRunEnd; detail: string }> = [];
+    let cancelled = false;
+    let resolveStep!: (result: GoalStepResult) => void;
+    const stepResult = new Promise<GoalStepResult>((resolve) => { resolveStep = resolve; });
+    const done = runGoalRun({
+      run,
+      coordinator: members[0]!,
+      members,
+      solo: true,
+      cancelled: () => cancelled,
+      current: (id) => members.find((member) => member.id === id),
+      step: async () => stepResult,
+      finish: (status, detail) => finished.push({ status, detail }),
+      progress: () => {},
+      note: () => {},
+    });
+
+    cancelled = true;
+    resolveStep(settled("The new message interrupted this run."));
+    await done;
+    expect(finished).toEqual([]);
+  });
+
   it("blocks a room of one that repeats the same next step", async () => {
     const goal = goalRun({ solo: true, steps: [settled(envelope({ status: "continue", next: "solo-id", instruction: "Same thing", detail: "Again" }))] });
     await goal.done;

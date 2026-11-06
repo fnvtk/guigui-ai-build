@@ -352,3 +352,25 @@ it("knows a bridged call by the tool it ran, in the activity row, the work summa
     expect(logged("mcp__agents__use_tool")).toEqual(Array.from({ length: 4 }, () => ({ app: "Team", label: "Use tool", outcome: "failed" })));
   }, { FAKE_CLAUDE_TOOL_CALLS: JSON.stringify(calls) });
 }, hostTimeout(90_000));
+
+it("replays historical memory and coordination arguments through the isolated live agents proxy", async () => {
+  await withFixture(async ({ control, launched, api }) => {
+    const { bot } = await control(["new-bot", "--name", "Historical caller"]);
+    const { bot: peer } = await control(["new-bot", "--name", "Historical receiver"]);
+    await control(["send", "--bot", bot.id, "--text", "Stay active for tool verification."]);
+    const turn = await launched();
+    await withServer(turn.mcpConfig.mcpServers.agents!, async (ask) => {
+      const saved = await call(ask, "memory_update", { action: "prefer", old_text: "", text: "Fixture screenshots belong in the current chat." });
+      expect(saved.error).toBeUndefined();
+      expect(saved.result?.isError).not.toBe(true);
+      expect(textOf(saved)).toContain("About me");
+      expect((await api("GET", "/api/config")).body.profile.aboutMe).toContain("Fixture screenshots belong in the current chat.");
+      const sent = await call(ask, "coordinate_bots", { botIds: [peer.id], message: "Fixture verification: reply with receipt only.", doneWhen: "Return a receipt.", reply: "none" });
+      expect(sent.error).toBeUndefined();
+      expect(sent.result?.isError).not.toBe(true);
+      const receipt = JSON.parse(textOf(sent));
+      expect(receipt.receipts[0]).toMatchObject({ botId: peer.id });
+      expect(receipt.receipts[0].threadId).toBeTruthy();
+    });
+  });
+}, hostTimeout(120_000));

@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 // The tab strip and address bar above a bot's browser. The address bar follows pingdotgg/t3code@00cdceb1
 // apps/web/src/components/preview/PreviewChromeRow.tsx, MIT License, Copyright (c) 2026 T3 Tools Inc. (full text in
 // third_party/t3-code/LICENSE); modified: OpenMausBot's tabs, control pill and profile button.
@@ -84,15 +85,15 @@ export const ChromeRow = forwardRef<HTMLInputElement, {
   return (
     <div className="shrink-0 border-b border-hairline/40">
       <div className="flex min-h-10 items-center gap-1 px-2 pt-1">
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="Browser tabs">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label={translateUi("ui.literal.0ca91d33774e")}>
           {tabs.length ? tabs.map((tab) => (
             <div key={tab.tabId} className={`flex max-w-52 shrink-0 items-center gap-1 rounded-xl px-1 text-[12px] ${tab.active ? "bg-inset text-ink" : "text-ink-secondary"}`}>
               <Globe size={13} className="ml-1.5 shrink-0 opacity-60" aria-hidden="true" />
               <button role="tab" aria-selected={tab.active} className="truncate px-1 py-1.5 text-left disabled:cursor-default" disabled={!commandsReady} onClick={() => props.onCommand({ type: "tabSelect", tabId: tab.tabId })} title={tab.title || tab.url}>{tab.title || "New tab"}</button>
               <button className={button} aria-label={`Close ${tab.title || "tab"}`} disabled={!commandsReady} onClick={() => props.onCommand({ type: "tabClose", tabId: tab.tabId })}><X size={13} /></button>
             </div>
-          )) : <div className="flex items-center gap-2 rounded-xl bg-inset px-3 py-1.5 text-[12px] text-ink-secondary"><Globe size={13} aria-hidden="true" />New tab</div>}
-          <button className={`${button} shrink-0`} disabled={!commandsReady} aria-label="New tab" title="New tab" onClick={() => props.onCommand({ type: "tabNew" })}><Plus size={16} /></button>
+          )) : <div className="flex items-center gap-2 rounded-xl bg-inset px-3 py-1.5 text-[12px] text-ink-secondary"><Globe size={13} aria-hidden="true" />{translateUi("ui.literal.6f23a36f0aa1")}</div>}
+          <button className={`${button} shrink-0`} disabled={!commandsReady} aria-label={translateUi("ui.literal.6f23a36f0aa1")} title={translateUi("ui.literal.6f23a36f0aa1")} onClick={() => props.onCommand({ type: "tabNew" })}><Plus size={16} /></button>
         </div>
         <button
           type="button"
@@ -111,7 +112,7 @@ export const ChromeRow = forwardRef<HTMLInputElement, {
         </button>
         <button className={button} title={props.maximized ? "Restore size" : "Maximize"} aria-label={props.maximized ? "Restore size" : "Maximize"} onClick={props.onMaximize}>{props.maximized ? <Shrink size={15} /> : <Expand size={15} />}</button>
         <button className={button} title={props.fullscreen ? "Exit full screen" : "Full screen"} aria-label={props.fullscreen ? "Exit full screen" : "Full screen"} onClick={props.onFullscreen}>{props.fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
-        <button className={`${button} rounded-xl bg-inset p-1.5`} title={`Browser profile: ${props.profileName}`} aria-label="Browser profiles" onClick={props.onProfiles}><UserRound size={15} /></button>
+        <button className={`${button} rounded-xl bg-inset p-1.5`} title={`Browser profile: ${props.profileName}`} aria-label={translateUi("ui.literal.f7370dcb640c")} onClick={props.onProfiles}><UserRound size={15} /></button>
       </div>
       <form
         className="relative flex h-10 items-center gap-1 px-2"
@@ -121,16 +122,16 @@ export const ChromeRow = forwardRef<HTMLInputElement, {
           (addressRef && typeof addressRef === "object" ? addressRef.current : null)?.blur();
         }}
       >
-        <div className="flex shrink-0 items-center" role="group" aria-label="Navigation">
-          <button type="button" className={button} disabled={!commandsReady || !nav.canGoBack} aria-label="Back" title="Back" onClick={() => props.onCommand({ type: "history", delta: -1 })}><ArrowLeft size={16} /></button>
-          <button type="button" className={button} disabled={!commandsReady || !nav.canGoForward} aria-label="Forward" title="Forward" onClick={() => props.onCommand({ type: "history", delta: 1 })}><ArrowRight size={16} /></button>
-          <button type="button" className={button} disabled={!commandsReady} aria-label={nav.loading ? "Loading, reload page" : "Reload page"} title="Reload" onClick={() => props.onCommand({ type: "reload" })}>
+        <div className="flex shrink-0 items-center" role="group" aria-label={translateUi("ui.literal.cf03cf2e9cdf")}>
+          <button type="button" className={button} disabled={!commandsReady || !nav.canGoBack} aria-label={translateUi("ui.literal.b52b36b7269f")} title={translateUi("ui.literal.b52b36b7269f")} onClick={() => props.onCommand({ type: "history", delta: -1 })}><ArrowLeft size={16} /></button>
+          <button type="button" className={button} disabled={!commandsReady || !nav.canGoForward} aria-label={translateUi("ui.literal.ba4e72261283")} title={translateUi("ui.literal.ba4e72261283")} onClick={() => props.onCommand({ type: "history", delta: 1 })}><ArrowRight size={16} /></button>
+          <button type="button" className={button} disabled={!commandsReady} aria-label={nav.loading ? "Loading, reload page" : "Reload page"} title={translateUi("ui.literal.cce7155371fc")} onClick={() => props.onCommand({ type: "reload" })}>
             {nav.loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
           </button>
         </div>
         <input
           ref={addressRef}
-          aria-label="Browser address"
+          aria-label={translateUi("ui.literal.73d49f15f690")}
           readOnly={!commandsReady}
           value={editing ? draft : shown}
           onChange={(event) => setDraft(event.target.value)}

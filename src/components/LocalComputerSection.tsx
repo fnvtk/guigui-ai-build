@@ -1207,17 +1207,19 @@ export function LocalComputerSection() {
   return (
     <>
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
-      <CloudComputersCard
-        instances={cloudInventory}
-        configured={cloudConfigured}
-        loading={cloudLoading}
-        pending={cloudPending}
-        error={cloudError}
-        unavailableReason={cloudUnavailableReason}
-        onRefresh={() => setCloudRefreshKey((key) => key + 1)}
-        onSleep={(instance) => void actOnCloudComputer("sleep", instance)}
-        onDelete={(instance) => void actOnCloudComputer("delete", instance)}
-      />
+      {cloudConfigured && (
+        <CloudComputersCard
+          instances={cloudInventory}
+          configured={cloudConfigured}
+          loading={cloudLoading}
+          pending={cloudPending}
+          error={cloudError}
+          unavailableReason={cloudUnavailableReason}
+          onRefresh={() => setCloudRefreshKey((key) => key + 1)}
+          onSleep={(instance) => void actOnCloudComputer("sleep", instance)}
+          onDelete={(instance) => void actOnCloudComputer("delete", instance)}
+        />
+      )}
 
       <VpsComputersCard
         instances={vpsInventory}

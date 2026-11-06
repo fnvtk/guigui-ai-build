@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { SendKey } from "@/lib/send-key";
+import { setLocale } from "@/lib/i18n";
 
 const fixture = vi.hoisted(() => ({ sendKey: "enter" as SendKey }));
 vi.mock("@/lib/send-key", async (importOriginal) => ({
@@ -37,6 +38,15 @@ describe("KeyboardShortcutsModal", () => {
     expect(keys(html, "Send message")).toEqual(send);
     expect(keys(html, "Insert new line without sending")).toEqual(newLine);
     fixture.sendKey = "enter";
+  });
+
+  it("shows Chinese shortcut names in Chinese", () => {
+    setLocale("zh");
+    const html = renderToStaticMarkup(createElement(KeyboardShortcutsModal, { open: true, onClose: vi.fn() }));
+    expect(html).toContain("导航");
+    expect(html).toContain("打开命令面板（切换器与对话搜索）");
+    expect(html).toContain("聊天与输入");
+    setLocale("en");
   });
 
   it("does not render when closed", () => {

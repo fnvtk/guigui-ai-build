@@ -1,4 +1,5 @@
 import type { SendKey } from "./send-key";
+import { activeLocale } from "./i18n";
 
 export interface ShortcutItem {
   id: string;
@@ -141,15 +142,42 @@ const SEND_ROWS: Record<Exclude<SendKey, "enter">, [Keys, Keys, Keys]> = {
 };
 
 export function shortcutGroupsFor(sendKey: SendKey): readonly ShortcutGroup[] {
-  if (sendKey === "enter") return SHORTCUT_GROUPS;
-  const [send, newLine, followUp] = SEND_ROWS[sendKey];
-  return SHORTCUT_GROUPS.map((group) => ({
+  let groups: readonly ShortcutGroup[] = SHORTCUT_GROUPS;
+  if (sendKey !== "enter") {
+    const [send, newLine, followUp] = SEND_ROWS[sendKey];
+    groups = SHORTCUT_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        item.id === "send-message" ? { ...item, ...send }
+          : item.id === "new-line" ? { ...item, ...newLine }
+            : item.id === "send-follow-up" ? { ...item, ...followUp }
+              : item),
+    }));
+  }
+  if (!activeLocale().startsWith("zh")) return groups;
+  const categories = ["导航", "聊天与输入", "通话", "管理与群组"];
+  const descriptions: Record<string, string> = {
+    "command-palette": "打开命令面板（切换器与对话搜索）",
+    "new-bot": "新建机器人",
+    "jump-bot": "跳转到列表中的第 1–9 个机器人",
+    "toggle-sidebar": "收起或展开侧边栏",
+    "switch-bot": "切换到上一个或下一个机器人",
+    "find-conversation": "在当前对话中查找",
+    "send-message": "发送消息",
+    "new-line": "换行但不发送",
+    "send-follow-up": "机器人工作时：排队发送后续消息，或切换为直接调整当前任务",
+    "edit-last-message": "编辑上一条消息（输入框为空时）",
+    "close-panel": "关闭当前抽屉、弹窗或查找栏",
+    "shortcuts-cheat-sheet": "显示键盘快捷键",
+    "live-call-mute": "静音或取消静音",
+    "live-call-hang-up": "挂断实时通话",
+    "save-bulletin": "保存群组说明变更",
+    "reorder-section": "调整侧边栏分区顺序（先聚焦分区标题）",
+  };
+  return groups.map((group, index) => ({
     ...group,
-    items: group.items.map((item) =>
-      item.id === "send-message" ? { ...item, ...send }
-        : item.id === "new-line" ? { ...item, ...newLine }
-          : item.id === "send-follow-up" ? { ...item, ...followUp }
-            : item),
+    category: categories[index] ?? group.category,
+    items: group.items.map((item) => ({ ...item, description: descriptions[item.id] ?? item.description })),
   }));
 }
 

@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 
@@ -100,7 +101,7 @@ export function BotSettingsDialog({ bot, overlay = false }: {
     switch (id) {
       case "overview":
         return overview === null && overviewError ? (
-          <div className="rounded-xl bg-card p-4 text-[13px] text-ink-secondary">Couldn’t load the overview.</div>
+          <div className="rounded-xl bg-card p-4 text-[13px] text-ink-secondary">{translateUi("ui.literal.efc1edac7098")}</div>
         ) : (
           <OverviewSection
             overview={overview}
@@ -145,7 +146,7 @@ export function BotSettingsDialog({ bot, overlay = false }: {
         return <VisibilitySection bot={bot} />;
       case "history":
         return history.rows === null && history.error ? (
-          <div className="rounded-xl bg-card p-4 text-[13px] text-ink-secondary">Couldn’t load history.</div>
+          <div className="rounded-xl bg-card p-4 text-[13px] text-ink-secondary">{translateUi("ui.literal.1932c79116bb")}</div>
         ) : (
           <HistorySection
             bot={bot}
@@ -189,7 +190,7 @@ export function BotSettingsDialog({ bot, overlay = false }: {
             <button
               type="button"
               onClick={() => dispatch({ type: "toggleSettings", open: false })}
-              aria-label="Close settings"
+              aria-label={translateUi("ui.literal.6bf9c432ba11")}
               className="rounded-md p-1 text-ink-secondary hover:bg-control hover:text-ink"
             >
               <X size={18} className="pointer-events-none" />

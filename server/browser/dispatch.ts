@@ -385,12 +385,22 @@ export async function executeTool(context: ToolContext, call: ToolCall): Promise
       const tab = tabOf(context, call.input.tab);
       const { ms, text, ref, selector, gone, urlIncludes, load, timeoutMs } = call.input;
       return act(context, tab, async () => {
-        await tab.page.waitFor({
+        const result = await tab.page.waitFor({
           ...(ms !== undefined ? { ms } : {}), ...(text !== undefined ? { text } : {}),
           ...(ref !== undefined || selector !== undefined ? { target: { ...(ref !== undefined ? { ref } : {}), ...(selector !== undefined ? { selector } : {}) }, gone: gone === true } : {}),
           ...(urlIncludes !== undefined ? { urlIncludes } : {}), ...(load !== undefined ? { load } : {}),
           timeoutMs: Math.min(timeoutMs ?? DEFAULT_ACTION_MS, Math.max(0, context.deadline - Date.now() - FOLLOW_UP_MS)),
         });
+        if (!result.matched) {
+          if (text !== undefined) {
+            const message = `等待超时：尚未确认页面出现目标文字“${text}”，该条件未满足。`;
+            return {
+              ...textResult(message),
+              structuredContent: { matched: false, timedOut: true, text, timeoutMs: result.timeoutMs, message },
+            };
+          }
+          return errorResult(`Waited ${result.timeoutMs}ms without every condition holding.`);
+        }
         return textResult(`Done waiting; ${pageLabel(describe(tab))}.`);
       });
     }

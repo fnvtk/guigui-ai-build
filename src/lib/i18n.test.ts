@@ -205,13 +205,13 @@ describe("page language", () => {
     expect(root.lang).toBe("en");
   });
 
-  it("tags the page from the system language the moment the module loads", async () => {
+  it("starts the page in Chinese before saved language preferences load", async () => {
     const root = { lang: "en", dir: "" };
     vi.stubGlobal("document", { documentElement: root });
     vi.stubGlobal("navigator", { language: "ja-JP" });
     vi.resetModules();
     await import("./i18n");
-    expect(root).toEqual({ lang: "ja", dir: "ltr" });
+    expect(root).toEqual({ lang: "zh", dir: "ltr" });
   });
 
   it("still switches language where there is no page (tests, workers)", () => {

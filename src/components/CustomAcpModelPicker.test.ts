@@ -1,13 +1,8 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Children, createElement, isValidElement, type ChangeEvent, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import { Children, createElement, isValidElement, type ChangeEvent, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import type { AppState, Bot, InstanceInfo } from "@/state/store";
 import { Select } from "./Select";
-import { resolveCustomAcpModels } from "../../server/drivers/acp/custom-model-catalog";
 
 const fixture = vi.hoisted(() => {
   vi.stubGlobal("window", {});
@@ -35,17 +30,7 @@ vi.mock("@/state/store", async (original) => ({
     refreshInstances: vi.fn(() => Promise.resolve()), refreshModels: vi.fn(() => Promise.resolve()) }),
 }));
 const { ModelPicker, ModelVariantRow, modelSelectionForPick } = await import("./ModelPicker");
-const { SimpleModelMenu } = await import("./SimpleModelMenu");
-let nativeDirectory: string;
-let discovered: InstanceInfo["models"];
-beforeAll(async () => {
-  nativeDirectory = await mkdtemp(join(tmpdir(), "omb-custom-picker-ui-"));
-  const fakeCli = fileURLToPath(new URL("../../server/testing/fake-custom-acp-models.ts", import.meta.url));
-  discovered = await resolveCustomAcpModels({ HOME: nativeDirectory, USERPROFILE: nativeDirectory,
-    PATH: dirname(process.execPath), FAKE_CUSTOM_ACP_DIRECTORY: nativeDirectory },
-  { cli: `${JSON.stringify(process.execPath)} --experimental-strip-types ${JSON.stringify(fakeCli)}` });
-});
-afterAll(async () => { vi.unstubAllGlobals(); if (nativeDirectory) await rm(nativeDirectory, { recursive: true, force: true }); });
+
 beforeEach(() => {
   fixture.dispatch.mockClear(); fixture.modelVariantSessions = {};
   fixture.values = []; fixture.index = 0; fixture.own = 0; fixture.advanced = false;
@@ -87,33 +72,15 @@ function openPicker(selected: Bot) {
   return renderPicker(selected);
 }
 
-it.each(["zcode", "codebuddy", "qoder", "qodercn"])("offers discovered models in the complete %s picker and saves model then thinking for that bot", (instanceId) => {
-  fixture.instances = [{ ...engine(instanceId), models: discovered }];
-  const selected = bot(instanceId, "agent-default");
-  const opened = openPicker(selected);
-  const pane = opened.nodes.find((entry) => entry.type === SimpleModelMenu) as unknown as ReactElement<ComponentProps<typeof SimpleModelMenu>>;
-  const listed = pane.props.menu.groups.flatMap((group) => group.body.kind === "models" ? group.body.rows.map((row) => row.option.id) : []);
-  expect(pane.props.menu.current?.label).toBe("Agent default");
-  expect(listed).toEqual(expect.arrayContaining(["glm-5.3", "glm-5.3-flash"]));
-  expect(opened.html).toContain(">GLM-5.3-Flash</span>");
-  expect(opened.html).toContain(">GLM-5.3</span>");
-  pane.props.onPick(fixture.instances[0]!, "glm-5.3-flash");
-  expect(fixture.dispatch).toHaveBeenLastCalledWith({ type: "setModel", botId: selected.id, threadId: selected.threadId,
-    updateBotDefault: true, selection: { instanceId, model: "glm-5.3-flash" } });
-  const saved = { ...selected, modelSelection: { instanceId, model: "glm-5.3-flash" } };
-  const reopened = openPicker(saved);
-  const savedPane = reopened.nodes.find((entry) => entry.type === SimpleModelMenu) as unknown as ReactElement<ComponentProps<typeof SimpleModelMenu>>;
-  const variants = (savedPane.props.thinking as { variants: ReactElement<ComponentProps<typeof ModelVariantRow>> }).variants;
-  expect(variants.type).toBe(ModelVariantRow);
-  const nativeRow = ModelVariantRow(variants.props);
-  const thinking = elements(nativeRow).find((entry) => entry.type === Select)!;
-  expect(reopened.html).toContain(">high</option>");
-  expect(reopened.html).not.toContain(">Max</option>");
-  thinking.props.onChange!({ target: { value: "1" } } as ChangeEvent<HTMLSelectElement>);
-  expect(fixture.dispatch).toHaveBeenLastCalledWith({ type: "setModel", botId: selected.id, threadId: selected.threadId,
-    updateBotDefault: true, selection: { instanceId, model: "glm-5.3-flash", variant: "high" } });
-  fixture.values = []; fixture.index = 0; fixture.own = 0;
-  expect(openPicker({ ...saved, modelSelection: { ...saved.modelSelection, variant: "high" } }).html).toContain('selected="">high</option>');
+it.each(["zcode", "codebuddy", "qoder", "qodercn"])("does not expose %s model IDs in the product picker", (instanceId) => {
+  fixture.instances = [engine(instanceId)];
+  const opened = openPicker(bot(instanceId, "agent-default"));
+  expect(opened.html).toContain("选择服务档位");
+  expect(opened.html).toContain("乖乖 AI 服务暂未连接");
+  expect(opened.html).not.toContain("Agent default");
+  expect(opened.html).not.toContain("Full model");
+  expect(opened.html).not.toContain(instanceId);
+  expect(fixture.dispatch).not.toHaveBeenCalled();
 });
 
 it.each(["zcode", "codebuddy", "qoder", "qodercn"])("uses model-specific thinking choices and saves only the selected %s bot", (instanceId) => {
@@ -162,6 +129,7 @@ it("keeps an agent's native default label and uses a provider-neutral clear hint
   expect(row).toContain("Agent decides");
   expect(row).not.toContain("OpenCode");
   expect(row).toContain("the agent keeps its session or configured setting");
-  expect(renderPicker(selected).html).toContain("Agent decides");
-  expect(renderPicker(selected).html).not.toContain("OpenCode default");
+  expect(renderPicker(selected).html).toContain(">Pro</button>");
+  expect(renderPicker(selected).html).not.toContain("Agent decides");
+  expect(renderPicker(selected).html).not.toContain("OpenCode");
 });

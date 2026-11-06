@@ -22,7 +22,7 @@ export const AGENTS_ACTION_TOOLS: Readonly<Record<string, AgentsActionTool>> = {
   trigger: { members: ["create_trigger", "manage_trigger"], member: (args) => args.action === "create" ? "create_trigger" : "manage_trigger" },
   delete_trigger: { members: ["manage_trigger"], member: () => "manage_trigger" },
   manage_room: { members: ["manage_room", "create_room"], member: (args) => args.action === "create" ? "create_room" : "manage_room" },
-  session_search: { members: ["session_search", "session_read"], member: (args) => given(args, "thread_id") || given(args, "message_id") ? "session_read" : "session_search" },
+  session_search: { members: ["session_search", "session_read"], member: (args) => [args.thread_id, args.message_id].some(value => typeof value === "string" && value.trim()) ? "session_read" : "session_search" },
   show_widget: { members: ["show_widget", "update_widget"], member: (args) => given(args, "widget_id") ? "update_widget" : "show_widget" },
   show_html: { members: ["show_html", "update_html"], member: (args) => given(args, "app_id") ? "update_html" : "show_html" },
   x_search: {

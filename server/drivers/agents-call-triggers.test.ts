@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { callTool, type ToolCallContext } from "./agents-call.ts";
+import { fullInputSchema } from "./agents-catalog.ts";
 
 function context(answers: { api?: unknown; response?: { ok: boolean; status: number; body: Record<string, unknown> } } = {}) {
   const calls: Array<{ path: string; body?: unknown }> = [];
@@ -106,6 +107,23 @@ describe("the trigger tool's actions", () => {
     expect(refused.calls).toEqual([]);
   });
 
+  it("allows only run_on=maus and rejects cloud create/update before an API request", async () => {
+    const schema = fullInputSchema("trigger") as { properties: { run_on: { enum: string[] } } };
+    expect(schema.properties.run_on.enum).toEqual(["maus"]);
+    for (const args of [
+      { action: "create", when: "schedule", name: "Cloud", instructions: "Check", schedule: { type: "daily", time: "09:00" }, run_on: "cloud" },
+      { action: "update", trigger_id: "t-1", run_on: "box" },
+      { action: "update", trigger_id: "t-1", runOn: "cloud" },
+    ]) {
+      const refused = context();
+      const result = await callTool("trigger", args, refused.context);
+      expect(result.isError).toBe(true);
+      expect(result.text).toContain('run_on="maus"');
+      expect(result.text).toContain("No cloud request was sent");
+      expect(refused.calls).toEqual([]);
+    }
+  });
+
   it("lists triggers or events by action", async () => {
     const listed = context({ api: { now: "2026-10-29T09:00:00Z", timeZone: "UTC", triggers: [] } });
     expect((await callTool("trigger_info", { action: "list", for_bot_id: "helper" }, listed.context)).text).toContain("This bot has no triggers.");
@@ -113,6 +131,20 @@ describe("the trigger tool's actions", () => {
     const events = context({ api: { apps: [], notConnected: [] } });
     await callTool("trigger_info", { action: "events", app: "Gmail" }, events.context);
     expect(events.calls[0]!.path).toBe("/api/internal/trigger-events?fromBotId=scout&fromThreadId=thread-1&app=gmail");
+  });
+
+  it("defaults only a missing trigger_info action to the declared read-only list", async () => {
+    const schema = fullInputSchema("trigger_info") as { required?: string[]; properties: { action: { default?: string } } };
+    expect(schema.required ?? []).not.toContain("action");
+    expect(schema.properties.action.default).toBe("list");
+    const missing = context();
+    expect((await callTool("trigger_info", {}, missing.context)).isError).toBeUndefined();
+    expect(missing.calls[0]!.path).toContain("/api/internal/triggers?");
+    for (const args of [{ action: "" }, { action: 7 }]) {
+      expect((await callTool("trigger_info", args, missing.context)).text).toBe("trigger_info action is list or events.");
+    }
+    expect((await callTool("trigger_info", { action: null }, missing.context)).isError).toBe(true);
+    expect(missing.calls).toHaveLength(1);
   });
 });
 

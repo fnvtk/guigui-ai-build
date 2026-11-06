@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { boatCapableEngine } from "@/lib/remote-desktop";
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, CalendarDays, Globe, ImageOff, Loader2, Monitor, Plus, X } from "lucide-react";
@@ -213,13 +214,13 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
     <aside className="relative z-20 flex h-full w-[400px] shrink-0 flex-col border-l border-hairline bg-panel" ref={panelRef} data-computer-panel>
       <div {...dragProps} className="flex items-center justify-between border-b border-hairline px-5 py-4">
         <div>
-          <div className="text-[14px] font-medium text-ink">{bot.name}&apos;s computer</div>
+          <div className="text-[14px] font-medium text-ink">{bot.name}{translateUi("ui.literal.0d04e4e99dfc")}</div>
           <div className="mt-0.5 text-[11px] text-ink-secondary">
             {bot.cloudBackend === "vps" ? "Self-hosted VPS" : "Cloud desktop"}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <div className="flex rounded-full bg-inset p-0.5" aria-label="Bot panel view">
+          <div className="flex rounded-full bg-inset p-0.5" aria-label={translateUi("ui.literal.968011b91a9c")}>
             {(["desktop", "browser"] as const).map((option) => (
               <button
                 key={option}
@@ -241,7 +242,7 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
               dispatch({ type: "toggleComputer", open: false });
             }}
             className="rounded-md p-1 text-ink-secondary hover:bg-control hover:text-ink"
-            aria-label="Close computer panel"
+            aria-label={translateUi("ui.literal.e65beefed75b")}
           >
             <X size={18} />
           </button>
@@ -254,7 +255,7 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
           <BrowserPanel bot={bot} signIn={signIn} />
           {error && <div role="alert" className="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-[12px] text-danger">{error}</div>}
           <p className="mt-2 text-[11px] leading-relaxed text-ink-secondary">
-            Watching and driving this browser needs browser control for this paired device, in Settings → Remote access on the host computer.
+            {translateUi("ui.literal.9d860a9d7fd9")}
           </p>
         </div>
       ) : (
@@ -279,14 +280,14 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
           )}
           {frame && (
             <span className="absolute inset-x-0 bottom-0 bg-black/65 py-2 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-              Open live desktop
+              {translateUi("ui.literal.5d8881707419")}
             </span>
           )}
         </button>
         <div>
-          <div className="text-[14px] font-medium text-ink">Open the live desktop</div>
+          <div className="text-[14px] font-medium text-ink">{translateUi("ui.literal.520e3b6289de")}</div>
           <p className="mt-2 text-[12px] leading-relaxed text-ink-secondary">
-            The host creates a temporary, encrypted viewer relay. VPS SSH and VNC credentials stay on the host computer.
+            {translateUi("ui.literal.5f6aa665a196")}
           </p>
         </div>
         <button
@@ -304,14 +305,14 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
           </div>
         )}
         <p className="text-[11px] leading-relaxed text-ink-secondary">
-          The host must enable cloud desktop access for this paired device in Settings → Remote access.
+          {translateUi("ui.literal.3e5777e3db89")}
         </p>
 
         <div className="w-full rounded-xl bg-card p-4 text-left">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[15px] font-medium text-ink">
               <CalendarClock size={16} className="text-accent" />
-              Scheduled tasks
+              {translateUi("ui.literal.417b1aedac95")}
             </div>
             {botRoutines.length > 0 && (
               <span className="rounded-full bg-control px-2 py-0.5 text-[10px] font-medium text-ink-secondary">
@@ -359,16 +360,16 @@ export function RemoteDesktopPanel({ bot }: { bot: Bot }) {
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent py-2 text-[13px] font-medium text-white hover:brightness-110"
             >
               <Plus size={14} />
-              Create schedule
+              {translateUi("ui.literal.cf7973579e88")}
             </button>
             <button
               type="button"
               onClick={() => dispatch({ type: "showRoutines" })}
               className="flex items-center justify-center gap-1.5 rounded-lg bg-control px-3 py-2 text-[13px] text-ink hover:bg-raised-hover"
-              title="Open schedules"
+              title={translateUi("ui.literal.586c9acb4806")}
             >
               <CalendarDays size={14} />
-              Schedules
+              {translateUi("ui.literal.26d9d0892966")}
             </button>
           </div>
         </div>

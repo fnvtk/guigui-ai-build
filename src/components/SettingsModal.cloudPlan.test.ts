@@ -4,48 +4,50 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettingsSection } from "@/state/store";
 import { SettingsModal } from "./SettingsModal";
 
-const fixture = vi.hoisted(() => ({ section: "cloudAccount" as AppSettingsSection, config: undefined as { cloudHome?: boolean } | undefined, advanced: false }));
+const fixture = vi.hoisted(() => ({ section: "cloudAccount" as AppSettingsSection, config: { rooms: { turnTimeoutMinutes: 5 }, threads: {} } as Record<string, unknown>, advanced: false }));
 vi.mock("@/lib/interface-mode", () => ({ useAdvancedMode: () => fixture.advanced, setAdvancedMode: vi.fn() }));
 vi.mock("./DesktopCapabilities", () => ({ useDesktopCapabilities: () => ({ capabilities: {} }) }));
 vi.mock("@/state/store", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/state/store")>(),
   api: vi.fn(),
-  useStore: () => ({ state: { appSettingsSection: fixture.section, config: fixture.config }, dispatch: vi.fn() }),
+  useStore: () => ({ state: { appSettingsSection: fixture.section, config: fixture.config, instances: [], bots: [] }, dispatch: vi.fn() }),
 }));
 vi.mock("./CloudAccountSettings", () => ({
   CloudAccountSettings: ({ cloudHome, onAddCloud }: { cloudHome?: boolean; onAddCloud?: () => void }) => `CLOUD_PLAN_MARKER${cloudHome ? " home" : ""}${onAddCloud ? " offer" : ""}`,
 }));
+vi.mock("./AutomaticRecoverySettings", () => ({ AutomaticRecoverySettings: () => null }));
+vi.mock("./RoomTurnTimeoutSettings", () => ({ RoomTurnTimeoutSettings: () => null }));
 
 const plan = { state: vi.fn(), manage: vi.fn() };
 beforeEach(() => {
-  fixture.section = "cloudAccount"; fixture.config = undefined;
+  fixture.section = "cloudAccount"; fixture.config = { rooms: { turnTimeoutMinutes: 5 }, threads: {} };
   vi.stubGlobal("document", { documentElement: { dataset: {} } });
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 const render = () => renderToStaticMarkup(createElement(SettingsModal));
 
-describe.each(["Simple", "Advanced"] as const)("%s Settings → OMB Cloud on a server open in the app's window", (mode) => {
+describe.each(["Simple", "Advanced"] as const)("%s Settings after removing Cloud account settings", (mode) => {
   beforeEach(() => { fixture.advanced = mode === "Advanced"; });
-  const reachable = () => fixture.advanced ? 'data-settings-section="cloudAccount"' : 'data-settings-block="cloudAccount"';
-  it("is not offered on a server that is not an OMB Cloud home", () => {
+  const expectNoCloudEntryAndGeneral = (html: string) => {
+    expect(html).not.toContain("CLOUD_PLAN_MARKER");
+    expect(html).not.toContain('data-settings-section="cloudAccount"');
+    expect(html).not.toContain('data-settings-block="cloudAccount"');
+    expect(html).toContain(fixture.advanced ? 'data-settings-section="general" aria-current="page"' : 'data-settings-page="general" aria-current="page"');
+  };
+
+  it("redirects an old Cloud account deep link to General when only a plan bridge exists", () => {
     vi.stubGlobal("window", { ogb: { cloudPlan: plan } });
-    const html = render();
-    expect(html).not.toContain("CLOUD_PLAN_MARKER"); expect(html).not.toContain(reachable());
+    expectNoCloudEntryAndGeneral(render());
   });
-  it("shows the plan, read only, on the person's own Cloud", () => {
+
+  it("keeps the old Cloud link unavailable on a Cloud home", () => {
     vi.stubGlobal("window", { ogb: { cloudPlan: plan } });
-    fixture.config = { cloudHome: true };
-    const html = render();
-    expect(html).toContain("CLOUD_PLAN_MARKER home"); expect(html).toContain(reachable());
-    expect(html).toContain(fixture.advanced ? 'value="cloudAccount"' : 'data-settings-page="billing"');
+    fixture.config = { rooms: { turnTimeoutMinutes: 5 }, threads: {}, cloudHome: true };
+    expectNoCloudEntryAndGeneral(render());
   });
-  it("is the full account section in the app on this computer", () => {
+
+  it("does not restore the account entry when the native account bridge exists", () => {
     vi.stubGlobal("window", { ogb: { cloudAccount: {}, cloudPlan: plan } });
-    const html = render();
-    expect(html).toContain("CLOUD_PLAN_MARKER");
-    expect(html).not.toContain("CLOUD_PLAN_MARKER home");
-    expect(html).toContain(reachable());
-    // Simple's plan row above the card already carries the offer, so the card does not repeat it.
-    expect(html.includes("CLOUD_PLAN_MARKER offer")).toBe(fixture.advanced);
+    expectNoCloudEntryAndGeneral(render());
   });
 });

@@ -250,7 +250,6 @@ describe("find_tool", () => {
     ["switch this bot to a different model", "propose_model"],
     ["search my earlier conversations", "session_search"],
     ["delete one of my routines for good", "delete_trigger"],
-    ["run a shell command in the VM", "vm_exec"],
     ["add an MCP server", "add_mcp_server"],
     ["see how the threads I opened are going", "list_threads"],
     ["write a line to today's log", "memory_log"],
@@ -342,9 +341,9 @@ describe("find_tool", () => {
       const matches = answer.isError ? [] : (JSON.parse(answer.text) as FindPayload).matches;
       for (const match of matches) expect(allowed.has(match.name), `${query} → ${match.name}`).toBe(true);
     }
-    // and a Cloud home, which has no Local VM, cannot find its shell
+    // VM shell tools are not part of the supported product catalog.
     expect(names((await found(bridgeFor({ cloudHome: true }), "run a shell command in the VM")).matches)).not.toContain("vm_exec");
-    expect(names((await found(bridgeFor(), "run a shell command in the VM")).matches)).toContain("vm_exec");
+    expect(names((await found(bridgeFor(), "run a shell command in the VM")).matches)).not.toContain("vm_exec");
   });
 
   it("points at the tool list for a tool that is already in it", async () => {

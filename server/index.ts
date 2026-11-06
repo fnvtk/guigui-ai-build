@@ -1,3 +1,14 @@
+import { createWechatNativeBilling, type WechatNativeConfig } from "./guai-billing-wechat.ts";
+import { GuaiWechatSqliteOrderStore } from "./guai-wechat-orders.ts";
+import { importGuaiWechatCredentials } from "./guai-wechat-import.ts";
+import { createGuaiWechatFulfillment } from "./guai-billing-fulfillment.ts";
+import { GuaiWechatSqliteEntitlementStore } from "./guai-wechat-entitlements.ts";
+import { guaiSurfacePlan, guaiOffersSurface, guaiRemovedDesktopPath } from "./guai-local-product.ts";
+import { createGuaiWechatConfigRoutes } from "./routes/guai-wechat-config.ts";
+import { GuaiBillingLocalModule, GUAI_BILLING_REFERENCE_CATALOG } from "./guai-billing-local-module.ts";
+import { createGuaiBilling } from "./guai-billing.ts";
+import { GuaiBillingSqliteStore } from "./guai-billing-store.ts";
+import { createGuaiBillingRoutes } from "./routes/guai-billing.ts";
 // Import first: it reads a Cloud home's secrets off the launcher's pipe before any module can start a process.
 import { BOOT_CLOUD_SECRETS } from "./cloud-secrets-boot.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -313,6 +324,7 @@ import {
   type Message,
   type TaskRecord,
   toWireTask,
+  toPublicModelSelection,
 } from "./store.ts";
 import * as tts from "./tts/index.ts";
 import { createDecider, deciderReady, describeDecider } from "./decider/index.ts"; import { createExtractor, describeHelpers } from "./extractor/index.ts";
@@ -505,7 +517,7 @@ import { keepTransient, lazyClaimRetryText, settledWithin, startAutoVmClaim, wit
 import { CONTROL_ACT_WITHIN_MS, CONTROL_BUSY, CONTROL_HANDED_BACK, CONTROL_WAIT_MS, CONTROL_WAITED, controlRefusal, type ControlState } from "./control-client.ts";
 import { computerFreeAfterText, computerParkedText, computerPersonAwayText, computerStoppedWaitingText, computerWaitingText, type ComputerHolder } from "./computer-wait.ts";
 import { modelContextWindow } from "./model-context-window.ts";
-import { browserIsThePlace, chosenPin, cloudPlaceRefusal, computerSkippedNote, computerToolsRefusal, parseSurface, PlaceUnavailableError, placeUnavailable, resolveSurface, surfaceLabel, surfaceOfComputerKind, surfacePrompt, type ComputerWant, type PlaceSource, type Surface } from "./surface.ts";
+import { browserIsThePlace, chosenPin, cloudPlaceRefusal, computerSkippedNote, computerToolsRefusal, parseSurface, PlaceUnavailableError, placeUnavailable, surfaceLabel, surfaceOfComputerKind, surfacePrompt, type ComputerWant, type PlaceSource, type Surface } from "./surface.ts";
 import { cloudRefusal, type PlaceRow } from "../shared/place-view.ts";
 import {
   PendingTurnCancellations,
@@ -2947,13 +2959,13 @@ const wireTask = (task: TaskRecord, botModel: ModelSelection, awaiting = threads
 
 /** Strips provider session ids (resumeCursors) here, not at call sites, so no broadcast or paired phone ever gets them. */
 const wireBot = (bot: BotRecord): WireBot => {
-  const { resumeCursors: _resumeCursors, tasks, approvalGrant, lastProfileRequestId: _lastProfileRequestId, lastTeamSetupReceipt: _lastTeamSetupReceipt, packageBase: _packageBase, assignedSkills: _assignedSkills, ...rest } = bot;
+  const { resumeCursors: _resumeCursors, tasks, fallback: _fallback, approvalGrant, lastProfileRequestId: _lastProfileRequestId, lastTeamSetupReceipt: _lastTeamSetupReceipt, packageBase: _packageBase, assignedSkills: _assignedSkills, ...rest } = bot;
   // Clients see Ask while an elevated grant awaits the desktop's confirmation, never a grant that may still roll back.
   const visible = approvalGrant && !approvalGrant.threadOnly
     ? { ...rest, approvalMode: "ask" as const, autoApprove: false }
     : { ...rest, approvalMode: approvalModeFor(rest) };
   const awaiting = threadsAwaitingTeammates();
-  return { ...visible, waitingForTeammates: awaiting.has(bot.threadId) && !threadBusy(bot.id, bot.threadId),
+  return { ...visible, modelSelection: toPublicModelSelection(bot.modelSelection), waitingForTeammates: awaiting.has(bot.threadId) && !threadBusy(bot.id, bot.threadId),
     mainThreadId: botMainThread(bot.id),
     avatarUrl: visible.avatarUrl ?? null, ...(tasks ? { tasks: tasks.map((task) => wireTask(task, bot.modelSelection, awaiting)) } : {}) };
 };
@@ -2967,9 +2979,9 @@ function toolScopeForTurn(botId: string) {
 }
 
 const wireTrustedApprovalBot = (bot: NonNullable<ReturnType<typeof store.bot>>) => {
-  const { resumeCursors: _resumeCursors, tasks, approvalGrant: _approvalGrant, lastProfileRequestId: _lastProfileRequestId, lastTeamSetupReceipt: _lastTeamSetupReceipt, packageBase: _packageBase, assignedSkills: _assignedSkills, ...rest } = bot;
+  const { resumeCursors: _resumeCursors, tasks, fallback: _fallback, approvalGrant: _approvalGrant, lastProfileRequestId: _lastProfileRequestId, lastTeamSetupReceipt: _lastTeamSetupReceipt, packageBase: _packageBase, assignedSkills: _assignedSkills, ...rest } = bot;
   const awaiting = threadsAwaitingTeammates();
-  return { ...rest, approvalMode: approvalModeFor(rest), mainThreadId: botMainThread(bot.id), avatarUrl: rest.avatarUrl ?? null, ...(tasks ? { tasks: tasks.map((task) => wireTask(task, bot.modelSelection, awaiting)) } : {}) };
+  return { ...rest, modelSelection: toPublicModelSelection(bot.modelSelection), approvalMode: approvalModeFor(rest), mainThreadId: botMainThread(bot.id), avatarUrl: rest.avatarUrl ?? null, ...(tasks ? { tasks: tasks.map((task) => wireTask(task, bot.modelSelection, awaiting)) } : {}) };
 };
 
 function previewSystemPrompt(bot: BotRecord) {
@@ -2990,7 +3002,7 @@ function previewSystemPrompt(bot: BotRecord) {
       ? peerRosterSystemPrompt(peers, bot)
       : "";
   const agentsMounted = caps?.agentsMcp === true;
-  const previewPlan = resolveSurface({
+  const previewPlan = guaiSurfacePlan({
     destination: previewComputer,
     browserOn: caps?.browserMcp === true && builtInBrowserEnabled(cfg) && bot.browser !== false,
   });
@@ -5729,8 +5741,8 @@ const cloudComputerPower = createCloudComputerPower({
   claim: owner => { const team = teamComputers.list().find(entry => teamComputerOwner(entry.id) === owner); return team ? claimTeamComputerLifecycle(team) : claimBotComputerLifecycle(owner); },
 });
 
-function inheritedTeamComputer(bot: Pick<BotRecord, "section" | "computer" | "cloudBackend">): TeamComputerRecord | undefined {
-  return teamComputers.forBot(bot);
+function inheritedTeamComputer(_bot: Pick<BotRecord, "section" | "computer" | "cloudBackend">): TeamComputerRecord | undefined {
+  return undefined;
 }
 
 function teamComputerPrompt(computer: TeamComputerRecord | undefined): string {
@@ -6058,18 +6070,15 @@ function providerOperationConflict(provider: RemoteComputerProvider): string | n
 function turnSurfacePlan(bot: BotRecord, runOn?: RoutineRunOn, threadId?: string, chosen = false) {
   const instance = registry.get(bot.modelSelection.instanceId), forcedBoat = runOn === "cloud" || Boolean(inheritedTeamComputer(bot));
   const task = forcedBoat || !threadId ? undefined : store.taskByThread(bot.id, threadId);
-  return resolveSurface({
+  return guaiSurfacePlan({
     destination: threadId && proactive.fence.confines(threadId) ? "off" : forcedBoat ? "cloud" : bot.computer,
     pinnedSurface: chosen ? chosenPin(task) : task?.surface, botOpened: Boolean(task?.openedBy),
     browserOn: builtInBrowserEnabled(cfg) && bot.browser !== false && instance?.adapter.capabilities.browserMcp === true,
   });
 }
 
-function turnProvider(bot: BotRecord, runOn?: RoutineRunOn, threadId?: string): RemoteComputerProvider | null {
-  if (runOn === "cloud" || inheritedTeamComputer(bot)) return "box";
-  const wants = turnSurfacePlan(bot, runOn, threadId).computer;
-  if (wants !== undefined && wants !== "cloud") return null;
-  return bot.cloudBackend === "vps" ? "vps" : wants === "cloud" ? "box" : null;
+function turnProvider(_bot: BotRecord, _runOn?: RoutineRunOn, _threadId?: string): RemoteComputerProvider | null {
+  return null;
 }
 
 /** A query never grants lifecycle authority. */
@@ -6106,7 +6115,7 @@ async function selectableComputers(bot: BotRecord) {
   const caps = instance?.adapter.capabilities;
   const off = bot.computer === "off";
   const toolsLeaveOut = computerToolsRefusal(bot.toolScope, "works-on", bot.name)?.message;
-  const surfaces = (["cloud", "vm", "local", "browser"] as const).filter(surface => !CLOUD_HOME || cloudHomeOffersPlace(surface));
+  const surfaces = (["cloud", "vm", "local", "browser"] as const).filter(surface => guaiOffersSurface(surface) && (!CLOUD_HOME || cloudHomeOffersPlace(surface)));
   let ownDesktopAwaitsUpdate = false;
   return withoutHostWhileUpdating(await Promise.all(surfaces.map(async surface => {
     let ready = false;
@@ -6149,6 +6158,9 @@ async function selectableComputers(bot: BotRecord) {
       } else if (surface === "local") {
         ready = shouldMountLocalComputer({ requested: "local", hostPlatform: process.platform,
           providerSupportsLocal: caps?.localComputerMcp === true }) && Boolean(desktopComputer.connection());
+        if (!ready) reason = caps?.localComputerMcp !== true
+          ? "This model does not support tools on this computer. Choose a model with local computer support."
+          : thisComputerNotReady();
       } else if (surface === "browser") {
         ready = browserSelectable(bot);
         reason = "The built-in browser is disabled, not installed, or unsupported by this model.";
@@ -7903,13 +7915,6 @@ async function startTurn(
         await engineRead;
         if (!directTurnClaimIsCurrent(bot.id, dispatchClaimId, threadId)) throw new DirectTurnSetupCancelled("turn stopped while the engine was read");
       }
-      if (opts?.runOn === "cloud") {
-        const readiness = await cloudRoutineReadiness(botId, threadId);
-        if (!directTurnClaimIsCurrent(bot.id, dispatchClaimId, threadId)) {
-          throw new DirectTurnSetupCancelled("turn stopped during cloud readiness");
-        }
-        if (!readiness.ready) throw new Error(readiness.reason ?? "The cloud computer is not ready");
-      }
       await warmSummaries.beforeTurn(threadId, () => directTurnClaimIsCurrent(bot.id, dispatchClaimId, threadId));
       await compactConversation({ bot, threadId, generation: dispatchClaimId, instance, model,
         excludedIds: new Set([userMessage.id, ...(opts?.excludeMessageIds ?? [])]), manual: opts?.compactOnly === true });
@@ -8287,7 +8292,7 @@ async function startTurn(
         }
 
           // Auto stays read-only on the VPS unless the person opted this bot into remote lifecycle actions.
-        if ((wants === "cloud" || (wants === undefined && managedPolicy.computerAllowed("vps"))) && cloudBackend === "vps" &&
+        if (wants === "cloud" && cloudBackend === "vps" &&
             canWorkOnCloud(cloudEngine(instance))) {
           vpsThreadStarted(bot.id, threadId);
           const mounted = await mountBotVps(bot, resourceOwner, {
@@ -8339,7 +8344,6 @@ async function startTurn(
       }
 
       // Electron owns cua-driver and its TCC attribution; the harness only reads its running connection descriptor.
-      if (wants === undefined && !integrations.localComputer && !computerPlaceRefusal("localVm") && await attachLocalVm(false)) computerKind = "vm";
       // An unattended run with a VPS configured never lands on the host's own desktop, nor does a bot whose own desktop awaits an update.
       const hostBarred = (cloudBackend === "vps" && Boolean(opts?.automationSource)) || autoVpsOutdated || Boolean(vmUpdateNote);
       if (
@@ -9070,40 +9074,10 @@ if (recoveryOwners.length > 0) {
   );
 }
 
-async function cloudRoutineReadiness(botId: string, threadId?: string): Promise<{ ready: boolean; reason?: string }> {
-  const projected = threadId ? store.projectBotForTask(botId, threadId) : store.bot(botId);
-  const selection = threadId ? turnSelection(botId, threadId) : projected?.modelSelection;
-  const bot = projected && selection ? { ...projected, modelSelection: selection } : projected;
-  if (!bot || bot.hidden) return { ready: false, reason: "The routine's target bot no longer exists." };
-  if (!boat.boatConfigured(cfg)) {
-    return {
-      ready: false,
-      reason: `${boatNotConfigured(bot, "routine").message} For the bot's configured computer, including a self-hosted VPS, set run_on="maus" instead.`,
-    };
-  }
-  const instance = registry.get(bot.modelSelection.instanceId);
-  if (!instance) return { ready: false, reason: "The target bot's model is unavailable. Choose another model in the bot's settings." };
-  const unsupported = cloudPlaceRefusal(cloudEngine(instance, bot.modelSelection.model), "routine", bot.name);
-  if (unsupported) return { ready: false, reason: unsupported.message };
-  try {
-    if ((await instance.snapshot()).state !== "available") {
-      return { ready: false, reason: "The target bot's model is not ready to use the cloud computer." };
-    }
-    const teamComputer = inheritedTeamComputer(bot);
-    const ownerId = teamComputer ? teamComputerOwner(teamComputer.id) : bot.id;
-    const machine = await boat.findBoat(cfg, ownerId);
-    if (teamComputer && !machine) {
-      return { ready: false, reason: "The team's cloud computer is missing; explicitly create or retry it from the Team map." };
-    }
-      // This probe checks identity and account only, without starting billing.
-    return { ready: true };
-  } catch (error) {
-    return {
-      ready: false,
-      reason: `The target bot's cloud computer could not be checked: ${redactSecretsInText(error instanceof Error ? error.message : String(error))}`,
-    };
-  }
+async function cloudRoutineReadiness(_botId: string, _threadId?: string): Promise<{ ready: boolean; reason?: string }> {
+  return { ready: false, reason: "当前版本已移除云端执行，请将定时任务的执行位置改为本机。" };
 }
+
 const routineRequests = new RoutineRequestService({
   store,
   routines, engines: { name: engineName, resetAt: (engine) => limitClock.resetAt(engine), botEngine: (botId) => store.bot(botId)?.modelSelection.instanceId },
@@ -10079,14 +10053,14 @@ async function runClaimedGroupMemberTurn(
 
   // Mint only after claiming the fresh bot, so a deleted profile is never resurrected; "Works on" applies exactly as in a 1:1, so a room is no loophole.
   const roomTeamComputer = inheritedTeamComputer(readyBot);
-  const roomPlan = resolveSurface({
+  const roomPlan = guaiSurfacePlan({
     destination: roomTeamComputer ? "cloud" : readyBot.computer,
     browserOn:
       builtInBrowserEnabled(cfg) &&
       readyBot.browser !== false &&
       instance.adapter.capabilities.browserMcp === true,
   });
-  const roomKind = roomTeamComputer ? "box" : roomPlan.computer === "local" ? "thisComputer" : readyBot.computer === "vm" ? "localVm"
+  const roomKind = roomTeamComputer ? "box" : roomPlan.computer === "local" ? "thisComputer" : roomPlan.computer === "vm" ? "localVm"
     : roomPlan.computer === "cloud" ? (turnProvider(readyBot) === "vps" ? "vps" : "box") : undefined;
   const roomPlaceRefusal = roomKind && computerPlaceRefusal(roomKind);
   if (roomPlaceRefusal) throw Object.assign(new Error(roomPlaceRefusal.message), { code: roomPlaceRefusal.code });
@@ -10176,7 +10150,7 @@ async function runClaimedGroupMemberTurn(
     }
 
     // The speaker's desktop, never the coordinator's; claim the lease before asynchronous VM setup.
-    if (readyBot.computer === "vm") {
+    if (roomPlan.computer === "vm") {
       if (instance.adapter.capabilities.computerMcp !== true) {
         throw placeUnavailable("vm", { state: "vm-cannot", params: { bot: readyBot.name, model: cloudEngine(instance, readyBot.modelSelection.model).name }, source: "room" }, Boolean(CLOUD_HOME));
       }
@@ -12536,6 +12510,94 @@ ROUTES.push(createMcpServerRoutes({
   mcpConfigBusy: { get: () => mcpConfigBusy, set: (busy) => { mcpConfigBusy = busy; } },
   mcpServerResponse, mcpPolicyRefusal, persistMcpServers, savedCustomDomain, appCatalog: chatAppsMcp, forgetPeople: (name) => teamConnections.forgetServer(name), health: mcpServersHost.health, botsPath: () => brokerPath(botBox),
   connectionsChanged: (change) => void routineHolds?.connections(change) }));
+const guaiBillingModulePath = "/Users/karuo/Documents/开发/4、模块/支付模块/10_运行时_统一收费核心";
+const guaiBillingLocalModule = new GuaiBillingLocalModule({
+  enabled: true,
+  moduleDirectory: guaiBillingModulePath,
+  privateDirectory: join(DATA_DIR, "billing-local-module"),
+  appId: "guai-ai-desktop",
+  tenantId: ENVIRONMENT_ID,
+  catalog: GUAI_BILLING_REFERENCE_CATALOG,
+  pythonExecutable: "/usr/local/bin/python3",
+});
+const guaiBillingConfig = () => ({
+  ...guaiBillingLocalModule.connection,
+  localModulePath: guaiBillingModulePath,
+  localModuleConnected: guaiBillingLocalModule.state === "ready",
+  localModuleError: guaiBillingLocalModule.failure ?? undefined,
+});
+const connectGuaiBillingLocal = async () => {
+  await guaiBillingLocalModule.start();
+  saveConfig({ guaiBilling: { localModulePath: guaiBillingModulePath } });
+  Object.assign(cfg, loadConfig());
+};
+if (DESKTOP_MANAGED && !CLOUD_HOME && !HOSTED_WORKSPACE && cfg.guaiBilling?.localModulePath === guaiBillingModulePath) {
+  await connectGuaiBillingLocal().catch((error) => console.error("本机收费模块启动失败:", error instanceof Error ? error.message : error));
+}
+const guaiBillingOrders = new GuaiBillingSqliteStore(join(DATA_DIR, "guai-billing-orders.db"));
+process.once("exit", () => guaiBillingOrders.close());
+const guaiBillingBase = createGuaiBilling({ config: guaiBillingConfig, orders: guaiBillingOrders });
+const guaiWechatOrders = new GuaiWechatSqliteOrderStore(join(DATA_DIR, "guai-wechat-orders.sqlite"));
+process.once("exit", () => guaiWechatOrders.close());
+const guaiWechatEntitlements = new GuaiWechatSqliteEntitlementStore(join(DATA_DIR, "guai-wechat-entitlements.sqlite"));
+process.once("exit", () => guaiWechatEntitlements.close());
+const guaiWechatFulfillment = createGuaiWechatFulfillment({ localModule: guaiBillingLocalModule, entitlements: guaiWechatEntitlements });
+const guaiWechatConfig = (): WechatNativeConfig => ({ ...cfg.guaiWechat, apiV3Key: cfg.guaiWechat?.key });
+// Owner-requested desktop pricing, fixed independently of the external/reference catalog.
+const publishedWechatCatalog = async () => [
+  { skuId: "guai-ai-standard-monthly", name: "普通版", amountMinor: 1980, includedCredits: 2000, displayPrice: "¥19.8 / 月", priceVersionId: "guai-ai-desktop-20261104-standard-v1" },
+  { skuId: "guai-ai-pro-monthly", name: "专业版", amountMinor: 19800, includedCredits: 8000, displayPrice: "¥198 / 月", priceVersionId: "guai-ai-desktop-20261104-pro-v1" },
+  { skuId: "guai-ai-super-monthly", name: "超级版", amountMinor: 198000, includedCredits: 50000, displayPrice: "¥1980 / 月", priceVersionId: "guai-ai-desktop-20261104-super-v1" },
+].map(plan => ({ ...plan, currency: "CNY", kind: "subscription", durationMonths: 1, availability: "available" as const, checkoutEnabled: true, referenceOnly: false }));
+const makeGuaiWechat = (config: () => WechatNativeConfig) => createWechatNativeBilling({
+  config, orders: guaiWechatOrders, catalog: publishedWechatCatalog,
+  onVerifiedPaid: guaiWechatFulfillment.onVerifiedPaid,
+  fulfillmentReady: guaiWechatFulfillment.ready,
+});
+const guaiWechat = makeGuaiWechat(guaiWechatConfig);
+const guaiWechatConfigRoutes = createGuaiWechatConfigRoutes({
+  config: guaiWechatConfig,
+  readiness: candidate => makeGuaiWechat(() => candidate).readiness(),
+  save: patch => { saveConfig({ guaiWechat: patch }); Object.assign(cfg, loadConfig()); },
+  importCredentials: async () => {
+    const imported = await importGuaiWechatCredentials(
+      "/Users/karuo/Documents/开发/4、模块/支付模块/支付/微信", join(DATA_DIR, "billing-merchant"),
+    );
+    saveConfig({ guaiWechat: { ...imported, enabled: false } }); Object.assign(cfg, loadConfig());
+  },
+});
+const guaiBillingRoutes = createGuaiBillingRoutes({
+  billing: {
+    catalog: async () => {
+      const catalog = await guaiBillingBase.catalog();
+      const state = await guaiWechat.readiness();
+      return state.checkoutReady && catalog.catalogConnected
+        ? { ...catalog, checkoutReady: true, catalogStatus: "connected" as const, plans: await publishedWechatCatalog() }
+        : { ...catalog, checkoutReady: false };
+    },
+    balance: guaiBillingBase.balance,
+    checkout: guaiWechat.checkout,
+    order: guaiWechat.order,
+  },
+  getConfig: guaiBillingConfig,
+  connectLocal: connectGuaiBillingLocal,
+  customerId: (auth) => auth.kind === "loopback" && auth.scopes.includes("admin") && auth.trust !== "service" && !auth.companionDevice
+    ? `guai-${createHash("sha256").update(ENVIRONMENT_ID).digest("hex")}` : null,
+});
+ROUTES.push(async (context) => {
+  if (!context.path.startsWith("/api/guai-billing/")) return PASS;
+  const { auth } = context;
+  if (CLOUD_TEAM || CLOUD_HOME || auth.kind !== "loopback" || !auth.scopes.includes("admin") || auth.trust === "service" || auth.companionDevice) {
+    return context.json(context.res, 403, { error: "会员与支付配置仅限本机工作区所有者" });
+  }
+  if (context.path === "/api/guai-billing/membership" && context.method === "GET") {
+    const customerId = `guai-${createHash("sha256").update(ENVIRONMENT_ID).digest("hex")}`;
+    return context.json(context.res, 200, await guaiWechatFulfillment.readEntitlement(customerId));
+  }
+  const wechatConfigResult = await guaiWechatConfigRoutes(context);
+  return wechatConfigResult === PASS ? guaiBillingRoutes(context) : wechatConfigResult;
+});
+
 ROUTES.push(createSetupImportRoutes({ local: DESKTOP_MANAGED && !CLOUD_HOME && !HOSTED_WORKSPACE, cfg, mcpPolicyRefusal, persistMcpServers,
   mcpConfigBusy: { get: () => mcpConfigBusy, set: (busy) => { mcpConfigBusy = busy; } } }));
 ROUTES.push(createComputerRoutes({
@@ -12695,6 +12757,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
     return json(res, 400, { error: "invalid request URL" });
   }
   const path = url.pathname;
+  if (guaiRemovedDesktopPath(path)) return json(res, 410, { error: "此版本仅支持本机 Mac 和内置浏览器，已移除其他桌面服务。" });
   const method = req.method ?? "GET"; cloudPower?.arrived(path, req.headers); // a Cloud home's first request after a wake: what woke it
   let m: RegExpMatchArray | null = null;
   let releaseWorkspaceRequest: (() => void) | undefined;
@@ -15751,6 +15814,7 @@ const gracefulShutdown = createGracefulShutdown({
       await Promise.all([...temporaries, browserSweep.closeAll()]);
       await browserRuntime.closeAll();
     },
+    () => guaiBillingLocalModule.close(),
     () => liveCalls.shutdown(),
     () => flushAllProfileHistory(),
     () => flushAllMemoryJournals(),

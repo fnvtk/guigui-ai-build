@@ -52,7 +52,8 @@ describe("app language preference", () => {
     expect(preference.useLanguageChoice()).toBeNull();
     expect(hook.serverSnapshot!()).toBeNull();
     expect(preference.effectiveLanguage(preference.languageChoice(), "fr")).toBe("fr");
-    expect(preference.effectiveLanguage(preference.languageChoice(), undefined)).toBe("");
+    expect(preference.effectiveLanguage(preference.languageChoice(), undefined)).toBe("zh");
+    expect(preference.effectiveLanguage(preference.languageChoice(), "")).toBe("zh");
   });
 
   it("saves the choice on this device without asking the server", async () => {
@@ -173,11 +174,11 @@ describe("app language in the desktop app", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("keeps System as the default, and the server's language, until a language is picked on this computer", async () => {
+  it("uses Chinese by default and respects the server's language until a language is picked on this computer", async () => {
     const page = await openPage(desktopApp());
     expect(page.preference.languageChoice()).toBeNull();
     expect(page.preference.effectiveLanguage(page.preference.languageChoice(), "fr")).toBe("fr");
-    expect(page.preference.effectiveLanguage(page.preference.languageChoice(), undefined)).toBe("");
+    expect(page.preference.effectiveLanguage(page.preference.languageChoice(), undefined)).toBe("zh");
     expect(page.bridge.set).not.toHaveBeenCalled();
   });
 

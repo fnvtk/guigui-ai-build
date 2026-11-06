@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useId, useRef, useState } from "react";
 import { api, useStore, type ConfigStatus } from "@/state/store";
 import { t } from "@/lib/i18n";
@@ -191,7 +192,7 @@ export function ProfileFields() {
         onChange={(e) => setEmail(e.target.value)}
         onBlur={team ? undefined : save}
         readOnly={team}
-        placeholder="you@example.com"
+        placeholder={translateUi("ui.literal.50e2b46ef877")}
         className={inputClass}
       />
       <AboutMeSettings />

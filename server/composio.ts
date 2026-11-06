@@ -30,6 +30,7 @@ import {
 import { serviceSlugFor, serviceSlugForCandidates } from "./connector-verdict.ts";
 import { parseMcpResponse, withToolsListFallback } from "./connector-tools-list.ts";
 import { brokerAccess, type BrokerAccess } from "./composio-broker-access.ts";
+import { networkFetch } from "./network-fetch.ts";
 export { applyManagedBrokerMessage, brokerAccess, setManagedBrokerAccess, type BrokerAccess } from "./composio-broker-access.ts";
 export { prepareProjectSession, trustedSessionMcpUrl } from "./composio-session.ts";
 
@@ -196,7 +197,7 @@ async function brokerRequest(path: string, init?: RequestInit, broker = brokerAc
   const headers = new Headers(init?.headers);
   headers.set("authorization", `Bearer ${broker.token}`);
   if (init?.body) headers.set("content-type", "application/json");
-  return fetch(`${broker.url}${path}`, {
+  return networkFetch(`${broker.url}${path}`, {
     ...init,
     headers,
     signal: init?.signal ?? AbortSignal.timeout(30_000),
@@ -314,7 +315,7 @@ export async function relayMcp(
   }
   // Discovery may await I/O: check turn authority and permissions after it, right before dispatch.
   beforeSend?.();
-  const response = await withToolsListFallback(identity, payload, () => fetch(url, {
+  const response = await withToolsListFallback(identity, payload, () => networkFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -354,7 +355,7 @@ async function listConnectedAccounts(
     });
     if (slugs.length) params.set("toolkit_slugs", slugs.join(","));
     if (cursor) params.set("cursor", cursor);
-    const response = await fetch(`${apiBase()}/connected_accounts?${params}`, {
+    const response = await networkFetch(`${apiBase()}/connected_accounts?${params}`, {
       headers: projectHeaders(apiKey),
       signal: AbortSignal.timeout(15_000),
     });
@@ -380,7 +381,7 @@ async function listSessionToolkits(
     // Unfiltered, this endpoint pages through the whole marketplace 50 at a time.
     const params = new URLSearchParams({ limit: "50", is_connected: "true" });
     if (cursor) params.set("cursor", cursor);
-    const response = await fetch(
+    const response = await networkFetch(
       `${apiBase()}/tool_router/session/${encodeURIComponent(sessionId)}/toolkits?${params}`,
       { headers: projectHeaders(apiKey), signal: AbortSignal.timeout(15_000) },
     );
@@ -715,7 +716,7 @@ export async function connectionStatus(cfg: AppConfig, slugs: string[]) {
   if (canonicalSlugs.length) params.set("toolkits", canonicalSlugs.join(","));
   const userId = session.config?.user_id ?? cfg.composio?.userId;
   const [res, accounts] = await Promise.all([
-    fetch(`${apiBase()}/tool_router/session/${encodeURIComponent(session.session_id)}/toolkits?${params}`, {
+    networkFetch(`${apiBase()}/tool_router/session/${encodeURIComponent(session.session_id)}/toolkits?${params}`, {
       headers: projectHeaders(apiKey),
       signal: AbortSignal.timeout(15_000),
     }),
@@ -763,7 +764,7 @@ export async function removeService(cfg: AppConfig, slug: string, as?: BrokerAcc
   }
   const session = await ensureProjectSession(cfg);
   const params = new URLSearchParams({ limit: "50", toolkits: toolkit });
-  const list = await fetch(
+  const list = await networkFetch(
     `${apiBase()}/tool_router/session/${encodeURIComponent(session.session_id)}/toolkits?${params}`,
     { headers: projectHeaders(apiKey), signal: AbortSignal.timeout(15_000) },
   );
@@ -776,7 +777,7 @@ export async function removeService(cfg: AppConfig, slug: string, as?: BrokerAcc
 }
 
 async function deleteConnectedAccount(apiKey: string, id: string) {
-  const removed = await fetch(
+  const removed = await networkFetch(
     `${apiBase()}/connected_accounts/${encodeURIComponent(id)}?revoke_on_delete=true`,
     { method: "DELETE", headers: projectHeaders(apiKey), signal: AbortSignal.timeout(30_000) },
   );
@@ -863,7 +864,7 @@ export async function authorizeService(cfg: AppConfig, slug: string, requestedAl
   const linkRequest: AccountLinkRequest = { toolkit };
   if (plan.alias) linkRequest.alias = plan.alias;
   const link = (sessionId: string) =>
-    fetch(`${apiBase()}/tool_router/session/${encodeURIComponent(sessionId)}/link`, {
+    networkFetch(`${apiBase()}/tool_router/session/${encodeURIComponent(sessionId)}/link`, {
       method: "POST",
       headers: projectHeaders(apiKey, true),
       body: JSON.stringify(linkRequest),
@@ -985,7 +986,7 @@ export async function listToolkits(cfg: AppConfig): Promise<{ cards: ToolkitCard
         const params = new URLSearchParams({ limit: "500", sort_by: "usage" });
         if (cursor) params.set("cursor", cursor);
         const res = backendKey
-          ? await fetch(`${toolkitBase()}/toolkits?${params}`, {
+          ? await networkFetch(`${toolkitBase()}/toolkits?${params}`, {
               headers: { "x-api-key": backendKey },
               signal: AbortSignal.timeout(15_000),
             })

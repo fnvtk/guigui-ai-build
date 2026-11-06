@@ -173,3 +173,7 @@ describe("the pieces", () => {
     expect(gapIn("key=<api key>;v=1")).toEqual({ kind: "placeholder", names: ["api key"], before: "key=", after: ";v=1" });
   });
 });
+
+it("preserves a command server's explicit bot scope instead of importing it for everyone", () => {
+  expect(one(JSON.stringify({ name: "project-files", command: "node", args: ["files.js"], bot: "ada" }))).toMatchObject({ transport: "stdio", bot: "ada" });
+});

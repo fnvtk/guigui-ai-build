@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Keyboard, Search, X } from "lucide-react";
 
@@ -75,17 +76,17 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
             </span>
             <div>
               <h2 id="shortcuts-dialog-title" className="text-[16px] font-semibold text-ink">
-                Keyboard Shortcuts
+                {translateUi("ui.literal.b465751c05fb")}
               </h2>
               <p className="text-[12px] text-ink-secondary">
-                Quick commands and navigation
+                {translateUi("ui.literal.3736e90b78ad")}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close keyboard shortcuts"
+            aria-label={translateUi("ui.literal.b87b092bab7c")}
             className="rounded-lg p-1.5 text-ink-secondary hover:bg-raised hover:text-ink"
           >
             <X size={18} />
@@ -99,8 +100,8 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search shortcuts…"
-              aria-label="Search shortcuts"
+              placeholder={translateUi("ui.literal.6afc3bd4e83d")}
+              aria-label={translateUi("ui.literal.a9000534a590")}
               className="w-full bg-transparent text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none"
             />
           </div>
@@ -109,7 +110,7 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
           {groups.length === 0 ? (
             <div className="py-8 text-center text-[13px] text-ink-secondary">
-              No shortcuts found for “{query}”
+              {translateUi("ui.literal.45cc90bd7062")}{query}”
             </div>
           ) : (
             groups.map((group) => (
@@ -129,14 +130,14 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
 
         <div className="flex items-center justify-between border-t border-hairline/40 bg-card/30 px-5 py-2.5 text-[12px] text-ink-secondary">
           <span>
-            Press <kbd className="rounded bg-control px-1 py-0.5 font-mono text-[11px]">?</kbd> when not typing to open
+            {translateUi("ui.literal.ea683ad61606")} <kbd className="rounded bg-control px-1 py-0.5 font-mono text-[11px]">?</kbd> {translateUi("ui.literal.3ce864a11634")}
           </span>
           <button
             type="button"
             onClick={onClose}
             className="ui-button ui-button-md"
           >
-            Done
+            {translateUi("ui.literal.e9b450d14bc2")}
           </button>
         </div>
       </div>

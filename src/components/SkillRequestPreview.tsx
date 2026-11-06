@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { reviewedSkillSha256, type SkillRequestCardData } from "../../shared/skill-request";
 
 /**
@@ -9,7 +10,7 @@ export function SkillRequestPreview({ request }: { request: SkillRequestCardData
   if (!reviewedSha256) {
     return (
       <div className="mt-3 rounded-lg border border-danger/30 bg-danger/5 p-3 text-[12px] leading-relaxed text-danger">
-        This proposal was created by an older build and cannot be safely applied. Deny it, then ask the bot to
+        {translateUi("ui.literal.c24d41824f89")}
         {request.action === "update" ? " propose the update again." : " create the skill again."}
       </div>
     );
@@ -18,13 +19,13 @@ export function SkillRequestPreview({ request }: { request: SkillRequestCardData
     <div className="mt-3 rounded-lg border border-hairline/40 bg-inset p-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-ink-secondary">
         <span>
-          Review the complete SKILL.md{request.references?.length ? " and its reference files" : ""} before {request.action === "update" ? "replacing the current version" : "enabling"}
+          {translateUi("ui.literal.61fb9a9adbc0")}{request.references?.length ? " and its reference files" : ""} {translateUi("ui.literal.51de2b835bd3")} {request.action === "update" ? "replacing the current version" : "enabling"}
         </span>
         <span className="font-mono" title={`sha256 ${reviewedSha256}`}>
-          sha256 {reviewedSha256.slice(0, 8)}
+          {translateUi("ui.literal.b310da45b1eb")} {reviewedSha256.slice(0, 8)}
         </span>
       </div>
-      <div className="mt-1 break-all text-[11px] text-ink-secondary">Source: {request.source || "Unknown"}</div>
+      <div className="mt-1 break-all text-[11px] text-ink-secondary">{translateUi("ui.literal.922acd282cc0")} {request.source || "Unknown"}</div>
       <pre
         tabIndex={0}
         aria-label={`Full SKILL.md for ${request.name}`}

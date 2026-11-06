@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { FolderPlus, X } from "lucide-react";
 import { Card } from "./SettingsPrimitives";
@@ -48,27 +49,27 @@ export function ComputerSharingSettings({ workspace, onClose }: { workspace: { i
     <div className="flex flex-col gap-4 text-[13px]">
       <div className="flex items-center justify-between gap-2">
         <p role="status" className="text-ink-secondary">{!state ? "Loading access…" : !state.enabled ? "Not shared" : state.connected ? "Sharing while this desktop is open" : "Waiting for the workspace to connect"}</p>
-        <button type="button" aria-label="Close computer access" onClick={onClose} className="rounded p-1 text-ink-secondary hover:bg-control"><X size={16} /></button>
+        <button type="button" aria-label={translateUi("ui.literal.399ff15dc0f2")} onClick={onClose} className="rounded p-1 text-ink-secondary hover:bg-control"><X size={16} /></button>
       </div>
-      <p className="text-ink-secondary">Choose what this workspace’s bots can use. Shared files and screen content may be sent to its AI provider. Access stays on when you switch workspaces, until you stop sharing or close the desktop app.</p>
+      <p className="text-ink-secondary">{translateUi("ui.literal.b35dd0b6bcda")}</p>
       <fieldset disabled={busy || !state} className="flex flex-col gap-3 disabled:opacity-50">
-        <legend className="mb-2 font-medium text-ink">Shared folders</legend>
-        {folders.length === 0 && <p className="text-[12px] text-ink-secondary">No folders shared. New folders are read-only by default.</p>}
+        <legend className="mb-2 font-medium text-ink">{translateUi("ui.literal.89815b84dde2")}</legend>
+        {folders.length === 0 && <p className="text-[12px] text-ink-secondary">{translateUi("ui.literal.9028bcad8277")}</p>}
         {folders.map(folder => <div key={folder.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-hairline/40 p-3">
           <div className="min-w-0 flex-1"><p className="font-medium text-ink">{folder.name}</p><p className="break-all text-[12px] text-ink-secondary">{folder.path}</p></div>
-          <label className="flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={folder.write} onChange={event => setFolders(current => current.map(entry => entry.id === folder.id ? { ...entry, write: event.target.checked } : entry))} />Allow edits</label>
+          <label className="flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={folder.write} onChange={event => setFolders(current => current.map(entry => entry.id === folder.id ? { ...entry, write: event.target.checked } : entry))} />{translateUi("ui.literal.f0789add3e92")}</label>
           <button type="button" aria-label={`Remove ${folder.name}`} onClick={() => setFolders(current => current.filter(entry => entry.id !== folder.id))} className="rounded p-1 text-ink-secondary hover:bg-control"><X size={14} /></button>
         </div>)}
         <button type="button" disabled={folders.length >= 20} onClick={() => void perform(async () => {
           const folder = await bridge.chooseFolder();
           if (mounted.current && folder) setFolders(current => current.some(entry => entry.path === folder.path) ? current : [...current, folder]);
-        })} className="flex w-fit items-center gap-2 rounded-lg border border-hairline/40 px-3 py-2 text-ink hover:bg-control"><FolderPlus size={14} />Choose folder</button>
-        <p className="text-[12px] text-ink-secondary">Small files only (256 KB). Folder access does not follow links or delete files.</p>
+        })} className="flex w-fit items-center gap-2 rounded-lg border border-hairline/40 px-3 py-2 text-ink hover:bg-control"><FolderPlus size={14} />{translateUi("ui.literal.1838a4158f39")}</button>
+        <p className="text-[12px] text-ink-secondary">{translateUi("ui.literal.afc99f90d5d4")}</p>
       </fieldset>
       <fieldset disabled={busy || !state} className="flex flex-col gap-3 border-t border-hairline/40 pt-3 disabled:opacity-50">
-        <legend className="font-medium text-ink">Broader access · optional</legend>
-        <label className="flex items-start gap-2"><input className="mt-1" type="checkbox" checked={terminal} onChange={event => setTerminal(event.target.checked)} /><span className="text-ink">Unrestricted terminal<span className="mt-1 block text-[12px] text-ink-secondary">Run commands as you. This can access or delete files anywhere you can, including credentials—not just the folders above.</span></span></label>
-        <label className="flex items-start gap-2"><input className="mt-1" type="checkbox" checked={computer} onChange={event => setComputer(event.target.checked)} /><span className="text-ink">Computer control<span className="mt-1 block text-[12px] text-ink-secondary">View your screen and operate your signed-in apps, outside the shared folders. Requires local computer control and OS permissions.</span></span></label>
+        <legend className="font-medium text-ink">{translateUi("ui.literal.cfb2da25d890")}</legend>
+        <label className="flex items-start gap-2"><input className="mt-1" type="checkbox" checked={terminal} onChange={event => setTerminal(event.target.checked)} /><span className="text-ink">{translateUi("ui.literal.aa4d48681e33")}<span className="mt-1 block text-[12px] text-ink-secondary">{translateUi("ui.literal.30c44e34a945")}</span></span></label>
+        <label className="flex items-start gap-2"><input className="mt-1" type="checkbox" checked={computer} onChange={event => setComputer(event.target.checked)} /><span className="text-ink">{translateUi("ui.literal.e8e7a114dae7")}<span className="mt-1 block text-[12px] text-ink-secondary">{translateUi("ui.literal.484a1c0bbb56")}</span></span></label>
       </fieldset>
       {(error || state?.error) && <p role="alert" className="text-[12px] text-danger">{error || state?.error}</p>}
       <div className="flex flex-wrap gap-2">
@@ -78,9 +79,9 @@ export function ComputerSharingSettings({ workspace, onClose }: { workspace: { i
         })} className="rounded-lg bg-accent px-3 py-2 font-medium text-accent-ink disabled:opacity-50">{state?.enabled ? "Save access" : "Share selected access"}</button>
         {state?.enabled && <button type="button" disabled={busy} onClick={() => void perform(async () => {
           const next = await bridge.revoke(workspace.id); if (mounted.current) apply(next);
-        })} className="rounded-lg border border-hairline/40 px-3 py-2 text-danger disabled:opacity-50">Stop sharing</button>}
+        })} className="rounded-lg border border-hairline/40 px-3 py-2 text-danger disabled:opacity-50">{translateUi("ui.literal.0e45aee6e595")}</button>}
       </div>
-      {state?.enabled && <p className="text-[12px] text-ink-secondary">Stopping blocks new requests and cancels running work where possible. An action already sent to an app may still finish.</p>}
+      {state?.enabled && <p className="text-[12px] text-ink-secondary">{translateUi("ui.literal.e360c0505e89")}</p>}
       <div className="border-t border-hairline/40 pt-3"><LendingActivityList entries={activity} /></div>
     </div>
   </Card></div>;

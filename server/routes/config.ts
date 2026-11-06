@@ -519,6 +519,8 @@ export function createConfigRoutes(deps: ConfigRouteDeps): RouteHandler {
           // Supplied credentials are already in the OS-encrypted store: tombstone them so no older plaintext survives the merge.
           const persisted = structuredClone(patch);
           if (persisted.xai?.key !== undefined) persisted.xai.key = "";
+          if (persisted.guaiBilling?.key !== undefined) persisted.guaiBilling.key = "";
+          if (persisted.guaiWechat?.key !== undefined) persisted.guaiWechat.key = "";
           if (persisted.composio?.apiKey !== undefined) persisted.composio.apiKey = "";
           if (persisted.box?.token !== undefined) persisted.box.token = "";
           if (persisted.opencodeGo?.apiKey !== undefined) persisted.opencodeGo.apiKey = "";

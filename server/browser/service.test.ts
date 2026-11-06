@@ -60,7 +60,7 @@ function setup(options: Partial<BrowserServiceOptions> = {}, startUrls?: string[
   services.push(service);
   const target = { session: "bot-a", key: "bot:a" };
   const call = async (name: string, args: Record<string, unknown> = {}, on = target) =>
-    service.agentRpc(on, "tools/call", { name, arguments: args }) as Promise<{ content: Array<{ type: string; text?: string }>; isError?: boolean }>;
+    service.agentRpc(on, "tools/call", { name, arguments: args }) as Promise<{ content: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: Record<string, unknown> }>;
   const text = (result: { content: Array<{ type: string; text?: string }> }) => result.content.map((part) => part.text ?? `[${part.type}]`).join("\n");
   return { service, backend, target, call, text, dataDir };
 }
@@ -101,6 +101,26 @@ describe("the bots' browser tools", () => {
     const unknown = await call("agent_browser_teleport");
     expect(unknown.isError).toBe(true);
     expect(text(unknown)).toContain("There is no browser tool named agent_browser_teleport.");
+  });
+
+  it("returns a structured unmet result when a text wait times out", async () => {
+    const { call, text } = setup();
+    await call("agent_browser_open", { url: "https://example.com/form" });
+    const result = await call("agent_browser_wait_for_text", { text: "not on this page", waitTimeoutMs: 25 });
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent).toMatchObject({ matched: false, timedOut: true, text: "not on this page" });
+    expect(text(result)).toContain("等待超时");
+    expect(text(result)).toContain("该条件未满足");
+    expect(text(result)).not.toContain("Done waiting");
+  });
+
+  it("keeps a browser disconnect during text evaluation as a tool error", async () => {
+    const { call, backend } = setup();
+    await call("agent_browser_open", { url: "https://example.com/form" });
+    const pending = call("agent_browser_wait_for_text", { text: "never", waitTimeoutMs: 5_000 });
+    await sleep(5);
+    backend.chrome.exit("fixture disconnect");
+    expect((await pending).isError).toBe(true);
   });
 
   it("says how a screenshot's pixels map to the CSS pixels a point takes, and refuses a point outside the viewport as it is now", async () => {

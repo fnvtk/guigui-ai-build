@@ -28,10 +28,6 @@ vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("@/lib/live-call-media", () => ({ dismissLiveNotice: vi.fn() }));
 
 const { KeysPage } = await import("./KeysPage");
-const { track } = await import("@/lib/analytics");
-const { BOAT_OFFER, boatClaimMailto } = await import("@/lib/boat-offer");
-const { BOAT_OFFER_NOTICE } = await import("@/lib/notices");
-const { applyBrand, DEFAULT_BRAND } = await import("@/lib/brand");
 const { LiveKeyNeeded } = await import("../LiveKeyNeeded");
 const { openKeySettings } = await import("./key-focus");
 
@@ -82,13 +78,12 @@ afterEach(() => {
 });
 
 describe("the keys page", () => {
-  it("groups the keys into plain sections, AI providers open first", () => {
+  it("shows the remaining key sections", () => {
     page();
     expect([...host.querySelectorAll<HTMLElement>("[data-keys-section]")].map((element) => element.dataset.keysSection))
       .toEqual(["ai", "servers", "voice", "computers", "apps", "helpers"]);
-    expect(section("ai").textContent).toContain("AI providers");
     expect(expanded("ai")).toBe("true");
-    expect(expanded("voice")).toBe("false");
+    expect(expanded("servers")).toBe("false");
     expect(rowsShown()).toContain("openai");
     expect(rowsShown()).not.toContain("elevenlabs");
   });
@@ -97,7 +92,8 @@ describe("the keys page", () => {
     setConfig({ ...fx.config, box: { configured: true, last4: "c3d4" } });
     page();
     expect(expanded("computers")).toBe("true");
-    expect(section("computers").textContent).toContain("1 connected");
+    expect(section("computers").textContent).not.toContain("1 connected");
+    expect(row("box")).toBeNull();
   });
 
   it("filters rows live by name, purpose and section, and says so when nothing matches", () => {
@@ -106,7 +102,7 @@ describe("the keys page", () => {
     type(search, "fish");
     expect(rowsShown()).toEqual(["fishAudio"]);
     type(search, "Computers and browser");
-    expect(rowsShown()).toEqual(["box", "vps", "onePassword"]);
+    expect(rowsShown()).toEqual(["vps", "onePassword"]);
     type(search, "research");
     expect(rowsShown()).toEqual(["treg"]);
     type(search, "zzz");
@@ -131,100 +127,49 @@ describe("the keys page", () => {
   it("clears a search that would hide the row a link asks for", async () => {
     page();
     type(host.querySelector<HTMLInputElement>("[data-keys-search]")!, "fish");
-    flushSync(() => { openKeySettings("box"); });
-    await vi.waitFor(() => expect(document.activeElement).toBe(row("box")!.querySelector("[data-key-input]")));
+    flushSync(() => { openKeySettings("fishAudio"); });
+    await vi.waitFor(() => expect(document.activeElement).toBe(row("fishAudio")!.querySelector("[data-key-input]")));
     expect(host.querySelector<HTMLInputElement>("[data-keys-search]")!.value).toBe("");
+  });
+
+  it("opens the SimpleAPI-compatible key row from the connection dialog", async () => {
+    page();
+    flushSync(() => { openKeySettings("openaiCompat"); });
+    await vi.waitFor(() => expect(document.activeElement).toBe(row("openaiCompat")!.querySelector("[data-key-input], [data-key-open], input, button")));
+    expect(expanded("servers")).toBe("true");
   });
 
   it("warns, and saves nothing, when a pasted key looks like another provider's", () => {
     page();
-    const input = row("openai")!.querySelector<HTMLInputElement>("[data-key-input]")!;
+    const input = row("fishAudio")!.querySelector<HTMLInputElement>("[data-key-input]")!;
     paste(input, "  sk-ant-api03-abcdefghijklmnop\n");
-    expect(row("openai")!.textContent).toContain("That looks like the Anthropic API key, not this one.");
+    expect(row("fishAudio")!.textContent).toContain("That looks like the Anthropic API key, not this one.");
     expect(input.value).toBe("sk-ant-api03-abcdefghijklmnop");
     expect(fx.api).not.toHaveBeenCalled();
   });
 
-  it("saves a pasted key, reads it back masked with a check, and keeps it in view when a later check rejects it", async () => {
+  it("saves a pasted key and reads it back masked", async () => {
     fx.api.mockImplementation(async (path: string) => path === "/api/config"
-      ? { ...fx.config, openai: { configured: true, last4: "a1b2" } }
+      ? { ...fx.config, savedKeys: { fishAudioKey: { configured: true, last4: "a1b2" } } }
       : { ok: false, reason: "rejected" });
     page();
-    paste(row("openai")!.querySelector<HTMLInputElement>("[data-key-input]")!, "sk-proj-abcdefghijklmnopa1b2");
-    await vi.waitFor(() => expect(row("openai")!.textContent).toContain("Didn't work: The provider rejected this key."));
-    expect(fx.api.mock.calls.map(([path]) => path)).toEqual(["/api/config", "/api/keys/test"]);
-    expect(JSON.parse(fx.api.mock.calls[0]![1].body)).toEqual({ openai: { key: "sk-proj-abcdefghijklmnopa1b2" } });
-    const masked = row("openai")!.querySelector("[data-key-masked]")!;
+    paste(row("fishAudio")!.querySelector<HTMLInputElement>("[data-key-input]")!, "fish-audio-abcdefghijklmnopa1b2");
+    await vi.waitFor(() => expect(row("fishAudio")!.textContent).toContain("Connected"));
+    expect(fx.api.mock.calls.map(([path]) => path)).toContain("/api/config");
+    expect(fx.api.mock.calls.map(([path]) => path)).not.toContain("/api/keys/test");
+    expect(JSON.parse(fx.api.mock.calls[0]![1].body)).toEqual({ tts: { fishKey: "fish-audio-abcdefghijklmnopa1b2" } });
+    const masked = row("fishAudio")!.querySelector("[data-key-masked]")!;
     expect(masked.textContent).toContain("••••••••a1b2");
-    expect(row("openai")!.querySelector("[data-key-input]")).toBeNull();
-    expect(row("openai")!.querySelector("[data-key-replace]")).not.toBeNull();
+    expect(row("fishAudio")!.querySelector("[data-key-input]")).toBeNull();
+    expect(row("fishAudio")!.querySelector("[data-key-replace]")).not.toBeNull();
   });
 
-  it("confirms a key the server checked on save as Connected", async () => {
-    fx.api.mockImplementation(async () => ({ ...fx.config, box: { configured: true, last4: "c3d4" } }));
-    setConfig({ ...fx.config });
+  it("removes the Boat credential and promotion row from the visible key catalog", () => {
+    setConfig({ ...fx.config, box: { configured: true, last4: "c3d4" } });
     page();
-    flushSync(() => section("computers").querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
-    const input = row("box")!.querySelector<HTMLInputElement>("[data-key-input]")!;
-    type(input, "boat_dummy_fixture_key_c3d4");
-    flushSync(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
-    await vi.waitFor(() => expect(row("box")!.querySelector("[data-key-masked]")?.textContent).toContain("••••••••c3d4"));
-    expect(row("box")!.textContent).toContain("Connected");
-    expect(fx.api).toHaveBeenCalledOnce();
-  });
-});
-
-describe("Boat's credit offer on the Boat card", () => {
-  const offer = () => row("box")!.querySelector<HTMLElement>("[data-boat-offer]");
-  const buttons = () => [...offer()!.querySelectorAll<HTMLButtonElement>("button")];
-  const openComputers = () => flushSync(() => section("computers").querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
-  afterEach(() => {
-    BOAT_OFFER.until = null;
-    applyBrand({ brand: DEFAULT_BRAND, source: "default", file: "" });
-    delete (window as unknown as { ogb?: unknown }).ogb;
-    vi.unstubAllGlobals();
-  });
-
-  it("is always on the Boat card while the offer runs: with no key, a saved key, one a Cloud plan includes, and after its popup closed", () => {
-    page(); openComputers();
-    for (const box of [{ configured: false }, { configured: true, last4: "c3d4" }, { configured: false, included: true }]) {
-      setConfig({ ...fx.config, box });
-      expect(offer(), JSON.stringify(box)).not.toBeNull();
-      expect(offer()!.closest("[hidden]")).toBeNull();
-      const words = offer()!.textContent!;
-      for (const text of ["$50 of Boat credit for you", "Boat runs the cloud computers behind MausBot.", "You claim it yourself: it isn't automatic."]) {
-        expect(words).toContain(text);
-      }
-      expect(buttons().map((button) => button.textContent)).toEqual(["Get Boat", "I bought it: claim my $50"]);
-    }
-    vi.stubGlobal("localStorage", { getItem: (key: string) => (key === BOAT_OFFER_NOTICE ? "1" : null), setItem: () => {}, removeItem: () => {} });
-    page();
-    expect(offer(), "closing the popup never takes it from Settings").not.toBeNull();
+    expect(row("box")).toBeNull();
+    expect(host.textContent).not.toContain("Boat credit");
     type(host.querySelector<HTMLInputElement>("[data-keys-search]")!, "boat");
-    expect(rowsShown()).toContain("box"); expect(offer()!.closest("[hidden]")).toBeNull();
-  });
-
-  it("Get Boat opens boat.dev and the claim drafts the email to Boat; both stay for a later visit and save nothing", async () => {
-    const openExternal = vi.fn(async () => true);
-    (window as unknown as { ogb?: unknown }).ogb = { openExternal };
-    page(); openComputers();
-    flushSync(() => buttons()[0]!.click());
-    await vi.waitFor(() => expect(openExternal).toHaveBeenCalledWith("https://boat.dev"));
-    flushSync(() => buttons()[1]!.click());
-    await vi.waitFor(() => expect(openExternal).toHaveBeenCalledWith(boatClaimMailto()));
-    await vi.waitFor(() => expect(track).toHaveBeenCalledWith("boat_offer", { action: "claim", place: "settings" }));
-    expect(track).toHaveBeenCalledWith("boat_offer", { action: "get_boat", place: "settings" });
-    expect(offer()).not.toBeNull();
-    expect(fx.api).not.toHaveBeenCalled();
-  });
-
-  it("goes from its end date on, and on a branded build, while the Boat card stays", () => {
-    BOAT_OFFER.until = Date.now() - 1;
-    page();
-    expect(row("box")).not.toBeNull(); expect(offer()).toBeNull();
-    BOAT_OFFER.until = null;
-    applyBrand({ brand: { name: "Acme Bots" }, source: "file", file: "brand.json" });
-    page();
-    expect(row("box")).not.toBeNull(); expect(offer()).toBeNull();
+    expect(rowsShown()).not.toContain("box");
   });
 });

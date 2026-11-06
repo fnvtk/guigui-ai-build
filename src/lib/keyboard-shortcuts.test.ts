@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "./i18n";
 
 import {
   filterShortcutGroups,
@@ -10,6 +11,16 @@ import {
 } from "./keyboard-shortcuts";
 
 describe("keyboard-shortcuts", () => {
+  afterEach(() => setLocale("en"));
+
+  it("shows Chinese shortcut descriptions and categories in Chinese locales", () => {
+    setLocale("zh");
+    const groups = shortcutGroupsFor("enter");
+    expect(groups.map((group) => group.category)).toEqual(["导航", "聊天与输入", "通话", "管理与群组"]);
+    expect(groups[0]!.items[0]!.description).toBe("打开命令面板（切换器与对话搜索）");
+    setLocale("en");
+  });
+
   it("lists ⌘\\ or Ctrl+\\ for collapsing the sidebar, and matches only that chord", () => {
     const item = SHORTCUT_GROUPS.flatMap((group) => group.items).find((entry) => entry.id === "toggle-sidebar")!;
     expect(item).toMatchObject({ description: "Collapse or expand the sidebar", macKeys: ["⌘", "\\"], winKeys: ["Ctrl", "\\"] });

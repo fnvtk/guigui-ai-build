@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { Check } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
@@ -58,7 +59,7 @@ export function SelectPopup({ options, selectedIndex, anchor, bounds, onChoose, 
       <div
         ref={list}
         role="listbox"
-        aria-label="Choose an option"
+        aria-label={translateUi("ui.literal.45b9ce6e2d69")}
         aria-activedescendant={active >= 0 ? `select-option-${active}` : undefined}
         tabIndex={0}
         onKeyDown={onKeyDown}

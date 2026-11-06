@@ -224,6 +224,7 @@ lines.on('line', line => {
   else if (m.params.name === 'rpc-error') { process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,error:{code:-1,message:'Expected refusal'}})+'\\n'); return; }
   else if (m.params.name === 'rpc-timeout') { rpcTimeoutCalls += 1; if (rpcTimeoutCalls === 1) { process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,error:{code:-1,message:'request timed out'}})+'\\n'); return; } result = { content:[{type:'text',text:'engine answered a repeat rpc-timeout call'}] }; }
   else if (m.params.name === 'agent_browser_open' && m.params.arguments.url === 'https://refused.test') result = { isError:true, content:[{type:'text',text:'Navigation refused'}] };
+  else if (m.params.name === 'agent_browser_wait_for_text' && process.env.TEXT_WAIT_TIMEOUT === '1') result = { isError:true, content:[{type:'text',text:'Wait timed out after 10000ms'}] };
   else if (m.params.name === 'agent_browser_open' && process.env.OPEN_LAUNCHED === '1') result = { content:[{type:'text',text:'Opened'}], structuredContent:{ response:{ data:{ lifecycle:{ launched:true, relaunchedBrowser:false } } } } };
   else if (m.params.name === 'agent_browser_snapshot' && process.env.REJECT_VERIFICATION === '1') { process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,error:{code:-1,message:'Snapshot refused'}})+'\\n'); return; }
   else if (m.params.name === 'agent_browser_snapshot' && process.env.HANG_VERIFICATION === '1') return;
@@ -270,6 +271,21 @@ describe("server-owned browser MCP runtime", () => {
     expect(refused.content[0]!.text).toMatch(/Open the address with agent_browser_open first/);
     const reads = await value.agentRpc("reader", daemon, "tools/call", { name: "agent_browser_read", arguments: {} }) as { isError?: boolean };
     expect(reads.isError).not.toBe(true);
+  });
+
+  it("returns a normal text wait timeout as structured unmet status through the agent-browser proxy", async () => {
+    const value = runtime();
+    const daemon = daemonSpec();
+    daemon.spec.env.TEXT_WAIT_TIMEOUT = "1";
+    try {
+      const result = await value.agentRpc("wait-timeout", daemon.spec, "tools/call", {
+        name: "agent_browser_wait_for_text", arguments: { text: "Published listing", waitTimeoutMs: 10_000 },
+      }) as { isError?: boolean; content: Array<{ text?: string }>; structuredContent?: Record<string, unknown> };
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toMatchObject({ matched: false, timedOut: true, text: "Published listing", timeoutMs: 10_000 });
+      expect(result.content[0]!.text).toContain("等待超时");
+      expect(result.content[0]!.text).toContain("该条件未满足");
+    } finally { daemon.cleanup(); }
   });
 
   it("hands no held secret back to the bot: snapshot, eval, page text, console and network results are all scrubbed", async () => {
@@ -348,6 +364,12 @@ describe("server-owned browser MCP runtime", () => {
     }) as { isError: boolean; content: Array<{ text: string }> };
     expect(result.isError).toBe(true);
     expect(result.content[1].text).toContain("verification failed");
+  });
+  it("omits an empty optional selector before sending a full-page snapshot", async () => {
+    const result = await runtime().agentRpc("empty-selector", spec(), "tools/call", {
+      name: "agent_browser_snapshot", arguments: { selector: "", compact: true },
+    }) as { content: Array<{ text: string }> };
+    expect(JSON.parse(result.content[0].text)).toEqual({ name: "agent_browser_snapshot", arguments: { compact: true } });
   });
   it("observes the same page after navigation without repeating the navigation", async () => {
     const value = runtime();

@@ -6,7 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { AppState, Bot, InstanceInfo } from "@/state/store";
 import { setLocale, t } from "@/lib/i18n";
 
-const fixture = vi.hoisted(() => ({ advanced: true, android: false, browser: false, page: undefined as unknown }));
+const fixture = vi.hoisted(() => ({ advanced: true, android: false, browser: false, page: undefined as unknown, apiCalls: [] as string[] }));
 
 vi.mock("./DesktopCapabilities", async (importOriginal) => ({
   ...await importOriginal<typeof import("./DesktopCapabilities")>(),
@@ -33,6 +33,7 @@ vi.mock("./data/DataPanel", () => ({ DataPanel: () => createElement("div", { "da
 vi.mock("@/state/store", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/state/store")>(),
   api: async (path: string) => {
+    fixture.apiCalls.push(path);
     if (path.startsWith("/api/bots/scout/computer/control")) return { held: false, helpReason: null };
     if (path.startsWith("/api/bots/scout/computer?")) return { surface: "cloud", backend: "box", configured: true, box: { boxId: "bx_23456789", state: "ready" } };
     return {};
@@ -105,6 +106,7 @@ beforeEach(() => {
   fixture.android = false;
   fixture.browser = false;
   fixture.page = undefined;
+  fixture.apiCalls = [];
 });
 afterEach(() => {
   root?.unmount();
@@ -114,6 +116,18 @@ afterEach(() => {
 });
 
 describe("Computer panel tab", () => {
+  it("maps saved cloud and private desktop assignments to Browser without calling desktop lifecycle endpoints", async () => {
+    for (const computer of ["cloud", "vm"] as const) {
+      fixture.apiCalls = [];
+      await open(makeBot({ computer }));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Browser"));
+      expect(document.body.textContent).not.toContain("Boat");
+      expect(document.body.textContent).not.toContain("Cloud desktop");
+      expect(document.body.textContent).not.toContain("Private desktop");
+      expect(fixture.apiCalls.some((path) => path.includes("/computer?") || path.includes("/computer/provision") || path.includes("/computer/screenshot") || path.includes("/local-computer"))).toBe(false);
+    }
+  });
+
   it("names the tablist from the active catalog", async () => {
     setLocale("de");
     await open(makeBot());

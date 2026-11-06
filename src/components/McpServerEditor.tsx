@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
@@ -136,7 +137,7 @@ export function McpServerEditor({ server, fixKeys = false, taken, team, busy, on
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className={LABEL}>{t("mcp.field.name")}</span>
-              <input disabled={!adding} value={draft.name} maxLength={32} placeholder="github" className={cn(FIELD, "disabled:opacity-60")}
+              <input disabled={!adding} value={draft.name} maxLength={32} placeholder={translateUi("ui.literal.64b2b6d12bfe")} className={cn(FIELD, "disabled:opacity-60")}
                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value.toLowerCase() }))} />
             </label>
             {draft.transport === "remote" ? (
@@ -183,7 +184,7 @@ export function McpServerEditor({ server, fixKeys = false, taken, team, busy, on
                     </label>
                     <label className="block sm:col-span-2">
                       <span className={LABEL}>{t("mcp.oauth.scopes")}</span>
-                      <input value={draft.oauthScopes} placeholder="offline_access api://my-app/mcp.read" spellCheck={false} className={cn(FIELD, "font-mono text-[12px]")}
+                      <input value={draft.oauthScopes} placeholder={translateUi("ui.literal.e2a99a88b5b1")} spellCheck={false} className={cn(FIELD, "font-mono text-[12px]")}
                         onChange={(event) => setDraft((current) => ({ ...current, oauthScopes: event.target.value }))} />
                     </label>
                   </div>
@@ -193,7 +194,7 @@ export function McpServerEditor({ server, fixKeys = false, taken, team, busy, on
               <>
                 <label className="block">
                   <span className={LABEL}>{t("mcp.field.command")}</span>
-                  <input autoFocus={!adding} value={draft.command} placeholder="npx" className={FIELD}
+                  <input autoFocus={!adding} value={draft.command} placeholder={translateUi("ui.literal.1ce7030eaf55")} className={FIELD}
                     onChange={(event) => setDraft((current) => ({ ...current, command: event.target.value }))} />
                 </label>
                 <label className="block sm:col-span-2">

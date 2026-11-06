@@ -1,9 +1,9 @@
-// Which of a person's AIs a new bot uses, and which one the welcome offers first: one ranking for the server's new-bot
-// default and the welcome. A Claude account, then a ChatGPT plan, then Gemini, then Grok, then every other AI in the
-// order the app lists them; OpenCode running only its free no-login models comes last, as a backup.
+// Which of a person's AIs a new bot uses, and which one the welcome offers first: SimpleAPI, then Claude, a ChatGPT
+// plan, Gemini, Grok, and every other AI in the order the app lists them. OpenCode's free no-login model comes last.
 
 export interface RankableAi {
   driverKind: string;
+  displayName?: string;
   snapshot?: { freeFallback?: boolean };
 }
 
@@ -18,16 +18,24 @@ const TIERS: Readonly<Record<string, number>> = {
   grokAgent: 3,
   grok: 3,
 };
-const OTHER = 4;
-const FREE_FALLBACK = 5;
+const SIMPLE_API = 0;
+const OTHER = 5;
+const FREE_FALLBACK = 6;
 
 /** Ready only through OpenCode's free models: no login, no subscription, no key of the person's own. */
 export function freeFallback(instance: RankableAi): boolean {
   return instance.snapshot?.freeFallback === true;
 }
 
+export function isSimpleApi(instance: Pick<RankableAi, "driverKind" | "displayName">): boolean {
+  return instance.driverKind === "openai-compat" && instance.displayName?.replace(/\s+/g, "").toLowerCase() === "simpleapi";
+}
+
 function tier(instance: RankableAi): number {
-  return freeFallback(instance) ? FREE_FALLBACK : TIERS[instance.driverKind] ?? OTHER;
+  if (freeFallback(instance)) return FREE_FALLBACK;
+  if (isSimpleApi(instance)) return SIMPLE_API;
+  const existing = TIERS[instance.driverKind];
+  return existing === undefined ? OTHER : existing + 1;
 }
 
 /** A new list, best first; AIs of one kind keep the order they came in. */

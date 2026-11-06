@@ -9,13 +9,10 @@ import {
 import { useStore, type InstanceInfo } from "@/state/store";
 import type { TraceDetail, TraceNode, TraceRootSummary, TraceTotals } from "../../../shared/usage-trace";
 import { appName, StepIcon, ToolIcon, TurnAvatar, useAppCards } from "./TraceIcon";
+import { guaiServiceLabel } from "../../../shared/guai-service-tiers";
 
-export function modelName(model: string, instances: readonly InstanceInfo[]): string {
-  for (const instance of instances) {
-    const label = instance.models?.options?.find((option) => option.id === model)?.label;
-    if (label) return label;
-  }
-  return model;
+export function modelName(model: string, _instances: readonly InstanceInfo[]): string {
+  return guaiServiceLabel(model);
 }
 
 export function LiveBadge() {

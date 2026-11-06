@@ -375,6 +375,8 @@ const appConfigSchema = z.object({
     .object({ key: optionalText, url: optionalText, model: optionalText, provider: optionalText })
     .optional(),
   /** Composio project key; `userId`/`sessionId` reuse one Composio Session. */
+  guaiWechat: z.object({ key: optionalText, enabled: z.boolean().optional(), appId: optionalText, merchantId: optionalText, merchantCertificatePath: optionalText, privateKeyPath: optionalText, platformCertificatePath: optionalText, platformSerialNo: optionalText, notifyUrl: optionalText }).optional(),
+  guaiBilling: z.object({ localModulePath: optionalText, key: optionalText, apiUrl: optionalText, catalogPath: optionalText, statusPath: optionalText, returnTargetId: optionalText }).optional(),
   composio: z.object({ apiKey: optionalText, userId: optionalText, sessionId: optionalText }).optional(),
   box: z.object({ token: optionalText }).optional(),
   vps: vpsConfigSchema.optional(),
@@ -501,6 +503,8 @@ export interface AppConfig extends HelperConfig {
   safetyFloor?: { enabled?: boolean };
   billing?: { currency?: string; prices?: Record<string, { inputPerMillion: number; outputPerMillion: number; cachedInputPerMillion?: number }> };
   openaiCompat?: { key?: string; url?: string; model?: string; provider?: string };
+  guaiWechat?: { key?: string; enabled?: boolean; appId?: string; merchantId?: string; merchantCertificatePath?: string; privateKeyPath?: string; platformCertificatePath?: string; platformSerialNo?: string; notifyUrl?: string };
+  guaiBilling?: { localModulePath?: string; key?: string; apiUrl?: string; catalogPath?: string; statusPath?: string; returnTargetId?: string };
   composio?: { apiKey?: string; userId?: string; sessionId?: string };
   /** Boat token (ascii.dev renamed Box to Boat); config key "box", env BOX_TOKEN. */
   box?: { token?: string };
@@ -781,6 +785,10 @@ export function loadConfig(): AppConfig {
   if (process.env.OMB_OPENAI_API_KEY !== undefined) cfg.openai.key = process.env.OMB_OPENAI_API_KEY;
   cfg.openrouter = { ...cfg.openrouter };
   if (process.env.OMB_OPENROUTER_API_KEY !== undefined) cfg.openrouter.key = process.env.OMB_OPENROUTER_API_KEY;
+  cfg.guaiWechat = { ...cfg.guaiWechat };
+  if (process.env.GUAI_WECHAT_API_V3_KEY !== undefined) cfg.guaiWechat.key = process.env.GUAI_WECHAT_API_V3_KEY;
+  cfg.guaiBilling = { ...cfg.guaiBilling };
+  if (process.env.GUAI_BILLING_API_TOKEN !== undefined) cfg.guaiBilling.key = process.env.GUAI_BILLING_API_TOKEN;
   cfg.openaiCompat = { ...cfg.openaiCompat };
   if (process.env.OPENAI_COMPAT_API_KEY !== undefined) cfg.openaiCompat.key = process.env.OPENAI_COMPAT_API_KEY;
   if (process.env.OPENAI_COMPAT_URL !== undefined) cfg.openaiCompat.url = process.env.OPENAI_COMPAT_URL;
@@ -845,6 +853,8 @@ export function syncCredentialEnv(patch: Partial<Omit<AppConfig, "threads" | "ne
     [patch.openaiCompat?.key, "OPENAI_COMPAT_API_KEY"],
     [patch.openai?.key, "OMB_OPENAI_API_KEY"],
     [patch.openrouter?.key, "OMB_OPENROUTER_API_KEY"],
+    [patch.guaiBilling?.key, "GUAI_BILLING_API_TOKEN"],
+    [patch.guaiWechat?.key, "GUAI_WECHAT_API_V3_KEY"],
     [patch.composio?.apiKey, "COMPOSIO_API_KEY"],
     [patch.box?.token, "BOX_TOKEN"],
     [patch.opencodeGo?.apiKey, "OPENCODE_API_KEY"],
@@ -950,7 +960,7 @@ export function saveConfig(
   const before = configSaveListeners.size ? structuredClone(disk) : disk;
   const storedProfiles = storedBrowserProfilesSchema.safeParse(disk.browserProfiles);
   if (storedProfiles.success) disk.browserProfiles = storedProfiles.data;
-  for (const key of ["xai", "anthropic", "mistral", "cerebras", "treg", "postiz", "groq", "greenference", "meta", "deepseek", "openai", "openrouter", "openaiCompat", "composio", "box", "opencodeGo", "tts", "decider", "imageGen", "live", "profile", "rooms", "mcp", "threads", "context", "memory", "localVm", "features", "budgets", "billing", "decisions", "loopGuard", "onboarding", "browserEngine", "newBots", "safetyFloor"] as const) {
+  for (const key of ["xai", "anthropic", "mistral", "cerebras", "treg", "postiz", "groq", "greenference", "meta", "deepseek", "openai", "openrouter", "openaiCompat", "guaiBilling", "guaiWechat", "composio", "box", "opencodeGo", "tts", "decider", "imageGen", "live", "profile", "rooms", "mcp", "threads", "context", "memory", "localVm", "features", "budgets", "billing", "decisions", "loopGuard", "onboarding", "browserEngine", "newBots", "safetyFloor"] as const) {
     const section = checkedPatch[key];
     if (!section) continue;
     const current = jsonObjectSchema.safeParse(disk[key]);
@@ -1191,6 +1201,10 @@ function injectedEnvironment(cfg: AppConfig, instanceId: string, driver: string)
 export function instanceConfigs(cfg: AppConfig): InstanceConfigMap {
   const configured = cfg.instances && Object.keys(cfg.instances).length ? cfg.instances : null;
   const map: InstanceConfigMap = withoutComputerEngine(configured ? { ...configured } : { ...DEFAULT_FLEET });
+  if (!Object.values(map).some(entry => entry.driver === "openai-compat" && /^simpleapi$/i.test(entry.displayName?.trim() ?? ""))) {
+    map.simpleapi = { driver: "openai-compat", displayName: "SimpleAPI", enabled: true,
+      config: { url: cfg.openaiCompat?.url || "https://simpleapi.quwanzhi.com/v1", guaiTiers: true } };
+  }
   if (
     configured &&
     (Object.hasOwn(configured, "claude") || Object.hasOwn(configured, "grok") || Object.hasOwn(configured, "codex"))
@@ -1211,9 +1225,16 @@ export function instanceConfigs(cfg: AppConfig): InstanceConfigMap {
     if (typeof cli === "string" && cli) map.chatgpt = { ...map.chatgpt, config: { ...map.chatgpt.config as object, cli } };
   }
   for (const [id, sourceEntry] of Object.entries(map)) {
+    if (sourceEntry.driver !== "openai-compat" || !/^simpleapi$/i.test(sourceEntry.displayName?.trim() ?? "")) {
+      delete map[id];
+      continue;
+    }
     // Copy: writing into the caller's persisted entry would freeze the workspace URL into it.
     const entry = { ...sourceEntry };
     map[id] = entry;
+    if (entry.driver === "openai-compat" && /^simpleapi$/i.test(entry.displayName?.trim() ?? "")) {
+      entry.config = { ...entry.config as object, guaiTiers: true };
+    }
     const environment = { ...entry.environment };
     const builtIn = API_KEY_FLEET[id];
     const routingDefaults = builtIn?.driver === entry.driver

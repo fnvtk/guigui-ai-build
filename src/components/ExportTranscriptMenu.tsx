@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Download, Share } from "lucide-react";
 
@@ -98,7 +99,7 @@ export function ExportTranscriptMenu({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label="Export conversation"
+        aria-label={translateUi("ui.literal.6b17f1efc658")}
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
@@ -106,7 +107,7 @@ export function ExportTranscriptMenu({
           open ? "text-accent" : "text-ink-secondary hover:text-ink",
           className,
         )}
-        title="Export conversation as Markdown"
+        title={translateUi("ui.literal.e63e1f62d2b7")}
       >
         <Share size={18} />
       </button>
@@ -114,16 +115,16 @@ export function ExportTranscriptMenu({
       {motion.shown && (
         <div
           role="menu"
-          aria-label="Export options"
+          aria-label={translateUi("ui.literal.b5fd8d391bf8")}
           className={cn("absolute right-0 top-full z-40 mt-1 w-[220px] overflow-hidden", MENU_SHEET, motion.className)} {...motion.exitProps}
         >
           <div className={MENU_HEADING}>
-            Export Conversation
+            {translateUi("ui.literal.5d064fafb0e4")}
           </div>
 
           {!hasMessages ? (
             <div className="px-2 py-1.5 text-[12px] text-ink-secondary">
-              No messages to export yet.
+              {translateUi("ui.literal.667d0b5d72f0")}
             </div>
           ) : (
             <>
@@ -145,7 +146,7 @@ export function ExportTranscriptMenu({
 
               {copyFailed && (
                 <div role="status" className="px-2 py-1.5 text-[12px] text-ink-secondary">
-                  Clipboard unavailable. Download the Markdown file instead.
+                  {translateUi("ui.literal.b4314c7acb51")}
                 </div>
               )}
 
@@ -156,7 +157,7 @@ export function ExportTranscriptMenu({
                 className="ui-menu-row text-ink"
               >
                 <Download size={16} className="shrink-0 text-ink-secondary" />
-                <span className="flex-1 truncate">Download as .md</span>
+                <span className="flex-1 truncate">{translateUi("ui.literal.67f93108773e")}</span>
               </button>
             </>
           )}

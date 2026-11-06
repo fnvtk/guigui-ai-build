@@ -6,7 +6,7 @@ const ENTRY_COLORS = Object.freeze(["blue", "teal", "purple", "orange", "red", "
 const cleanColor = (value) => (ENTRY_COLORS.includes(value) ? value : null);
 /** A team's Cloud is listed by the verified session (`team`: its id and this person's role), never by a page. */
 const TEAM_ROLES = Object.freeze(["owner", "admin", "member"]);
-const TEAM_ROLE_LABELS = Object.freeze({ owner: "Super admin", admin: "Admin", member: "User" });
+const TEAM_ROLE_LABELS = Object.freeze({ owner: "超级管理员", admin: "管理员", member: "成员" });
 const teamRoleLabel = (role) => TEAM_ROLE_LABELS[role] ?? TEAM_ROLE_LABELS.member;
 const cleanTeam = (value) => (value && typeof value === "object" && typeof value.id === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.id) && TEAM_ROLES.includes(value.role)
   ? { id: value.id, role: value.role } : null);
@@ -73,7 +73,7 @@ function parseHostedWorkspaceLink(input) {
 /** Remote renderers learn only their current workspace, never the local list. */
 function workspaceSummary(state) {
   const active = activeEnvironment(state);
-  if (!active) return { local: true, name: "This computer" };
+  if (!active) return { local: true, name: "我的电脑" };
   if (active.kind === "local") return { local: true, name: active.name, localPath: active.dataDir, missing: active.missing === true };
   return { local: false, name: active.name, origin: active.origin, ...(cleanColor(active.color) ? { color: active.color } : {}),
     ...(active.team ? { role: teamRoleLabel(active.team.role) } : {}) };
@@ -82,12 +82,12 @@ function workspaceSummary(state) {
 /** Native identity must not depend on a hosted renderer's version/title. `homeOrigin`: My Cloud once it is the person's
  * home: alone, it is simply the app; with a team or another place besides, the window names the place it shows. */
 function workspaceWindowTitle(state, companion, homeOrigin = null) {
-  if (companion) return `OpenMausBot — Connected to: ${companion.serverName} (${new URL(companion.endpoint).host})`;
+  if (companion) return `乖乖Ai — 已连接： ${companion.serverName} (${new URL(companion.endpoint).host})`;
   const active = activeEnvironment(state);
-  if (listedPlace(active)) return `OpenMausBot — ${active.name}`;
-  if (active && active.kind !== "local" && active.origin !== homeOrigin) return `OpenMausBot — Hosted: ${active.name} (${new URL(active.origin).host})`;
-  if (active && homeOrigin && active.origin === homeOrigin && otherPlaces(state, homeOrigin) > 0) return `OpenMausBot — ${active.name}`;
-  return "OpenMausBot";
+  if (listedPlace(active)) return `乖乖Ai — ${active.name}`;
+  if (active && active.kind !== "local" && active.origin !== homeOrigin) return `乖乖Ai — 服务器： ${active.name} (${new URL(active.origin).host})`;
+  if (active && homeOrigin && active.origin === homeOrigin && otherPlaces(state, homeOrigin) > 0) return `乖乖Ai — ${active.name}`;
+  return "乖乖Ai";
 }
 
 /** Switching is a main-process action; a cloud page must not navigate itself onto the local bridge. */
@@ -112,12 +112,12 @@ function workspaceSenderAllowed(event, contents, state, localOrigin) {
 /** Native menu choices, never renderer-supplied destinations or callbacks. `iconFor`: a saved colour's small dot, when main can draw one.
  * `places`: the one line saying which side has which bots, shown first; `copyToCloud`: the send line under the list. `foldSublabels`: where menus show no sublabels (Windows, Linux), My Cloud's status line
  * joins its name instead of vanishing. */
-function workspaceMenuTemplate(state, { onSwitch, onConnect, onForget, onAddCloud, sublabels = {}, iconFor = null, places = null, copyToCloud = null, foldSublabels = false, homeOrigin = null }) {
+function workspaceMenuTemplate(state, { onSwitch, onConnect, onForget, sublabels = {}, iconFor = null, places = null, copyToCloud = null, foldSublabels = false, homeOrigin = null }) {
   const active = activeEnvironment(state);
   if (homeOrigin) return homeMenuTemplate(state, { onSwitch, onForget, sublabels, iconFor, foldSublabels, homeOrigin });
   return [
     ...(places ? [{ id: "workspace-places", label: places, enabled: false }, { type: "separator" }] : []),
-    { id: "workspace-local", label: "This computer", type: "radio", checked: !active, ...(iconFor && cleanColor(state.localColor) ? { icon: iconFor(state.localColor) } : {}), click: () => onSwitch(LOCAL_ID) },
+    { id: "workspace-local", label: "本机", type: "radio", checked: !active, ...(iconFor && cleanColor(state.localColor) ? { icon: iconFor(state.localColor) } : {}), click: () => onSwitch(LOCAL_ID) },
     ...[...state.environments].sort((a, b) => listedPlace(b) - listedPlace(a)).map((entry) => {
       const icon = iconFor && cleanColor(entry.color) ? iconFor(entry.color) : null;
       const status = Object.hasOwn(sublabels, entry.id) ? sublabels[entry.id] : entry.team ? teamRoleLabel(entry.team.role) : null;
@@ -128,10 +128,9 @@ function workspaceMenuTemplate(state, { onSwitch, onConnect, onForget, onAddClou
       };
     }),
     ...(copyToCloud ? [{ id: "workspace-copy-to-cloud", label: copyToCloud.label, click: copyToCloud.click }] : []),
-    ...(onAddCloud ? [{ id: "workspace-add-cloud", label: "Add a Cloud…", sublabel: "Keeps your bots running 24/7", click: onAddCloud }] : []),
     { type: "separator" },
-    { id: "workspace-connect", label: "Connect to a server…", click: onConnect },
-    ...(active && !listedPlace(active) ? [{ id: "workspace-forget", label: `Forget “${active.name}”…`, click: () => onForget(active.id) }] : []),
+    { id: "workspace-connect", label: "连接到服务器…", click: onConnect },
+    ...(active && !listedPlace(active) ? [{ id: "workspace-forget", label: `移除“${active.name}”…`, click: () => onForget(active.id) }] : []),
   ];
 }
 
@@ -150,7 +149,7 @@ function homeMenuTemplate(state, { onSwitch, onForget, sublabels, iconFor, foldS
         ...(icon ? { icon } : {}), type: "radio", checked: entry.id === state.activeId, click: () => onSwitch(entry.id),
       };
     }),
-    ...(active && active.origin !== homeOrigin && !listedPlace(active) ? [{ type: "separator" }, { id: "workspace-forget", label: `Forget “${active.name}”…`, click: () => onForget(active.id) }] : []),
+    ...(active && active.origin !== homeOrigin && !listedPlace(active) ? [{ type: "separator" }, { id: "workspace-forget", label: `移除“${active.name}”…`, click: () => onForget(active.id) }] : []),
   ];
 }
 
@@ -238,15 +237,15 @@ function reconcileOwnClouds(state, clouds, makeId, homeOrigin = null) {
 
 function botList(names, shown = 2) {
   const clean = names.filter((name) => typeof name === "string" && name.trim()).map((name) => name.trim().replace(/\s+/g, " ").slice(0, 40));
-  if (clean.length <= shown + 1) return clean.length > 1 ? `${clean.slice(0, -1).join(", ")} and ${clean.at(-1)}` : clean[0] ?? "";
-  return `${clean.slice(0, shown).join(", ")} and ${clean.length - shown} more`;
+  if (clean.length <= shown + 1) return clean.length > 1 ? `${clean.slice(0, -1).join("、")}和${clean.at(-1)}` : clean[0] ?? "";
+  return `${clean.slice(0, shown).join("、")}和其他 ${clean.length - shown} 个`;
 }
 
 /** Bots, chats and skills live on each side by design; this says which side has which, from where the person is now. */
 function placesLine({ cloudName = "My Cloud", onCloud, localBots }) {
   const names = botList(localBots);
-  if (onCloud) return names ? `Your bots live on ${cloudName}. This computer has its own: ${names}.` : `Your bots live on ${cloudName}. This computer has none of its own.`;
-  return names ? `These bots live on this computer: ${names}. ${cloudName} has its own.` : `This computer has no bots of its own yet. ${cloudName} has its own.`;
+  if (onCloud) return names ? `你的机器人运行在${cloudName}上。本机的机器人：${names}。` : `你的机器人运行在${cloudName}上。本机没有自己的机器人。`;
+  return names ? `这些机器人运行在本机：${names}。${cloudName}有自己的机器人。` : `本机还没有自己的机器人。${cloudName}有自己的机器人。`;
 }
 
 /** One line under My Cloud: what of this computer's is not on it yet, with Send (Send to My Cloud, cloud-send.mjs), or
@@ -254,8 +253,8 @@ function placesLine({ cloudName = "My Cloud", onCloud, localBots }) {
 function sendLine({ cloudName = "My Cloud", waiting }) {
   const total = waiting?.total ?? 0, bots = waiting?.bots ?? 0;
   if (!total) return null;
-  const what = bots ? `${bots === 1 ? "1 bot" : `${bots} bots`}${total > bots ? ` and ${total - bots} more` : ""}` : total === 1 ? "1 change" : `${total} changes`;
-  return `${what} not on ${cloudName} · Send`;
+  const what = bots ? `${bots} 个机器人${total > bots ? `和其他 ${total - bots} 项更改` : ""}` : `${total} 项更改`;
+  return `${what}尚未同步到 ${cloudName} · 发送`;
 }
 
 /** The switcher's extra options once the person has My Cloud: the places line, the send line, and the Cloud's status
@@ -272,7 +271,7 @@ async function placesMenuOptions({ cloud, home = false, homeOrigin = null, platf
   const waiting = sendLine({ cloudName: cloud.name, waiting: send?.waiting });
   return {
     foldSublabels,
-    ...(send ? { copyToCloud: waiting ? { label: waiting, click: send.onSend } : { label: `This computer and ${cloud.name}…`, click: send.onOpen } } : {}),
+    ...(send ? { copyToCloud: waiting ? { label: waiting, click: send.onSend } : { label: `本机与${cloud.name}…`, click: send.onOpen } } : {}),
     ...(names ? { places: placesLine({ cloudName: cloud.name, onCloud: home === true, localBots: names }) } : {}),
   };
 }
@@ -395,7 +394,7 @@ function withPlaceColor(state, id, color) {
 
 /** The place `id` names (the one on screen by default): a saved entry, or This computer as one, named and coloured. */
 function savedPlace(state, id = state.activeId) {
-  if (id === LOCAL_ID) return { id: LOCAL_ID, kind: "local", name: "This computer", ...(cleanColor(state.localColor) ? { color: state.localColor } : {}) };
+  if (id === LOCAL_ID) return { id: LOCAL_ID, kind: "local", name: "我的电脑", ...(cleanColor(state.localColor) ? { color: state.localColor } : {}) };
   return state.environments.find((entry) => entry.id === id) ?? null;
 }
 

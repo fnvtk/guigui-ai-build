@@ -1909,6 +1909,18 @@ describe("harness HTTP API", () => {
     expect(created.status).toBe(201);
     const routineId = created.body.routine.id;
     try {
+      const cloudCreate = await api("POST", "/api/routines", {
+        name: "Unsupported cloud brief", prompt: "Summarize", botId: lead.id, runOn: "cloud",
+        schedule: { type: "daily", time: "09:00", weekdays: [1] },
+      });
+      expect(cloudCreate.status).toBe(400);
+      expect(cloudCreate.body.error).toMatch(/only run on this computer/i);
+      const cloudUpdate = await api("PATCH", `/api/routines/${routineId}`, { runOn: "cloud" });
+      expect(cloudUpdate.status).toBe(400);
+      expect(cloudUpdate.body.error).toMatch(/only run on this computer/i);
+      expect((await api("GET", "/api/routines")).body.routines.find((routine: { id: string }) => routine.id === routineId))
+        .toMatchObject({ runOn: "maus", enabled: true });
+
       expect((await api("PATCH", `/api/bots/${other.id}`, { chiefOfStaff: true })).status).toBe(200);
       const chiefToken = await mintTestCapability(BASE, other.id, other.threadId);
       const internalBlocked = await chiefRoomRequest(BASE, chiefToken, "manage-room", {

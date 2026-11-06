@@ -110,6 +110,26 @@ describe("BotAvatar's two avatar outcomes", () => {
     expect(markup).not.toContain("<img");
     expect(markup).toContain("<svg");
   });
+
+  it("shows the role recommendation for a Chief with no custom avatar", () => {
+    const markup = renderBot({ name: "乖乖", chiefOfStaff: true });
+    expect(markup).toContain('data-mbti-type="ENTJ"');
+    expect(markup).toContain('data-mbti-source="role-recommendation"');
+    expect(markup).toContain("乖乖 ENTJ 岗位推荐头像");
+  });
+
+  it("keeps explicit mascot choice and custom avatars ahead of recommendations", () => {
+    expect(renderBot({ chiefOfStaff: true, avatarCrop: "mascot" })).toContain("<svg");
+    const custom = renderBot({ chiefOfStaff: true, avatarUrl: "/api/attachments/cat.webp", avatarCrop: "circle" });
+    expect(custom).toContain("/api/attachments/cat.webp");
+    expect(custom).not.toContain("data-mbti-type");
+  });
+
+  it("keeps the mascot for unknown roles and personalities", () => {
+    const markup = renderBot({ name: "New bot" });
+    expect(markup).toContain("<svg");
+    expect(markup).not.toContain("data-mbti-type");
+  });
 });
 
 describe("resolveBotAvatarOutcome", () => {

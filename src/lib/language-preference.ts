@@ -43,7 +43,7 @@ export function languageChoice(): string | null {
 }
 
 export function effectiveLanguage(choice: string | null, serverDefault: string | undefined): string {
-  return choice ?? serverDefault ?? "";
+  return choice ?? (serverDefault || "zh");
 }
 
 function notify() {

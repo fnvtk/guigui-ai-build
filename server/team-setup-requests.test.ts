@@ -63,6 +63,36 @@ function harness(caps?: Record<string, { driverKind: string; agentsMcp: boolean 
 const specialist = (key: string, section: string, modelSelection = { instanceId: "claude", model: "sonnet" }) => ({ action: "create", key,
   fields: { name: key, title: "Specialist", soul: "Finish the assigned work.", section, modelSelection } });
 
+describe("provider empty optional placeholders", () => {
+  it("accepts a create with an empty update ID and removes blank model options", () => {
+    const h = harness();
+    const operation = specialist("Mira", "Work");
+    h.propose([{ ...operation, botId: "", fields: { ...operation.fields,
+      modelSelection: { instanceId: "claude", model: "sonnet", effort: "", variant: "" } } }]);
+    const request = h.messages[0].card;
+    expect(JSON.stringify(request)).not.toContain('"effort":""');
+    expect(JSON.stringify(request)).not.toContain('"variant":""');
+  });
+
+  it("keeps rejecting a nonempty update ID on a create", () => {
+    const h = harness();
+    expect(() => h.propose([{ ...specialist("Mira", "Work"), botId: h.peer.id }])).toThrow(/Unrecognized key/);
+  });
+
+  it("accepts an update with a provider-supplied create label without changing its target", () => {
+    const h = harness();
+    h.propose([{ action: "update", botId: h.peer.id, key: "Mira", fields: { title: "Updated", cwd: "" } }]);
+    expect(JSON.stringify(h.messages[0].card)).toContain("Updated");
+    expect(h.apply).not.toHaveBeenCalled();
+  });
+
+  it("still refuses an actual working-folder change in a team update", () => {
+    const h = harness();
+    expect(() => h.propose([{ action: "update", botId: h.peer.id,
+      fields: { cwd: "/tmp" } }])).toThrow(/working folder can only be chosen when creating/);
+  });
+});
+
 describe("reviewed Chief team setup", () => {
   it("reviews promotion in an authorized team without changing anything on denial", async () => {
     const h = harness(); h.peer.section = "Engineering";

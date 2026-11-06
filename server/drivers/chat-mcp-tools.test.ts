@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -111,7 +111,7 @@ describe("Chat MCP session", () => {
     const f = fixture();
     const session = await mountChatTools({ data: f.server }, f.controller.signal, false, scope);
     sessions.push(session);
-    expect(session.definitions).toEqual([{ type: "function", function: { name: "data_write", description: "Fixture write", parameters: schema } }]);
+    expect(session.definitions).toEqual([{ type: "function", function: { name: "data_write", description: "Fixture write Required arguments: value (string); include each in every call.", parameters: schema } }]);
     await expect(session.execute("data_write", { value: "query receipt" }, f.controller.signal)).resolves.toEqual({ text: "recorded:query receipt", ok: true });
     expect(f.read().calls.at(-1)).toMatchObject({ method: "tools/call", params: { name: "write", arguments: { value: "query receipt" } } });
   });
@@ -133,7 +133,7 @@ describe("Chat MCP session", () => {
       ]}); return;
     }`);
     const session = await f.mount(false, false, { allow: ["mcp:audit:read-notes"] });
-    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_read_notes", description: "Configured MCP tool", parameters: schema } }]);
+    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_read_notes", description: "Configured MCP tool Required arguments: value (string); include each in every call.", parameters: schema } }]);
     await expect(session.execute("audit_read_notes_2", { value: "blocked" }, f.controller.signal)).rejects.toThrow("not advertised");
     expect(f.read().calls.filter((call) => call.method === "tools/call")).toEqual([]);
     await session.execute("audit_read_notes", { value: "allowed" }, f.controller.signal);
@@ -165,7 +165,7 @@ describe("Chat MCP session", () => {
   it("discovers without executing, preserves schemas and validates before forwarding original arguments", async () => {
     const f = fixture();
     const session = await f.mount();
-    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_write", description: "Fixture write", parameters: schema } }]);
+    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_write", description: "Fixture write Required arguments: value (string); include each in every call.", parameters: schema } }]);
     expect(f.read().calls.map((call) => call.method)).not.toContain("tools/call");
     expect(() => session.validate("audit_write", { value: 42 })).toThrow("input schema");
     await expect(session.execute("not_registered", {}, f.controller.signal)).rejects.toThrow("not advertised");
@@ -315,9 +315,22 @@ describe("Chat MCP session", () => {
     const session = await f.mount();
     const result = await session.execute("audit_write", {value:42}, f.controller.signal).catch((error: Error) => error);
     expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toContain("value: must be string");
     expect(result).not.toBeInstanceOf(ChatToolSessionError);
     expect(f.read().calls.some((call) => call.method === "tools/call")).toBe(false);
     await expect(session.execute("audit_write", {value:"valid"}, f.controller.signal)).resolves.toMatchObject({ok:true});
+  });
+
+  it("identifies the required eval field and dispatches only the corrected expression", async () => {
+    const evalSchema = { type: "object", properties: { script: { type: "string", minLength: 1 } }, required: ["script"], additionalProperties: false };
+    const f = fixture(`if (message.method === "tools/list") { reply(message, {tools:[{name:"agent_browser_eval",description:"Evaluate script",inputSchema:schema}]}); continue; }`, evalSchema);
+    const session = await mountChatTools({ browser: f.server }, f.controller.signal, true);
+    sessions.push(session);
+    const name = session.definitions[0]!.function.name;
+    await expect(session.execute(name, {}, f.controller.signal)).rejects.toThrow("required property 'script'");
+    expect(f.read().calls.some(call => call.method === "tools/call")).toBe(false);
+    await expect(session.execute(name, { script: "1 + 1" }, f.controller.signal)).resolves.toMatchObject({ ok: true });
+    expect(f.read().calls.filter(call => call.method === "tools/call").map(call => call.params?.arguments)).toEqual([{ script: "1 + 1" }]);
   });
 
   it("returns ordinary MCP tool errors while keeping the session available", async () => {
@@ -387,7 +400,7 @@ describe("Chat MCP session", () => {
   it("advertises only name, description and parameters, never outputSchema or other MCP tool fields", async () => {
     const f = fixture(`if(message.method === "tools/list") { reply(message,{tools:[{name:"write",title:"W",description:"d",inputSchema:${JSON.stringify(schema)},outputSchema:{type:"object"},annotations:{readOnlyHint:true}}]}); continue; }`);
     const session = await f.mount();
-    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_write", description: "d", parameters: schema } }]);
+    expect(session.definitions).toEqual([{ type: "function", function: { name: "audit_write", description: "d Required arguments: value (string); include each in every call.", parameters: schema } }]);
     expect(session.skipped).toEqual([]);
   });
 
@@ -736,6 +749,47 @@ describe("Chat MCP startup budgets", () => {
 });
 
 describe("Chat MCP schema validation", () => {
+  it("reports a missing required filesystem path and never dispatches that invalid call", async () => {
+    const pathSchema = { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false };
+    const f = fixture(`if (message.method === "tools/list") { reply(message, {tools:[{name:"source_list_directory_with_sizes",inputSchema:schema}]}); continue; }`, pathSchema);
+    const session = await mountChatTools({ custom: { fangshitong: f.server } }, f.controller.signal);
+    sessions.push(session);
+    const name = "fangshitong_source_list_directory_with_sizes";
+    expect(session.definitions[0]?.function.name).toBe(name);
+    expect(session.definitions[0]?.function.parameters).toMatchObject({ required: ["path"], properties: { path: { type: "string" } } });
+    expect(session.definitions[0]?.function.description).toContain('Required arguments: path (string); include each in every call. Example shape: {"path":"<explicit requested path>"}; replace the placeholder with a concrete path from the request, do not guess one.');
+    expect(() => session.validate(name, {})).toThrow("required property 'path'");
+    expect(f.read().calls.filter((call) => call.method === "tools/call")).toEqual([]);
+  });
+
+  it.each(["script", "expression"])("maps the browser eval alias to the advertised %s field before validation", async (field) => {
+    const schema = { type: "object", properties: { [field]: { type: "string", minLength: 1 } }, required: [field], additionalProperties: false };
+    const f = fixture(`if (message.method === "tools/list") { reply(message, {tools:[{name:"agent_browser_eval",inputSchema:schema}]}); continue; }`, schema);
+    const session = await mountChatTools({ browser: f.server }, f.controller.signal, true);
+    sessions.push(session);
+    const alias = field === "script" ? "expression" : "script";
+    await session.execute("browser_agent_browser_eval", { [alias]: "1 + 1" }, f.controller.signal);
+    expect(f.read().calls.filter(call => call.method === "tools/call").at(-1)?.params?.arguments).toEqual({ [field]: "1 + 1" });
+    expect(() => session.validate("browser_agent_browser_eval", { [field]: 7, [alias]: "1" })).toThrow("input schema");
+    expect(() => session.validate("browser_agent_browser_eval", {})).toThrow(field);
+  });
+
+  it("normalizes existing agents coordination aliases before checking the full schema", async () => {
+    const f = fixture(`if (message.method === "tools/list") {
+      reply(message, {tools:[{name:"coordinate_bots",inputSchema:{type:"object",properties:{bot_ids:{type:"array",items:{type:"string"}},message:{type:"string"},group_id:{type:"string"},done_when:{type:"string"}},required:["bot_ids","message"],additionalProperties:false}}]}); return;
+    }`);
+    const session = await mountChatTools({ agents: f.server }, f.controller.signal);
+    sessions.push(session);
+    const args = { botIds: ["fixture-peer"], message: "Check fixture", groupId: "fixture-room", doneWhen: "return evidence" };
+    expect(() => session.validate("agents_coordinate_bots", args)).not.toThrow();
+    expect(args).toEqual({bot_ids:["fixture-peer"],message:"Check fixture",group_id:"fixture-room",done_when:"return evidence"});
+    await session.execute("agents_coordinate_bots", args, f.controller.signal);
+    expect(f.read().calls.at(-1)).toMatchObject({method:"tools/call",params:{name:"coordinate_bots",arguments:args}});
+    expect(() => session.validate("agents_coordinate_bots", {message:"No target"})).toThrow("bot_ids");
+    expect(() => session.validate("agents_coordinate_bots", {botIds:"fixture-peer",message:"Wrong type"})).toThrow("array");
+    expect(() => session.validate("agents_coordinate_bots", {bot_ids:7,botIds:["fixture-peer"],message:"Do not replace explicit invalid target"})).toThrow("array");
+  });
+
   it("retains native unsigned/composition constraints while exposing an object schema", async () => {
     const f = fixture("", { type: "object", properties: { value: { type: "integer", format: "uint32" } },
       anyOf: [{ required: ["value"] }], additionalProperties: false });
@@ -767,6 +821,40 @@ describe("Chat MCP schema validation", () => {
     const f = fixture('if(message.method === "tools/call") { process.stdout.write("x".repeat(32*1024*1024+1)); continue; }');
     const session = await f.mount(true);
     await expect(session.execute("audit_write", { value: "large" }, f.controller.signal)).rejects.toThrow(/frame|limit/i);
+  });
+
+  it("rejects a custom MCP response frame above 16MiB", async () => {
+    const f = fixture('if(message.method === "tools/call") { process.stdout.write("x".repeat(16*1024*1024+1)); continue; }');
+    const session = await f.mount();
+    await expect(session.execute("audit_write", { value: "large" }, f.controller.signal)).rejects.toThrow(/frame|limit/i);
+  });
+
+  it("accepts a >2MiB MCP filesystem listing under a pinned temporary root and bounds its returned text", async () => {
+    const pathSchema = { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false };
+    const f = fixture(`if (message.method === "tools/list") { reply(message, {tools:[{name:"source_list_directory_with_sizes",inputSchema:schema}]}); continue; }
+      if (message.method === "tools/call") {
+        const path = message.params.arguments.path;
+        if (path !== process.env.PINNED_ROOT) { reply(message, {isError:true,content:[{type:"text",text:"path outside fixture root"}]}); continue; }
+        const names = readdirSync(path);
+        reply(message, {content:[{type:"text",text:JSON.stringify(names.map(name => ({name,size:statSync(join(path,name)).size})))}]});
+        continue;
+      }`, pathSchema);
+    const root = join(f.dir, "allowed");
+    mkdirSync(root);
+    for (let index = 0; index < 12_000; index += 1) writeFileSync(join(root, `${String(index).padStart(5, "0")}-${"x".repeat(220)}`), "");
+    const script = readFileSync(join(f.dir, "fake-mcp.mjs"), "utf8")
+      .replace('import { writeFileSync }', 'import { writeFileSync, readdirSync, statSync }')
+      .replace('import { spawn } from "node:child_process";', 'import { spawn } from "node:child_process";\n    import { join } from "node:path";');
+    writeFileSync(join(f.dir, "fake-mcp.mjs"), script);
+    f.server.env.PINNED_ROOT = root;
+    const session = await mountChatTools({ custom: { fangshitong: f.server } }, f.controller.signal);
+    sessions.push(session);
+    const name = "fangshitong_source_list_directory_with_sizes";
+    expect(session.definitions[0]?.function.parameters).toMatchObject({ required: ["path"], properties: { path: { type: "string" } } });
+    const result = await session.execute(name, { path: root }, f.controller.signal);
+    expect(result.ok).toBe(true);
+    expect(result.text).toContain("[MCP result truncated at 50KB; request less output.]");
+    expect(Buffer.byteLength(result.text)).toBeLessThan(52_000);
   });
 
   it("rejects malformed image results without claiming execution success", async () => {

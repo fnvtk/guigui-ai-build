@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ExternalLink, Loader2, MoreHorizontal } from "lucide-react";
 
@@ -272,7 +273,7 @@ export function PostizCard({ refreshKey = 0, onConnection }: {
         <PostizIcon />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[14px] font-semibold leading-5 text-ink">Postiz</span>
+            <span className="truncate text-[14px] font-semibold leading-5 text-ink">{translateUi("ui.literal.3922cbdef7b0")}</span>
             {connected && <Check size={13} strokeWidth={2.5} className="shrink-0 text-success" aria-label={t("apps.connected")} />}
           </div>
           <p className="truncate text-[13px] leading-[18px] text-ink-secondary" title={description}>{description}</p>

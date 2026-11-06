@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { aiSignInKey, rankAis } from "./ai-ranking.ts";
+import { aiSignInKey, isSimpleApi, rankAis } from "./ai-ranking.ts";
 
 type Row = { id: string; driverKind: string; snapshot?: { freeFallback?: boolean } };
 const row = (id: string, driverKind: string, snapshot?: Row["snapshot"]): Row => ({ id, driverKind, ...(snapshot ? { snapshot } : {}) });
@@ -24,6 +24,14 @@ describe("one ranking of the AIs a new person has", () => {
     expect(ids(rankAis([grok, kimi, droid, claude, codex, chatgpt, antigravity, openCodeFree])))
       .toEqual(["claude", "codex", "chatgpt", "antigravity", "grok", "kimi", "droid", "opencodeGo"]);
     expect(ids(rankAis([xai, gemini, kimi]))).toEqual(["gemini", "xai", "kimi"]);
+  });
+
+  it("puts the configured SimpleAPI endpoint first while keeping free OpenCode last", () => {
+    const simpleApi = { id: "simple", driverKind: "openai-compat", displayName: " SimpleAPI " };
+    expect(ids(rankAis([grok, simpleApi, claude, openCodeFree]))).toEqual(["simple", "claude", "grok", "opencodeGo"]);
+    expect(isSimpleApi({ driverKind: "openai-compat", displayName: " simpleapi " })).toBe(true);
+    expect(isSimpleApi({ driverKind: "openai-compat", displayName: "OpenAI-compatible" })).toBe(false);
+    expect(isSimpleApi({ driverKind: "claudeAgent", displayName: "SimpleAPI" })).toBe(false);
   });
 
   it("keeps OpenCode on free models only last, and a signed-in OpenCode among the rest", () => {

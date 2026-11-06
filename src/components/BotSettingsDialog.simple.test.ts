@@ -137,9 +137,7 @@ const { ModelSection } = await import("./bot-settings/ModelSection");
 const { RoutineList } = await import("./routines/RoutineList");
 const { RoutineEditor } = await import("./RoutinesPage");
 const { SignedInSites } = await import("./SignedInSites");
-const { AvatarImageGenerator } = await import("./AvatarImageGenerator");
 const { AvatarFraming } = await import("./avatar-editing");
-const { MascotFaceColorPicker } = await import("./MascotFaceColorPicker");
 const { Switch } = await import("./SettingsPrimitives");
 
 afterAll(() => vi.unstubAllGlobals());
@@ -493,77 +491,47 @@ describe("the hero", () => {
 describe("the avatar editor", () => {
   const editor = (bot: Bot) => capture(() => AvatarEditorCard({ bot, activeState: "idle", onPatch: patch, onClose }));
 
-  it("shows the ten bodies and twelve colors, with the Halloween bodies and the faces behind More looks", () => {
-    const bot = makeBot();
+  it("offers all 16 configured personas, preserves the existing soul text, and uses the selected type", () => {
+    const bot = makeBot({ soul: "Be brief.\n\nKeep the analysis practical." });
     const rendered = editor(bot);
-    expect(rendered.html.match(/aria-label="Use the \w+ body"/g)).toHaveLength(10);
+    expect(rendered.html.match(/aria-label="Configure AI personality [EI][NS][FT][JP]"/g)).toHaveLength(16);
+    expect(rendered.html).toContain("主动设定的人设，不是测评结果");
+    expect(rendered.html).not.toContain("Use the Cursor body");
+    expect(rendered.html).not.toContain("Halloween");
+
+    click(find(rendered, "aria-label", "Configure AI personality ENFP"));
+    expect(patch).toHaveBeenLastCalledWith({
+      soul: "AI性格配置（MBTI）：ENFP\n\nBe brief.\n\nKeep the analysis practical.",
+      avatarCrop: "mascot",
+      avatarUrl: null,
+    });
+
+    fresh();
+    const configured = editor(makeBot({ soul: "AI性格配置（MBTI）：ENFP\n\nENFP is configured; INTJ is only discussed as an example." }));
+    expect(find(configured, "aria-label", "Configure AI personality ENFP").props["aria-pressed"]).toBe(true);
+    expect(find(configured, "aria-label", "Configure AI personality INTJ").props["aria-pressed"]).toBe(false);
+  });
+
+  it("keeps adjustable color visible on the MBTI choices and removes image generation", () => {
+    const rendered = editor(makeBot({ color: "blue" }));
     expect(rendered.html.match(/aria-label="Use \w+ mascot color"/g)).toHaveLength(12);
-    expect(rendered.html).not.toContain(">Halloween<");
-    expect(has(rendered, "data-avatar-face", "idle")).toBe(false);
-    expect(find(rendered, "aria-label", "Use the Cursor body").props["aria-pressed"]).toBe(true);
-    click(find(rendered, "aria-label", "Use the Blob body"));
-    expect(patch).toHaveBeenLastCalledWith({ mascotBody: "blob" });
-    click(find(rendered, "aria-label", "Use blue mascot color"));
-    expect(patch).toHaveBeenLastCalledWith({ color: "blue" });
-    expect(find(rendered, "aria-label", "Use silver mascot color").props.title).toBe("Silver");
+    expect(find(rendered, "aria-label", "Use blue mascot color").props["aria-pressed"]).toBe(true);
+    expect((find(rendered, "aria-label", "Configure AI personality INTJ").props.style as { borderColor: string }).borderColor).toBeTruthy();
     click(find(rendered, "aria-label", "Use silver mascot color"));
     expect(patch).toHaveBeenLastCalledWith({ color: "silver" });
-    expect(find(rendered, "aria-label", "Use chrome mascot color").props.title).toBe("Chrome");
-    click(find(rendered, "aria-label", "Use chrome mascot color"));
-    expect(patch).toHaveBeenLastCalledWith({ color: "chrome" });
-
-    const more = find(rendered, "data-avatar-more");
-    expect(more.props["aria-expanded"]).toBe(false);
-    expect(rendered.html).toContain(">More looks<");
-    click(more);
-    const open = editor(bot);
-    expect(find(open, "data-avatar-more").props["aria-expanded"]).toBe(true);
-    expect(open.html.match(/aria-label="Use the \w+ body"/g)).toHaveLength(20);
-    expect(open.html).toContain(">Halloween<");
-    click(find(open, "aria-label", "Use the Pumpkin body"));
-    expect(patch).toHaveBeenLastCalledWith({ mascotBody: "pumpkin" });
-    expect(find(open, "data-avatar-face", "idle").props["aria-pressed"]).toBe(true);
-    click(find(open, "data-avatar-face", "proud"));
-    expect(patch).toHaveBeenLastCalledWith({ mascotExpression: "proud" });
-    expect(open.html).toContain(">Proud<");
+    expect(rendered.nodes.filter((node) => node.props["data-avatar-tab"]).map((node) => node.props["data-avatar-tab"]))
+      .toEqual(["bot", "upload"]);
+    expect(rendered.html).not.toContain("Generate");
   });
 
-  it("opens More looks at once for a Halloween body or a chosen face", () => {
-    expect(find(editor(makeBot({ mascotBody: "pumpkin" })), "data-avatar-more").props["aria-expanded"]).toBe(true);
-    fresh();
-    expect(find(editor(makeBot({ mascotExpression: "proud" })), "data-avatar-more").props["aria-expanded"]).toBe(true);
-    fresh();
-    expect(find(editor(makeBot()), "data-avatar-more").props["aria-expanded"]).toBe(false);
+  it("resets to the configured MBTI avatar without clearing the AI persona", () => {
+    click(find(editor(makeBot({ soul: "AI性格配置（MBTI）：ISTJ" })), "data-avatar-reset"));
+    expect(patch).toHaveBeenLastCalledWith({ avatarCrop: "mascot", avatarUrl: null });
   });
 
-  it("switches back to the mascot when a body is picked over a picture", () => {
-    const bot = makeBot({ avatarUrl: "/api/attachments/cat.webp", avatarCrop: "circle" });
-    click(find(editor(bot), "data-avatar-tab", "bot"));
-    click(find(editor(bot), "aria-label", "Use the Star body"));
-    expect(patch).toHaveBeenLastCalledWith({ mascotBody: "star", avatarCrop: "mascot" });
-  });
-
-  it("resets the mascot as the Advanced card does", () => {
-    click(find(editor(makeBot()), "data-avatar-reset"));
-    expect(patch).toHaveBeenLastCalledWith({ avatarCrop: "mascot", color: "green", mascotExpression: null, mascotBody: "cursor", mascotFaceColor: null });
-  });
-
-  it("edits facial feature color without changing body color or expression", () => {
-    const props = ofType(editor(makeBot({ mascotFaceColor: "black" })), MascotFaceColorPicker)!.props;
-    const choices = segment(capture(() => MascotFaceColorPicker(props as Parameters<typeof MascotFaceColorPicker>[0])), "data-avatar-face-color");
-    expect(choices.value).toBe("black");
-    expect(choices.options.map((option) => option.value)).toEqual(["white", "black"]);
-    choices.onChange("white");
-    expect(patch).toHaveBeenLastCalledWith({ mascotFaceColor: "white" });
-  });
-
-  it("generates with the shared generator, and uploads with shape and framing", () => {
+  it("uploads with shape and framing", () => {
     const bot = makeBot();
-    click(find(editor(bot), "data-avatar-tab", "generate"));
-    const generate = editor(bot);
-    expect(ofType(generate, AvatarImageGenerator)!.props.botLabel).toBe("Researcher");
-
-    click(find(generate, "data-avatar-tab", "upload"));
+    click(find(editor(bot), "data-avatar-tab", "upload"));
     const upload = editor(bot);
     expect(upload.html).toContain("Drop a picture here, or choose one");
     expect(upload.html).toContain("PNG, JPEG, GIF, or WebP · up to 10 MB");
@@ -1050,6 +1018,20 @@ describe("the drill-in pages", () => {
     await Promise.resolve();
     expect(fixture.memory.reload).toHaveBeenCalled();
     expect(body("memory").html).toContain("Scout changed this file while you were editing.");
+  });
+
+  it("imports pasted Skill text disabled for separate review, and rejects malformed frontmatter", async () => {
+    const text = "---\nname: fixture-coordination\ndescription: Fixture team workflow\n---\nRead the original task before assigning work.";
+    const rendered = body("skills");
+    expect(find(rendered, "data-panel-action", "import-skill-text").props.disabled).toBe(true);
+    (find(rendered, "aria-label", "Skill 正文").props.onChange as (e: unknown) => void)({target:{value:"invalid"}});
+    click(find(body("skills"), "data-panel-action", "import-skill-text"));
+    expect(fixture.api).not.toHaveBeenCalled();
+    expect(fixture.skills.setError).toHaveBeenCalled();
+    (find(body("skills"), "aria-label", "Skill 正文").props.onChange as (e: unknown) => void)({target:{value:text}});
+    click(find(body("skills"), "data-panel-action", "import-skill-text"));
+    await Promise.resolve();
+    expect(fixture.api).toHaveBeenCalledWith("/api/bots/scout/skill-template", {method:"POST",body:JSON.stringify({name:"fixture-coordination",description:"Fixture team workflow",text,source:"manual-text",enabled:false,warnings:[]})});
   });
 
   it("switches skills, removes one, adds one from a link and browses the library or skills.sh", async () => {

@@ -66,6 +66,13 @@ function profiles(): Record<string, Profile> {
 }
 
 const PROFILES = profiles();
+
+it("advertises only the room's folder for room coordination", () => {
+  const room = availableTools(catalogProfileFromEnv(PROFILES["default+room"].env)).find(tool => tool.name === "coordinate_bots")!;
+  const direct = availableTools(catalogProfileFromEnv(PROFILES.default.env)).find(tool => tool.name === "coordinate_bots")!;
+  expect(room.inputSchema).toHaveProperty("properties.in_my_folder", { type: "boolean", enum: [false], description: "A room uses its own working folder. Omit this option or set it to false." });
+  expect(direct.inputSchema).not.toHaveProperty("properties.in_my_folder.enum");
+});
 const CHIEF_ONLY_TOOLS = ["create_bot", "list_team_setup", "list_team_library", "propose_team_setup", "propose_bot_deletion", "manage_room", "retry_thread"];
 const CHIEF_TARGET_TOOLS = ["propose_profile", "propose_model"];
 const CHIEF_PROFILE_TARGET = " A Chief of Staff may pass for_bot_id (from list_bots) for a requested change to another bot in its section.";
@@ -106,8 +113,8 @@ const BUDGET_BASELINE: Record<string, number> = {
   "skills+shared+voice+escalations+x": 67410,
   "skills+shared+voice+escalations+x+team": 68042,
   "default+no-computer-pick": 55698,
-  "default+room": 48780,
-  "non-chief+room": 39723,
+  "default+room": 49365,
+  "non-chief+room": 39499,
 };
 
 const RPC_PREFIX = '{"jsonrpc":"2.0","id":1,"result":';
@@ -208,6 +215,12 @@ describe("agents proxy tools/list golden", () => {
     const full = new Map(toolsOf(wires[FULL]!).map((tool) => [tool.name, JSON.stringify(tool)]));
     for (const [name, profile] of Object.entries(PROFILES)) {
       for (const tool of toolsOf(wires[name]!)) {
+        if (profile.env.OMB_ROOM === "1" && tool.name === "coordinate_bots") {
+          const expected = JSON.parse(full.get(tool.name)!);
+          expected.inputSchema.properties.in_my_folder = { type: "boolean", enum: [false], description: "A room uses its own working folder. Omit this option or set it to false." };
+          expect(tool, name).toEqual(expected);
+          continue;
+        }
         if (profile.env.OMB_CLOUD_HOME === "1" && (tool.name === "select_computer" || OWN_CLOUD_TOOLS.includes(tool.name))) continue;
         if (profile.env.OMB_CHIEF_OF_STAFF === "0" && CHIEF_TARGET_TOOLS.includes(tool.name)) continue;
         if (profile.env.OMB_MAUSBOT === "1" && MAUSBOT_TOOLS.includes(tool.name)) continue;
@@ -269,7 +282,7 @@ describe("agents proxy tools/list golden", () => {
     expect(profile).not.toHaveProperty("ownThreadCreation");
   });
 
-  it("shows a Cloud home's bots no Local VM and no this computer, and every other server both", () => {
+  it("keeps computer choices within the supported local and browser places", () => {
     type SelectTool = Tool & { inputSchema: { properties: { surface: { enum: string[]; description: string } } } };
     const select = (wire: string) => toolsOf(wire).find((tool) => tool.name === "select_computer") as SelectTool;
     const cloudHome = Object.keys(PROFILES).filter((name) => name.endsWith("+cloud-home"));
@@ -279,11 +292,11 @@ describe("agents proxy tools/list golden", () => {
       const names = toolsOf(wires[name]!).map((tool) => tool.name);
       expect(names).toEqual(expect.arrayContaining(OWN_CLOUD_TOOLS));
       expect(names.filter((tool) => !OWN_CLOUD_TOOLS.includes(tool))).toEqual(toolsOf(desktop).map((tool) => tool.name).filter((tool) => tool !== "vm_exec"));
-      expect(select(desktop).inputSchema.properties.surface.enum).toEqual(["auto", "cloud", "vm", "local", "browser"]);
-      expect(toolsOf(desktop).map((tool) => tool.name)).toContain("vm_exec");
+      expect(select(desktop).inputSchema.properties.surface.enum).toEqual(["auto", "local", "browser"]);
+      expect(toolsOf(desktop).map((tool) => tool.name)).not.toContain("vm_exec");
       const surface = select(wires[name]!).inputSchema.properties.surface;
-      expect(surface.enum).toEqual(["auto", "cloud", "browser"]);
-      expect(surface.description).not.toMatch(/\b(?:vm|local) =/);
+      expect(surface.enum).toEqual(["auto", "local", "browser"]);
+      expect(surface.description).not.toMatch(/\b(?:vm|cloud|vps) =/);
     }
   });
 
@@ -353,6 +366,9 @@ describe("agents proxy tools/list golden", () => {
     type TriggerTool = Tool & { inputSchema: { properties: Record<string, unknown> } };
     const trigger = toolsOf(wires[FULL]!).find((tool) => tool.name === "trigger") as TriggerTool;
     expect(Object.keys(trigger.inputSchema.properties)).toEqual(expect.arrayContaining(["action", "trigger_id", "when", "name", "instructions", "schedule", "filter", "event_config", "run_on", "timeout_minutes", "clear_timeout", "continuity", "overlap", "run_on_startup", "for_bot_id"]));
+    const runOn = trigger.inputSchema.properties.run_on as { type: string; enum: string[]; description: string };
+    expect(runOn).toMatchObject({ type: "string", enum: ["maus"] });
+    expect(runOn.description).not.toMatch(/cloud|boat|vps/i);
     expect(trigger.inputSchema.properties).not.toHaveProperty("changes");
     for (const wire of Object.values(wires)) expect(wire.match(/"every_minutes":/g)).toHaveLength(1);
   });

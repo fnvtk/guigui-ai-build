@@ -28,6 +28,7 @@ export interface PastedRemoteServer {
 }
 
 export interface PastedStdioServer {
+  bot?: string;
   transport: "stdio";
   name: string;
   command: string;
@@ -284,7 +285,8 @@ function entryServer(name: string | undefined, entry: unknown): PastedMcpServer 
   const [command, ...inline] = listed.length ? [entry.command.trim()] : shellCommands(entry.command)[0] ?? [entry.command];
   const env = strings(entry.env).map(([key, value]) => secret(key, value));
   const all = [...inline, ...listed];
-  return { transport: "stdio", name: name ? importedMcpServerName(name) : packageName(all.find((arg) => !arg.startsWith("-")) ?? command ?? ""), command: command!, args: all, env };
+  if (entry.bot !== undefined && (typeof entry.bot !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(entry.bot))) throw new PasteError("mcp.paste.notRecognized");
+  return { transport: "stdio", name: name ? importedMcpServerName(name) : packageName(all.find((arg) => !arg.startsWith("-")) ?? command ?? ""), command: command!, args: all, env, ...(typeof entry.bot === "string" ? { bot: entry.bot } : {}) };
 }
 
 function remoteServer(name: string | undefined, url: string, type: "http" | "sse" | undefined, headers: PastedSecret[]): PastedRemoteServer {

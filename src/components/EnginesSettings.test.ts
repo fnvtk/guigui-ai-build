@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Bot, InstanceInfo } from "@/state/store";
+import { setLocale } from "@/lib/i18n";
 import { EnginesSettings } from "./EnginesSettings";
 import { accountActions } from "./EngineAccounts";
 import { AntigravityFreeSpace, formatDiskSize } from "./AntigravityFreeSpace";
@@ -12,6 +13,7 @@ vi.mock("@/state/store", async (importOriginal) => ({
   useStore: () => ({ state: fixture, refreshInstances: async () => {}, refreshModels: async () => {} }),
 }));
 afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => setLocale("en"));
 
 function render(authenticated: boolean, options: { email?: string; signOut?: boolean; assigned?: boolean } = {}): string {
   vi.stubGlobal("window", {});
@@ -258,7 +260,7 @@ describe("Settings → Engines → setup cards", () => {
 
     vi.stubGlobal("window", { ogb: { remoteClient: { active: true } } });
     const remote = renderToStaticMarkup(createElement(EnginesSettings));
-    expect(remote).toContain("open Settings → API keys on the computer running MausBot");
+    expect(remote).toContain("open Settings → API keys on the computer running 乖乖Ai");
     expect(remote).not.toContain("data-key-row");
 
     vi.stubGlobal("window", {});
@@ -385,31 +387,49 @@ describe("Settings → AI in Simple mode", () => {
     instanceId, driverKind, displayName: instanceId, cliDefault: instanceId,
     snapshot: { state: "available", authenticated }, models: { default: "model", options: [] }, ...extra,
   });
-  const simple = (open = false) => {
+  const simple = () => {
     vi.stubGlobal("window", {});
     vi.stubGlobal("navigator", { userAgent: "Linux" });
     fixture.bots = [];
-    return renderToStaticMarkup(createElement(EnginesSettings, { simple: true, more: { id: "ai-more", open, onToggle: () => {} } }));
+    return renderToStaticMarkup(createElement(EnginesSettings, { simple: true }));
   };
   const rows = (html: string) => [...html.matchAll(/data-simple-engine="([^"]+)"/g)].map((match) => match[1]);
 
-  it("lists each ready provider, and each one signed in by subscription, as a row with Manage or Set up", () => {
+  it("shows only the configured SimpleAPI in Settings while leaving other instances intact", () => {
     fixture.instances = [
       engine("claude", "claudeAgent", true),
       engine("codex", "codexAgent", false, { authentication: { method: "device-code" } }),
       engine("kimi", "kimiAgent", false),
+      engine("openai-compat-fixture-instance", "openai-compat", false, { displayName: " SimpleAPI ", access: "api" }),
     ];
     const html = simple();
     expect(html).toContain(">Your AI</h3>");
-    expect(rows(html)).toEqual(["claude", "codex"]);
-    expect(html).toMatch(/data-simple-engine="claude"[\s\S]*?>Manage<\/button>/);
-    expect(html).toMatch(/data-simple-engine="codex"[\s\S]*?>Set up<\/button>/);
-    expect(html).not.toContain("Model providers and accounts");
+    expect(rows(html)).toEqual(["openai-compat-fixture-instance"]);
+    expect(html).toContain("SimpleAPI");
+    expect(html).toContain("无需网页登录，可配置接口地址和密钥");
+    expect(html).toContain("SimpleAPI 注册入口待配置");
+    expect(html).not.toContain("Claude");
+    expect(html).not.toContain("Codex");
+    expect(html).not.toContain("Kimi");
+    expect(fixture.instances.map((instance) => instance.instanceId)).toEqual(["claude", "codex", "kimi", "openai-compat-fixture-instance"]);
   });
 
-  it("folds every other provider under More AI providers, with the count", () => {
+  it("shows an explicit empty state without deleting saved provider instances", () => {
     fixture.instances = [engine("claude", "claudeAgent", true), engine("kimi", "kimiAgent", false), engine("mistral", "mistral", false)];
-    expect(simple()).toMatch(/aria-expanded="false"[^>]*>[\s\S]*?More AI providers \(2\)/);
-    expect(simple(true)).toContain('data-engine-card="kimi"');
+    const html = simple();
+    expect(html).toContain("尚未检测到已配置的 SimpleAPI");
+    expect(html).not.toContain("Claude");
+    expect(html).not.toContain("Kimi");
+    expect(html).not.toContain("Mistral");
+    expect(fixture.instances.map((instance) => instance.instanceId)).toEqual(["claude", "kimi", "mistral"]);
+  });
+
+  it("renders the configured public registration link", () => {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("navigator", { userAgent: "Linux" });
+    fixture.instances = [];
+    const html = renderToStaticMarkup(createElement(EnginesSettings, { simple: true, registerUrl: "https://example.test/register" }));
+    expect(html).toContain('href="https://example.test/register"');
+    expect(html).toContain("注册 SimpleAPI");
   });
 });

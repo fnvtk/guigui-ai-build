@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { whenLabel } from "@/lib/schedule-label";
 import { t } from "@/lib/i18n";
 
@@ -48,7 +49,7 @@ export function HistorySection({
               <span className="text-ink-secondary">{whenLabel(row.at)}</span>
               {" · "}
               <span>
-                {row.actor} via {row.via}
+                {row.actor} {translateUi("ui.literal.a19e070e3061")} {row.via}
               </span>
               {" · "}
               <span>{row.summary}</span>

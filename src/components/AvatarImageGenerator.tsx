@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { Check, Loader2, Sparkles } from "lucide-react";
 
@@ -170,13 +171,13 @@ export function AvatarImageGenerator({
               value={customModel}
               disabled={busy}
               onChange={(event) => setModelDraft(event.target.value)}
-              placeholder="Model ID from your image provider"
+              placeholder={translateUi("ui.literal.4e38de0585e9")}
               autoComplete="off"
               className={`${INPUT_CLASS} mt-1`}
             />
           </label>
           <p className="text-[11px] leading-relaxed text-ink-secondary">
-            OpenAI-compatible Images API. localhost refers to the {productName()} server, including when you open this page remotely.
+            {translateUi("ui.literal.1327caa0755f")} {productName()} {translateUi("ui.literal.83fe516ac782")}
           </p>
         </>
       )}
@@ -199,10 +200,10 @@ export function AvatarImageGenerator({
         />
       </label>
       {provider === "xai" && (
-        <p className="text-[11px] leading-relaxed text-ink-secondary">Shares the Grok API key in Settings. Changing or removing it also affects other Grok features.</p>
+        <p className="text-[11px] leading-relaxed text-ink-secondary">{translateUi("ui.literal.49b54370b7a6")}</p>
       )}
       {provider === "custom" && keyConfigured && (
-        <p className="text-[11px] leading-relaxed text-ink-secondary">The saved custom key will be used. Remove it for a keyless connection.</p>
+        <p className="text-[11px] leading-relaxed text-ink-secondary">{translateUi("ui.literal.732881597448")}</p>
       )}
       <div className="flex items-center justify-end gap-2">
         {keyConfigured && (

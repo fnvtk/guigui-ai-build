@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, TriangleAlert } from "lucide-react";
 import { api, useStore, type ConfigStatus } from "@/state/store";
@@ -53,7 +54,7 @@ export function OpenCodeProviderKeys() {
       {state.config?.cloudHome !== true && (
         <p className="text-[12px] leading-4 text-ink-secondary">
           {t("keys.opencode.providersHint").split("{command}").flatMap((part, index) =>
-            index === 0 ? [part] : [<code key={index} className="font-mono">opencode auth login</code>, part])}
+            index === 0 ? [part] : [<code key={index} className="font-mono">{translateUi("ui.literal.75273383dbbc")}</code>, part])}
         </p>
       )}
       {names.map((saved) => (
@@ -77,7 +78,7 @@ export function OpenCodeProviderKeys() {
           onChange={(e) => { setError(null); setName(e.target.value); }}
           onKeyDown={(e) => e.key === "Enter" && add()}
           disabled={busy}
-          placeholder="VENICE_API_KEY"
+          placeholder={translateUi("ui.literal.2ff50d24abe2")}
           aria-label={t("keys.opencode.otherProviders.name")}
           autoComplete="off"
           spellCheck={false}
@@ -180,7 +181,7 @@ export function VpsConnection() {
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save()}
-          placeholder="my-vps"
+          placeholder={translateUi("ui.literal.600f28e9e835")}
           aria-label={t("keys.vps.aria")}
           autoComplete="off"
           spellCheck={false}

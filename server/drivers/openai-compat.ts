@@ -4,6 +4,7 @@ import type { ModelCatalog, ProviderDriver } from "../contracts.ts";
 import { isLoopback } from "../provider-key-check.ts";
 import { lmStudioV1Catalog } from "./local-inject.ts";
 import { createOpenAIChatRuntime } from "./openai-chat.ts";
+import { GUAI_MODEL_CATALOG, guaiUpstreamModel } from "../guai-model-routing.ts";
 import {
   freeDefault, freeFallbackCatalog, freeLabel, freeToolModels, freeToolsFirst, isOpenRouterOrigin, openRouterFreeTier,
   withOpenRouterTurns, type OpenRouterModelRow,
@@ -56,6 +57,7 @@ export function isOpenAIChatModel(id: string): boolean {
 }
 
 export interface OpenAICompatConfig {
+  guaiTiers?: boolean;
   tools?: boolean;
   url: string;
   apiKeyEnv: string;
@@ -116,6 +118,7 @@ function decodeConfig(raw: unknown): OpenAICompatConfig {
   if (config.replyWaitMinutes !== undefined && !isReplyWait(config.replyWaitMinutes)) throw new Error(`replyWaitMinutes must be a whole number from 1 to ${MAX_REPLY_WAIT_MINUTES}`);
   const envUrl = ownKey ? undefined : process.env.OPENAI_COMPAT_URL;
   return {
+    ...(config.guaiTiers === true ? { guaiTiers: true } : {}),
     ...(config.tools !== undefined ? { tools: config.tools as boolean } : {}),
     ...(config.managedModels ? { managedModels: config.managedModels as string[] } : {}),
     ...(isReplyWait(config.replyWaitMinutes) ? { replyWaitMinutes: config.replyWaitMinutes } : {}),
@@ -167,7 +170,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
       ? "No API key — open Settings → API keys."
       : `no API key — set ${config.apiKeyEnv} or add it to the instance config`;
     const seeded = config.catalog === "openai" ? OPENAI_MODELS : DEFAULT_MODELS;
-    let catalog: ModelCatalog = config.managedModels
+    let catalog: ModelCatalog = config.guaiTiers ? GUAI_MODEL_CATALOG : config.managedModels
       ? { default: config.managedModels[0], options: config.managedModels.map(id => ({ id, label: id })) }
       : config.model
       ? {
@@ -181,7 +184,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
     const freeTier = () => openRouter ? openRouterFreeTier(apiKey, config.url) : Promise.resolve(null);
 
     const fetchModels = async () => {
-      if (config.managedModels) return;
+      if (config.guaiTiers || config.managedModels) return;
       if (!apiKey) return;
       try {
         // Only a server added as LM Studio: any other local server would get a request it never serves.
@@ -286,7 +289,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
       models: () => catalog,
       refreshModels: fetchModels,
       requestBody: (model, messages, stream) => ({
-        model,
+        model: config.guaiTiers ? guaiUpstreamModel(model) : model,
         messages,
         stream,
         stream_options: stream ? { include_usage: true } : undefined,

@@ -12,6 +12,9 @@
 # allowed to create a GitHub release.
 name: Package Windows
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -133,3 +136,13 @@ jobs:
             release/latest.yml
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload installer to the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          gh release upload "v${version}" \
+            release/*.exe release/*.exe.blockmap release/latest.yml \
+            --repo "$GITHUB_REPOSITORY" --clobber

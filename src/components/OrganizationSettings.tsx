@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ManagedDesktopState } from "../../electron/managed-desktop.mjs";
 import { activeLocale, t } from "@/lib/i18n";
+import { organizationConnectionMessage } from "@/lib/organization-copy";
 import { Card } from "./SettingsPrimitives";
 import { CompanyModels } from "./CompanyModels";
 
@@ -80,7 +81,7 @@ export function OrganizationSettings() {
     <p className="text-[13px] leading-relaxed text-ink-secondary">{t("organization.additive")}</p>
     <Card title={t("settings.section.organization")} subtitle={t("organization.privacy")}>
       {!connection && <p role="status" className="text-[13px] text-ink-secondary">{error || t("organization.loading")}</p>}
-      {connection?.message && <p role="status" className="mb-3 text-[13px] text-ink-secondary">{connection.message}</p>}
+      {connection?.message && <p role="status" className="mb-3 text-[13px] text-ink-secondary">{organizationConnectionMessage(connection.message)}</p>}
       {licenseExpired && <p role="alert" className="mb-3 text-[13px] text-ink">{t("organization.licenseExpired")}</p>}
       {connection?.status === "signed-out" && <div className="flex flex-col gap-3">
         <p className="text-[13px] text-ink-secondary">{t("organization.signInHelp")}</p>

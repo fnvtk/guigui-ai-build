@@ -13,7 +13,7 @@ import { ASK_USER_TOOL, ASK_USER_TOOL_DEFINITION, askQuestionSummary, parseAskQu
 import { allowsTool, parseToolScope } from "../../shared/tool-scope.ts";
 import { redactSecretsInText } from "../redact.ts";
 import { toolDetailPreview } from "../tool-summary.ts";
-import { ChatToolSessionError, mountChatTools, trimmedToolsNotice, type ChatToolDefinition, type ChatToolSession, type ChatToolResult } from "./chat-mcp-tools.ts";
+import { ChatToolArgumentsError, ChatToolSessionError, mountChatTools, trimmedToolsNotice, type ChatToolDefinition, type ChatToolSession, type ChatToolResult } from "./chat-mcp-tools.ts";
 import { assertImageTransport, chatImageBudget, chatToolImages, chatUserContent, type ChatContentPart } from "./chat-images.ts";
 import { promptHalves, volatileContextNote, withContextNote } from "./prompt-split.ts";
 import { createChatToolApproval, refusal } from "./chat-tool-approval.ts";
@@ -635,6 +635,7 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
       let correctiveRounds = 0;
       const denials: string[] = [], failedCalls: string[] = [];
       const seenCalls = new Set<string>();
+      const invalidCalls = new Map<string, number>();
       let nudges = 0;
       let unread: string[] = [];
       let callsAtNudge = -1;
@@ -867,6 +868,12 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
               }
             } catch (error) {
               if (error instanceof ChatToolSessionError) fatal = error;
+              if (error instanceof ChatToolArgumentsError) {
+                const key = `${call.function.name}:${error.message}`;
+                const attempts = (invalidCalls.get(key) ?? 0) + 1;
+                invalidCalls.set(key, attempts);
+                if (attempts >= 3) fatal = new ChatToolSessionError(`Stopped repeated invalid calls to ${call.function.name}: ${error.message} No operation was dispatched for these invalid calls.`);
+              }
               result = { ok: false, text: abort.signal.aborted
                 ? "Tool interrupted; an operation already dispatched may have taken effect. Verify its state before retrying."
                 : safeText(asError(error).message).slice(0, 2_000) };

@@ -230,8 +230,8 @@ describe("routine drawer", () => {
     expect(props.onOpenRun).toHaveBeenCalledWith(runs[3]);
   });
 
-  it("describes the Boat runner in plain words", () => {
-    expect(details(routineItem({ ...routine, runOn: "cloud" })).html).toContain("Cloud desktop");
+  it("labels an old cloud run as disabled", () => {
+    expect(details(routineItem({ ...routine, runOn: "cloud" })).html).toContain("已停用的执行位置，请改为本机");
   });
 
   it("Run now and Pause send the same requests as before", () => {
@@ -270,7 +270,7 @@ describe("routine editor", () => {
     seed: { kind: "routine", at: Date.now() + 3_600_000, durationMinutes: 30, botIds: [bot.id], routine: routineToEdit },
     bots: [bot], onClose: vi.fn(), onSavedCall: vi.fn(),
   }));
-  const hidden = ['<select aria-label="Repeat"', "Routine safety limit", "Runs the whole job on the bot&#x27;s cloud desktop", "Add attachment", "Post results to", "Routine type"];
+  const hidden = ['<select aria-label="Repeat"', "Routine safety limit", "Add attachment", "Post results to", "Routine type"];
 
   it("keeps Simple mode to the basics with everything else behind More options", () => {
     const html = editor();
@@ -287,6 +287,39 @@ describe("routine editor", () => {
     expect(editor(routine)).toMatch(/aria-pressed="true"[^>]*>Every day</);
   });
 
+  it("creates local routines and removes the cloud execution choice", () => {
+    fixture.advanced = true;
+    const html = markup(createElement(EventEditor, {
+      seed: { kind: "routine", at: Date.now() + 3_600_000, durationMinutes: 30, botIds: [bot.id] },
+      bots: [bot], defaultRunOn: "cloud", onClose: vi.fn(), onSavedCall: vi.fn(),
+    }));
+    expect(html).toContain("Runs on this computer");
+    expect(html).not.toContain("Boat");
+    expect(html).not.toContain("Cloud desktop");
+  });
+
+  it("preserves a saved cloud location until the person explicitly changes it", () => {
+    fixture.advanced = true;
+    const savedCloud = { ...routine, runOn: "cloud" as const };
+    const props = {
+      seed: { kind: "routine" as const, at: Date.now() + 3_600_000, durationMinutes: 30, botIds: [bot.id], routine: savedCloud },
+      bots: [bot], onClose: vi.fn(), onSavedCall: vi.fn(),
+    };
+    const tree = capture(() => EventEditor(props));
+    expect(markup(createElement(EventEditor, props))).toContain("已停用的执行位置，请改为本机");
+    click(buttons(tree).get("Save"));
+    let [, init] = fixture.api.mock.calls.at(-1) as unknown as [string, { body: string }];
+    expect(JSON.parse(init.body)).toMatchObject({ runOn: "cloud" });
+
+    fixture.values = [];
+    fixture.api.mockClear();
+    const editTree = capture(() => EventEditor(props));
+    click(buttons(editTree).get("改为本机"));
+    click(buttons(capture(() => EventEditor(props))).get("Save"));
+    [, init] = fixture.api.mock.calls.at(-1) as unknown as [string, { body: string }];
+    expect(JSON.parse(init.body)).toMatchObject({ runOn: "maus" });
+  });
+
   it("opens More options for a schedule the basics cannot show", () => {
     const html = editor(cronRoutine);
     expect(html).toContain('aria-expanded="true"');
@@ -297,7 +330,7 @@ describe("routine editor", () => {
   it("shows a saved startup choice when the simple editor opens", () => {
     const html = editor({ ...routine, runOnStartup: true });
     expect(html).toContain('aria-expanded="true"');
-    expect(html).toMatch(/<input type="checkbox" aria-label="Also run when MausBot starts"[^>]*checked[^>]*>/);
+    expect(html).toMatch(/<input type="checkbox" aria-label="Also run when 乖乖Ai starts"[^>]*checked[^>]*>/);
   });
 
   it("offers Remember the last run for a repeating routine, off unless the routine has it", () => {
@@ -380,7 +413,7 @@ describe("routine editor", () => {
   it("leaves the Advanced editor as it was", () => {
     fixture.advanced = true;
     const html = editor();
-    for (const text of ['placeholder="Add title"', '<select aria-label="Repeat"', "Assign a bot", "Runs the whole job on the bot&#x27;s cloud desktop", "Post results to", "Routine type", "New event"]) {
+    for (const text of ['placeholder="Add title"', '<select aria-label="Repeat"', "Assign a bot", "Runs on this computer", "Post results to", "Routine type", "New event"]) {
       expect(html, text).toContain(text);
     }
     expect(html).not.toContain("More options");

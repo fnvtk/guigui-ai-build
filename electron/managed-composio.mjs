@@ -1,4 +1,28 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const packagedUndiciPath = join(process.resourcesPath ?? "", "undici", "index.js");
+const undiciModule = existsSync(packagedUndiciPath)
+  ? await import(pathToFileURL(packagedUndiciPath).href)
+  : await import("undici");
+const undici = undiciModule.default ?? undiciModule;
+const { EnvHttpProxyAgent, fetch: undiciFetch } = undici;
+
 const TOKEN = /^[0-9a-f]{64}$/;
+const originalFetch = globalThis.fetch;
+const proxyConfigured = Boolean(
+  process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy
+    || process.env.ALL_PROXY || process.env.all_proxy,
+);
+const dispatcher = proxyConfigured ? new EnvHttpProxyAgent() : undefined;
+
+function networkFetch(input, init) {
+  const currentFetch = globalThis.fetch;
+  if (currentFetch !== originalFetch) return currentFetch(input, init);
+  if (!dispatcher) return currentFetch(input, init);
+  return undiciFetch(input, { ...init, dispatcher });
+}
 
 /** OpenMausBot's connected-apps service (cloudflare/composio-broker): the packaged desktop app and a Cloud home use it. */
 export const DEFAULT_MANAGED_COMPOSIO_BROKER_URL = "https://openmausbot-composio.milindsoni201.workers.dev";
@@ -45,7 +69,7 @@ export function managedComposioChildEnvironment(brokerUrl, credentials, environm
 export async function ensureManagedComposioCredentials({
   brokerUrl,
   credentials,
-  fetchImpl = globalThis.fetch,
+  fetchImpl = networkFetch,
   saveCredentials,
   log = () => {},
   timeoutSignal = (milliseconds) => AbortSignal.timeout(milliseconds),

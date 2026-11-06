@@ -8,7 +8,6 @@ import { CloudRoomCard } from "./CloudRoomCard";
 import { CloudUsageCard } from "./CloudUsageMeter";
 import { useAutomationsNeedYou } from "./SidebarFooterNav";
 import { SidebarPopoverMenu, type SidebarMenuItem } from "./SidebarPopoverMenu";
-import { UpdateIndicator } from "./UpdateIndicator";
 
 /** The phone's bottom bar: a round button for the tools that are rows in the desktop sidebar, and a search pill. */
 export function SidebarPhoneBar({ query, onQuery }: { query: string; onQuery: (query: string) => void }) {
@@ -84,7 +83,6 @@ export function SidebarPhoneBar({ query, onQuery }: { query: string; onQuery: (q
               <X size={15} aria-hidden="true" />
             </button>
           )}
-          <UpdateIndicator />
         </div>
       </div>
     </div>

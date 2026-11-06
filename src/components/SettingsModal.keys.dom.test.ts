@@ -94,8 +94,8 @@ afterEach(() => {
 });
 
 describe("searching Settings for a key", () => {
-  it.each([false, true])("lists it by name and section and lands on its row, focused (Advanced: %s)", async (advanced) => {
-    fx.advanced = advanced;
+  it("lists non-provider credentials by name and section and lands on its row, focused", async () => {
+    fx.advanced = true;
     flushSync(() => root.render(createElement(SettingsModal)));
     type("fish");
     const found = result("fishAudio")!;
@@ -110,9 +110,10 @@ describe("searching Settings for a key", () => {
   });
 
   it("names the OpenAI key twice: once for models, once for live calls", () => {
+    fx.advanced = true;
     flushSync(() => root.render(createElement(SettingsModal)));
     type("openai");
-    expect(result("openai")!.textContent).toBe("OpenAI API key · AI providers");
+    expect(result("openai")).toBeNull();
     expect(result("liveCalls")!.textContent).toBe("OpenAI key · Voice and calls");
   });
 

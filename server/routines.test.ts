@@ -2626,8 +2626,28 @@ describe("RoutineManager", () => {
       schedule: { type: "daily", time: "09:00", weekdays: [1] },
       attachments: [attachment],
     });
-    expect(() => h.manager.update(local.id, { runOn: "cloud" })).toThrow(/cloud file staging/i);
+    expect(() => h.manager.update(local.id, { runOn: "cloud" })).toThrow(/only run on this computer/i);
     expect(h.manager.listRoutines()[0]).toMatchObject({ runOn: "maus", attachments: [attachment] });
+  });
+
+  it("rejects cloud routine writes while preserving legacy cloud rows for readback", () => {
+    const h = harness();
+    const local = h.manager.create({
+      name: "Local brief", prompt: "Summarize", botId: "maus-local",
+      schedule: { type: "daily", time: "09:00", weekdays: [1] },
+    });
+    expect(() => h.manager.create({
+      name: "Cloud brief", prompt: "Summarize", botId: "maus-cloud", runOn: "cloud",
+      schedule: { type: "daily", time: "09:00", weekdays: [1] },
+    })).toThrow(/only run on this computer/i);
+    expect(() => h.manager.update(local.id, { runOn: "cloud" })).toThrow(/only run on this computer/i);
+    expect(h.manager.listRoutines()).toHaveLength(1);
+    const disk = JSON.parse(readFileSync(h.options.file!, "utf8"));
+    disk.routines[0].runOn = "cloud";
+    writeFileSync(h.options.file!, JSON.stringify(disk));
+    const reloaded = new RoutineManager(h.options);
+    expect(reloaded.listRoutines()[0]).toMatchObject({ id: local.id, runOn: "cloud" });
+    expect(JSON.parse(readFileSync(h.options.file!, "utf8")).routines[0].runOn).toBe("cloud");
   });
 
   it("keeps room goals local and attachment-free", () => {
@@ -2679,26 +2699,16 @@ describe("RoutineManager", () => {
     })).toThrow(/no more than 50 attachments/i);
   });
 
-  it("snapshots and dispatches the selected execution machine", async () => {
+  it("refuses a newly selected cloud execution machine", async () => {
     const h = harness();
-    h.setBot("busy");
-    const routine = h.manager.create({
+    expect(() => h.manager.create({
       name: "VM review",
       prompt: "Review the project on the virtual machine",
       botId: "maus-cloud",
       runOn: "cloud",
       schedule: { type: "once", at: new Date(2026, 7, 17, 8, 1).getTime() },
-    });
-    h.setNow(routine.nextRunAt!);
-    await h.manager.tick();
-    h.manager.update(routine.id, { runOn: "maus" });
-
-    h.setBot("ready");
-    await h.manager.tick();
-
-    expect(h.runOns).toEqual(["cloud"]);
-    expect(h.manager.listRuns()[0]).toMatchObject({ runOn: "cloud" });
-    expect(h.manager.listRoutines()[0]).toMatchObject({ runOn: "maus" });
+    })).toThrow(/only run on this computer/i);
+    expect(h.started).toEqual([]);
   });
 
   it("opens webhook jobs in the assigned bot's live chat", async () => {
@@ -3760,12 +3770,12 @@ describe("routine continuity", () => {
     expect(second.split("</previous-run>")).toHaveLength(2);
   });
 
-  it.each([{ botId: "maus-2" }, { runOn: "cloud" as const }])("does not carry reports across reassignment %j", async (patch) => {
+  it("does not carry reports across reassignment", async () => {
     const h = harness();
     const anchorAt = new Date(2026, 7, 17, 9, 0, 0).getTime();
     const routine = h.manager.create({ name: "Private brief", prompt: "Write the brief", botId: "maus-1", schedule: everyHour(anchorAt), continuity: true });
     await runOnce(h, routine.id, anchorAt, "Private result from the old assignment.");
-    h.manager.update(routine.id, patch);
+    h.manager.update(routine.id, { botId: "maus-2" });
     expect(await runOnce(h, routine.id, anchorAt + 60 * 60_000)).toBe(routineTurn(routine.id, "Private brief", "Write the brief"));
   });
 
@@ -3818,19 +3828,16 @@ describe("routine continuity", () => {
 });
 
 describe("routine paths that cannot exist where the routine runs", () => {
-  it("warns on the routine, and tells the bot at run time", async () => {
+  it("keeps legacy cloud rows readable without rewriting them", () => {
     const h = harness();
-    const routine = h.manager.create({ name: "Weekly export", prompt: "Open C:\\Users\\Ada\\Reports\\weekly.xlsx and total column B.",
-      botId: "maus-1", runOn: "cloud", schedule: { type: "daily", time: "09:00", weekdays: [1] } });
-    const warning = "This routine names C:\\Users\\Ada\\Reports\\weekly.xlsx, which cannot exist on the Linux computer that runs it. Change it to a path on that computer, or attach the file to the routine.";
-    expect(routine.warning).toBe(warning);
-    expect(h.manager.listRoutines()[0]!.warning).toBe(warning);
-    expect(h.manager.update(routine.id, { prompt: "Open /home/ada/weekly.xlsx and total column B." })?.warning).toBeUndefined();
-    h.manager.update(routine.id, { prompt: routine.prompt });
-    h.manager.runNow(routine.id);
-    await h.manager.tick();
-    expect(h.started[0]!.prompt).toContain("[OpenMausBot: this run is on a Linux computer, where C:\\Users\\Ada\\Reports\\weekly.xlsx cannot exist.");
-    expect(JSON.parse(readFileSync(h.options.file!, "utf8")).routines[0]).not.toHaveProperty("warning");
+    const local = h.manager.create({ name: "Weekly export", prompt: "Open /tmp/report.xlsx", botId: "maus-1",
+      schedule: { type: "daily", time: "09:00", weekdays: [1] } });
+    const disk = JSON.parse(readFileSync(h.options.file!, "utf8"));
+    disk.routines[0].runOn = "cloud";
+    writeFileSync(h.options.file!, JSON.stringify(disk));
+    const reloaded = new RoutineManager(h.options);
+    expect(reloaded.listRoutines()[0]).toMatchObject({ id: local.id, runOn: "cloud" });
+    expect(JSON.parse(readFileSync(h.options.file!, "utf8")).routines[0].runOn).toBe("cloud");
   });
 });
 

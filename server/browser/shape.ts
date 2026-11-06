@@ -11,6 +11,7 @@ export type Content = { type: "text"; text: string } | { type: "image"; data: st
 export interface ToolResult {
   content: Content[];
   isError?: true;
+  structuredContent?: Record<string, unknown>;
 }
 
 export const MAX_SNAPSHOT_BYTES = 20_000;

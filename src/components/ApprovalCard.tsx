@@ -3,6 +3,7 @@ import { Check, Clock3, ShieldCheck, Undo2, X } from "lucide-react";
 import { api, ApiError, StoreContext, type Bot, type Message, type OptionCardData } from "@/state/store";
 import { shareLearnedSkillsMode } from "@/lib/feature-flags";
 import { cn } from "@/lib/cn";
+import { guaiServiceLabel } from "../../shared/guai-service-tiers";
 import { t, tFromServer } from "@/lib/i18n";
 import type { LocaleKey } from "@/locales";
 import { SkillRequestPreview } from "@/components/SkillRequestPreview";
@@ -179,7 +180,7 @@ export function appliedChange(card: OptionCardData, name: string): { line: strin
   }
   const model = card.modelRequest;
   if (model) {
-    const title = model.selection.model;
+    const title = guaiServiceLabel(model.selection.model);
     const line = model.targetBotId === model.botId
       ? t("approval.applied.modelOwn", { name, title })
       : t("approval.applied.modelOther", { name, target: `@${model.targetName}`, title });

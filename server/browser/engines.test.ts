@@ -32,7 +32,7 @@ function engines(options: RuntimeRouterOptions = {}) {
   const oldLive = { open: vi.fn(async () => undefined), action: vi.fn(async () => "agent-browser"), handBack: vi.fn(), closeForSession: vi.fn(), closeForOwner: vi.fn(), closeForBot: vi.fn(), closeAll: vi.fn() };
   const chrome = {
     service: {
-      agentRpc: vi.fn(async (_target: unknown, _method: string, _params: unknown, beforeDispatch?: () => void) => { beforeDispatch?.(); return "chrome"; }),
+      agentRpc: vi.fn(async (_target: unknown, _method: string, _params: unknown, beforeDispatch?: () => void): Promise<unknown> => { beforeDispatch?.(); return "chrome"; }),
       previewFrame: vi.fn(async () => ({ png: "frame", format: "jpeg" })),
       withSecretInput: vi.fn(async (_target: unknown, fn: () => Promise<unknown>) => fn()),
       heldBy: vi.fn((): string | null => null),
@@ -75,6 +75,19 @@ describe("the runtime router", () => {
     await expect(runtime.agentRpc("s", AGENT_BROWSER, "tools/list", {})).resolves.toBe("agent-browser");
     expect(old.agentRpc).toHaveBeenCalledOnce();
     expect(chrome.service.agentRpc).toHaveBeenCalledOnce();
+  });
+
+  it("preserves structured browser wait outcomes through the native runtime router", async () => {
+    const { chrome, runtime } = engines();
+    const waitOutcome = {
+      isError: undefined,
+      structuredContent: { matched: false, timedOut: true, text: "Saved" },
+      content: [{ type: "text", text: "等待超时：尚未确认页面出现目标文字“Saved”，该条件未满足。" }],
+    };
+    chrome.service.agentRpc.mockResolvedValueOnce(waitOutcome);
+    await expect(runtime.agentRpc("s", CHROME, "tools/call", {
+      name: "agent_browser_wait_for_text", arguments: { text: "Saved" },
+    })).resolves.toEqual(waitOutcome);
   });
 
   it("takes a preview frame from the engine the spec names", async () => {

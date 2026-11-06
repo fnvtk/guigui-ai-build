@@ -15,8 +15,9 @@ import { AntigravityFreeSpace } from "./AntigravityFreeSpace";
 import { CacheKeepWarmSettings } from "./CacheKeepWarmSettings";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Select } from "./Select";
-import { SettingsDisclosureRow, SettingsGroup, SettingsRows } from "./SettingsPrimitives";
+import { SettingsGroup, SettingsRows } from "./SettingsPrimitives";
 import { InstanceProviderMark } from "./ProviderIcons";
+import { isSimpleApi } from "../../shared/ai-ranking";
 
 interface ProbeResult {
   ok: boolean;
@@ -381,63 +382,55 @@ function simpleStatus(instance: InstanceInfo, ready: boolean): string {
   return instance.snapshot.state === "available" && instance.snapshot.authenticated === false ? t("model.signInRequired") : t("onboarding.engines.needsSetup");
 }
 
-function SimpleEngines({ rows, isReady, renderEngine, more }: {
+function SimpleApiRegistrationLink({ registerUrl }: { registerUrl?: string }) {
+  return registerUrl
+    ? <a href={registerUrl} target="_blank" rel="noreferrer" className="px-4 text-[13px] text-accent hover:underline">注册 SimpleAPI</a>
+    : <p className="px-4 text-[12px] text-ink-tertiary">SimpleAPI 注册入口待配置</p>;
+}
+
+function SimpleEngines({ rows, isReady, renderEngine }: {
   rows: InstanceInfo[];
   isReady: (instance: InstanceInfo) => boolean;
   renderEngine: (instance: InstanceInfo, bare?: boolean) => ReactNode;
-  more: { id: string; open: boolean; onToggle: () => void };
 }) {
   const [opened, setOpened] = useState<string | null>(null);
-  const featured = rows.filter((instance) => isReady(instance) || instance.authentication !== undefined);
-  const others = rows.filter((instance) => !featured.includes(instance));
+  const featured = rows.filter((instance) => isSimpleApi(instance) && !instance.readOnly);
   return (
-    <>
-      <SettingsGroup label={t("settings.simple.ai.yours")} actions={<RefreshEngines />}>
-        <SettingsRows>
-          {featured.map((instance) => {
-            const ready = isReady(instance), open = opened === instance.instanceId;
-            return (
-              <div key={instance.instanceId} data-simple-engine={instance.instanceId} className="group">
-                <div className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
-                  <span className="flex min-w-[min(100%,15rem)] flex-1 items-center gap-3">
-                    <InstanceProviderMark instance={instance} size={14} subtle />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-[14px] leading-5 text-ink">{instance.displayName}</span>
-                      <span className="truncate text-[13px] leading-[18px] text-ink-secondary">{simpleStatus(instance, ready)}</span>
-                    </span>
+    <SettingsGroup label={t("settings.simple.ai.yours")} actions={<RefreshEngines />}>
+      <SettingsRows>
+        {featured.map((instance) => {
+          const ready = isReady(instance), open = opened === instance.instanceId;
+          return (
+            <div key={instance.instanceId} data-simple-engine={instance.instanceId} className="group">
+              <div className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
+                <span className="flex min-w-[min(100%,15rem)] flex-1 items-center gap-3">
+                  <InstanceProviderMark instance={instance} size={14} subtle />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-[14px] leading-5 text-ink">SimpleAPI</span>
+                    <span className="truncate text-[13px] leading-[18px] text-ink-secondary">{simpleStatus(instance, ready)}</span>
+                    <span className="text-[11px] leading-4 text-ink-tertiary">无需网页登录，可配置接口地址和密钥</span>
                   </span>
-                  <button type="button" aria-expanded={open} className="ui-button ml-auto shrink-0" onClick={() => setOpened(open ? null : instance.instanceId)}>
-                    {t(open ? "common.done" : ready ? "settings.simple.ai.manage" : "settings.simple.ai.setUp")}
-                  </button>
-                </div>
-                {open && <div className="px-4 pb-3">{renderEngine(instance, true)}</div>}
+                </span>
+                <button type="button" aria-expanded={open} className="ui-button ml-auto shrink-0" onClick={() => setOpened(open ? null : instance.instanceId)}>
+                  {t(open ? "common.done" : ready ? "settings.simple.ai.manage" : "settings.simple.ai.setUp")}
+                </button>
               </div>
-            );
-          })}
-        </SettingsRows>
-      </SettingsGroup>
-      {others.length > 0 && (
-        <SettingsDisclosureRow
-          title={t("settings.simple.ai.more", { count: String(others.length) })}
-          trailing={<span aria-hidden="true" className="flex items-center -space-x-1">
-            {others.slice(0, 4).map((instance) => (
-              <span key={instance.instanceId} className="flex size-[18px] items-center justify-center rounded-full bg-menu"><InstanceProviderMark instance={instance} size={14} subtle /></span>
-            ))}
-          </span>}
-          {...more}
-        >
-          <EngineSections instances={others} isReady={isReady} renderEngine={(instance) => renderEngine(instance)} />
-        </SettingsDisclosureRow>
-      )}
-    </>
+              {open && <div className="px-4 pb-3">{renderEngine(instance, true)}</div>}
+            </div>
+          );
+        })}
+        {featured.length === 0 && <p className="px-4 py-3 text-[13px] text-ink-secondary">尚未检测到已配置的 SimpleAPI。</p>}
+      </SettingsRows>
+    </SettingsGroup>
   );
 }
 
-export function EnginesSettings({ simple = false, more }: { simple?: boolean; more?: { id: string; open: boolean; onToggle: () => void } }) {
+export function EnginesSettings({ simple = false, onlySimpleApi = simple, registerUrl }: { simple?: boolean; onlySimpleApi?: boolean; registerUrl?: string }) {
   const { state } = useStore();
   // Leaving Settings ends the "now uses the copy OpenMausBot installed" lines.
   useEffect(() => forgetAppCopySwitches, []);
-  const listed = state.instances.filter((i) => i.readOnly || i.cli !== undefined || i.cliDefault !== undefined || i.snapshot.state === "unavailable" || isApiKeyEngine(i));
+  const listed = state.instances.filter((i) => (!onlySimpleApi || (isSimpleApi(i) && !i.readOnly))
+    && (i.readOnly || i.cli !== undefined || i.cliDefault !== undefined || i.snapshot.state === "unavailable" || isApiKeyEngine(i)));
   // A provider's accounts share one card, which takes the place of its first account.
   const groups = new Map<AccountGroup, InstanceInfo[]>();
   for (const instance of listed) {
@@ -448,7 +441,8 @@ export function EnginesSettings({ simple = false, more }: { simple?: boolean; mo
     const group = accountGroupOf(instance);
     return group && groups.get(group)?.[0] === instance ? group : null;
   };
-  const rows = listed.filter((instance) => !accountGroupOf(instance) || groupOf(instance));
+  const rows = listed.filter((instance) => !accountGroupOf(instance) || groupOf(instance))
+    .sort((a, b) => Number(isSimpleApi(b)) - Number(isSimpleApi(a)));
   const isReady = (instance: InstanceInfo) => { const group = groupOf(instance); return group ? accountsReady(groups.get(group)!) : engineReady(instance); };
   const renderEngine = (instance: InstanceInfo, bare = false) => {
     const group = groupOf(instance);
@@ -457,7 +451,10 @@ export function EnginesSettings({ simple = false, more }: { simple?: boolean; mo
       : <EngineRow instance={instance} bare={bare} />;
   };
 
-  if (simple && more) return <SimpleEngines rows={rows} isReady={isReady} renderEngine={renderEngine} more={more} />;
+  if (simple) return <>
+    <SimpleEngines rows={rows} isReady={isReady} renderEngine={renderEngine} />
+    <SimpleApiRegistrationLink registerUrl={registerUrl} />
+  </>;
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-2">
@@ -468,6 +465,7 @@ export function EnginesSettings({ simple = false, more }: { simple?: boolean; mo
         </div>
         <RefreshEngines />
       </div>
+      {onlySimpleApi && <SimpleApiRegistrationLink registerUrl={registerUrl} />}
       <EngineSections instances={rows} isReady={isReady} renderEngine={renderEngine} />
       <CacheKeepWarmSettings />
     </div>

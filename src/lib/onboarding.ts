@@ -1,5 +1,5 @@
 import { ONBOARDING_CLOUD_HINT, WELCOME_VERSION } from "../../electron/onboarding-record.mjs";
-import { freeFallback, rankAis, type AiTestState, type RankableAi } from "../../shared/ai-ranking";
+import { freeFallback, isSimpleApi, rankAis, type AiTestState, type RankableAi } from "../../shared/ai-ranking";
 
 export interface OnboardingStatus {
   completedAt: string;
@@ -154,16 +154,20 @@ export function companyModelCount(state: { providers?: Array<{ configured: boole
 
 interface AiChoice {
   driverKind: string;
+  displayName?: string;
   access?: string;
   readOnly?: boolean;
   snapshot?: { freeFallback?: boolean };
 }
 
-/** The one way the welcome recommends to connect an AI, in the new-bot default's own order (shared/ai-ranking.ts: a Claude
- * account first, then a ChatGPT plan), and every other way. */
+/** The one way the welcome recommends to connect an AI, led by SimpleAPI when configured, then the ranked account
+ * options, and every other way. */
 export function aiChoices<Instance extends AiChoice>(instances: readonly Instance[]): { recommended?: Instance; others: Instance[] } {
+  const simpleApi = instances.find(isSimpleApi);
   const plan = (instance: Instance) => !instance.readOnly && instance.access !== "api" && instance.access !== "custom";
-  const recommended = rankAis(instances.filter(plan))[0] ?? instances.find((instance) => !instance.readOnly);
+  const recommended = simpleApi && !simpleApi.readOnly
+    ? simpleApi
+    : rankAis(instances.filter(plan))[0] ?? instances.find((instance) => !instance.readOnly);
   return { recommended, others: instances.filter((instance) => instance !== recommended) };
 }
 

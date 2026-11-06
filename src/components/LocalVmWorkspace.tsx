@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import {
   AlertTriangle,
   Hand,
@@ -424,7 +425,7 @@ function LocalVmPane({
       <div className="flex min-h-[68px] items-center gap-3 border-b border-hairline/40 px-3 py-2.5">
         <div className="min-w-0 flex-1">
           <label className="sr-only" htmlFor={`local-vm-slot-${index}`}>
-            Local VM for pane {index + 1}
+            {translateUi("ui.literal.2cf525f51592")} {index + 1}
           </label>
           <Select size="sm" className="w-full"
             id={`local-vm-slot-${index}`}
@@ -769,7 +770,7 @@ export function LocalVmWorkspace({
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[14px] font-semibold text-ink">{t("vm.workspace.viewTitle")}</h1>
           <p className="truncate text-[12px] text-ink-secondary">
-            Two live desktops · one active controller · watch-only by default
+            {translateUi("ui.literal.c09553d47233")}
           </p>
         </div>
         <button
@@ -777,7 +778,7 @@ export function LocalVmWorkspace({
           onClick={() => void closeWorkspace()}
           disabled={controlPending}
           className="rounded-md p-1.5 text-ink-secondary hover:bg-raised hover:text-ink disabled:opacity-50"
-          aria-label="Close private desktop view"
+          aria-label={translateUi("ui.literal.1539d3374ca0")}
         >
           <X size={18} />
         </button>

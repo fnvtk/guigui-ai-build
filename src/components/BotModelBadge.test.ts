@@ -30,16 +30,16 @@ const bot = (instanceId: string, model: string): Bot => ({
 });
 
 describe("botModel", () => {
-  it("names the bot's chosen model by its picker label", () => {
-    expect(botModel(bot("claude", "opus"), [claude])).toEqual({ instance: claude, label: "Opus 4.1" });
+  it("shows a product tier instead of the provider model name", () => {
+    expect(botModel(bot("claude", "opus"), [claude])).toEqual({ instance: claude, label: "Pro" });
   });
 
   it("names the engine's default model when the bot has not chosen one", () => {
-    expect(botModel(bot("claude", ""), [claude])?.label).toBe("Sonnet 4.5");
+    expect(botModel(bot("claude", ""), [claude])?.label).toBe("Pro");
   });
 
-  it("falls back to the raw id of a model the engine does not list", () => {
-    expect(botModel(bot("claude", "claude-custom-7"), [claude])?.label).toBe("claude-custom-7");
+  it("maps unknown legacy model IDs to the safe default tier", () => {
+    expect(botModel(bot("claude", "claude-custom-7"), [claude])?.label).toBe("Pro");
   });
 
   it("finds nothing for an engine that is not installed", () => {
@@ -48,12 +48,13 @@ describe("botModel", () => {
 });
 
 describe("BotModelBadge", () => {
-  it("draws the engine mark, names only the model on hover and the engine too for screen readers", () => {
+  it("shows only the product tier in its title and accessible label", () => {
     const markup = renderToStaticMarkup(createElement(BotModelBadge, { bot: bot("claude", "opus"), instances: [claude], avatarSize: 44 }));
     expect(markup).toContain('data-testid="model-badge"');
-    expect(markup).toContain('aria-label="Model: Opus 4.1 (Claude)"');
-    expect(markup).toContain('title="Opus 4.1"');
-    expect(markup).toContain("<svg");
+    expect(markup).toContain('aria-label="服务档位：Pro"');
+    expect(markup).toContain('title="Pro"');
+    expect(markup).not.toContain("Claude");
+    expect(markup).not.toContain("opus");
   });
 
   it("draws nothing for an engine that is not installed", () => {
@@ -82,16 +83,16 @@ describe("sidebar bot row", () => {
     "shows the model once in a %s row", (density, placement) => {
       const found = badges(render(bot("claude", "opus"), density));
       expect(found).toHaveLength(1);
-      expect(found[0]).toContain('aria-label="Model: Opus 4.1 (Claude)"');
+      expect(found[0]).toContain('aria-label="服务档位：Pro"');
       expect(found[0]).toContain(placement);
     });
 
-  // Simple mode shows the mark too (the owner's ask, 2026-10-22): a person sees which provider each bot runs on at a glance.
+    // Simple mode keeps the product tier visible without naming its upstream provider.
   it.each<SidebarDensity>(["comfortable", "icons"])("shows the model once in a Simple mode %s row", (density) => {
     fixture.advanced = false;
     const found = badges(render(bot("claude", "opus"), density));
     expect(found).toHaveLength(1);
-    expect(found[0]).toContain('aria-label="Model: Opus 4.1 (Claude)"');
+    expect(found[0]).toContain('aria-label="服务档位：Pro"');
   });
 
   it("shows no badge while the bot's engine is missing", () => {

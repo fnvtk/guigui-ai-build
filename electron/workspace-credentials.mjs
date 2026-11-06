@@ -1,4 +1,6 @@
 export const WORKSPACE_CREDENTIALS = [
+  { section: "guaiWechat", field: "key", name: "guaiBillingWechatApiV3Key", env: "GUAI_WECHAT_API_V3_KEY" },
+  { section: "guaiBilling", field: "key", name: "guaiBillingApiToken", env: "GUAI_BILLING_API_TOKEN" },
   { section: "xai", field: "key", name: "xaiApiKey", env: "XAI_API_KEY" },
   { section: "box", field: "token", name: "boxToken", env: "BOX_TOKEN" },
   { section: "tts", field: "key", name: "ttsKey", env: "OMB_TTS_KEY" },

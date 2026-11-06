@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Message } from "@/state/store";
+import { setLocale } from "@/lib/i18n";
 import { HandoffChip } from "./HandoffReply";
 
 const row = (phase: "request" | "result", output?: string): Message => ({
@@ -57,5 +58,21 @@ describe("HandoffChip", () => {
     expect(markup).toContain("Mira — failed: the build broke");
     expect(markup).toMatch(/<button[^>]*class="[^"]*text-danger/);
     expect(render(row("result", "Done."))).not.toContain("text-danger");
+  });
+
+  it("localizes known English tool-failure summaries in Chinese chats", () => {
+    setLocale("zh");
+    const failed: Message = {
+      ...row("result"),
+      tool: { name: 'Mira — failed: Stopped because the tool calls “agents_select_computer” and “agents_coordinate_bots” failed.', ok: false },
+      roomRequest: { id: "h1", phase: "result" },
+      comm: { groupId: "room-1", threadId: "room-1-main", withBotId: "mira", withName: "Mira", withColor: "teal" },
+    };
+    const markup = render(failed);
+    expect(markup).toContain("工具调用未完成：");
+    expect(markup).toContain("选择工作电脑");
+    expect(markup).toContain("机器人协作分派");
+    expect(markup).not.toContain("Stopped because");
+    setLocale("en");
   });
 });

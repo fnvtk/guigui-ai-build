@@ -81,18 +81,8 @@ describe("UpdateBanner", () => {
     expect(html).not.toContain("Try again");
   });
 
-  it("shows a preparation failure with a recovery action", () => {
-    const html = render({ status: "error", message: "Native staging failed" });
-    expect(html).toContain("Update failed");
-    expect(html).toContain("Native staging failed");
-    expect(html).toContain("Try again");
-  });
-
-  it.each(["ETIMEDOUT while staging", "native error ".repeat(30)])("preserves restart recovery for a nonretryable error: %s", (message) => {
-    const html = render({ status: "error", retryable: false, message });
-    expect(html).toContain("Quit and reopen MausBot before trying the update again.");
-    expect(html).not.toContain("Try again");
-    expect(html).toContain("Dismiss");
+  it.each([true, false])("keeps update failures out of the chat popup (retryable=%s)", retryable => {
+    expect(render({status:"error",retryable,message:"The update failed verification."})).toBe("");
   });
 
   it("preserves system package hand-off without promising restart", () => {
@@ -122,20 +112,11 @@ describe("UpdateBanner", () => {
     expect(running).toContain("Enter your password if asked.");
   });
 
-  it("shows the failure cause as well as the required restart without offering a retry", () => {
-    const html = render({ status: "error", retryable: false,
-      message: "Not enough disk space to prepare the update. Free some space, then try again. Quit and reopen OpenMausBot before trying the update again.",
-    });
-    expect(html).toContain("Free some space");
-    expect(html).toContain("Quit and reopen MausBot");
-    expect(html).not.toContain("Try again</button>");
-  });
-
   it("leaves the ready update to the sidebar's update button while the sidebar is in view", () => {
     expect(render({ status: "downloaded", version: "1.2.3", installMode: "restart" }, undefined, true)).toBe("");
     expect(render({ status: "installing", version: "1.2.3" }, undefined, true)).toBe("");
     expect(render({ status: "downloaded", version: "1.2.3", installMode: "restart" }, undefined, false)).toContain("Restart");
     expect(render({ status: "handed-off", version: "1.2.3", installMode: "handoff", command: "sudo apt install ./x.deb" }, undefined, true)).toContain("Finish in a terminal");
-    expect(render({ status: "error", message: "boom" }, undefined, true)).toContain("Update failed");
+    expect(render({ status: "error", message: "boom" }, undefined, true)).toBe("");
   });
 });

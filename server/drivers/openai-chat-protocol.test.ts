@@ -55,6 +55,18 @@ describe("tool calls per reply", () => {
 });
 
 describe("complete chat tool calls", () => {
+  it.each(["", "  \n"])("normalizes an empty argument payload to the empty object: %j", (args) => {
+    const calls = new ChatToolCalls();
+    calls.add([{ ...completeCall, function: { name: "snapshot", arguments: args } }], false);
+    expect(calls.finish("tool_calls", false)[0].function.arguments).toBe("{}");
+  });
+
+  it("does not repair a truncated nonempty argument payload", () => {
+    const calls = new ChatToolCalls();
+    calls.add([{ ...completeCall, function: { name: "snapshot", arguments: "{" } }], false);
+    expect(calls.finish("tool_calls", false)[0].function.arguments).toBe("{");
+  });
+
   it.each([
     { ...completeCall, id: null },
     { ...completeCall, type: null },

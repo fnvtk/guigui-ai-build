@@ -95,6 +95,7 @@ export class ChatToolCalls {
       if (!call.id || ids.has(call.id) || !/^[A-Za-z0-9_-]{1,64}$/.test(call.function.name)) {
         throw new ChatProtocolError("provider returned an incomplete or duplicate tool call");
       }
+      if (!call.function.arguments.trim()) call.function.arguments = "{}";
       ids.add(call.id);
     }
     return calls;

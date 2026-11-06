@@ -1114,6 +1114,18 @@ describe("structured tool execution boundaries", () => {
     expect(f.requests[1].messages.at(-1)).toMatchObject({ role: "tool", tool_call_id: "call_write", content: expect.any(String) });
   });
 
+  it("stops repeated schema mistakes without dispatching or requesting approval", async () => {
+    const f = await fixture((_body, response, round) => sse(response, [chunk({ tool_calls: [
+      toolCall("audit_write", '{"name":"receipt","value":42}', `invalid_${round}`),
+    ] }, "tool_calls")]));
+    await f.start();
+    expect(await f.completed()).toMatchObject({ ok: false });
+    expect(f.effects()).toEqual([]);
+    expect(f.requests).toHaveLength(3);
+    expect(f.recorder.events.some(event => event.type === "request.opened")).toBe(false);
+    expect(f.recorder.events).toContainEqual(expect.objectContaining({ type: "runtime.error", message: expect.stringContaining("Stopped repeated invalid calls") }));
+  });
+
   it.each([
     { scenario: "duplicate call IDs", frames: [chunk({ tool_calls: [toolCall(), { ...toolCall(), index: 1 }] }, "tool_calls")] },
     { scenario: "missing call ID", frames: [chunk({ tool_calls: [{ index: 0, type: "function", function: toolCall().function }] }, "tool_calls")] },

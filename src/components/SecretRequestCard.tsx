@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useState, type FormEvent } from "react";
 import { ExternalLink, KeyRound, Loader2, LockKeyhole, RefreshCw, X } from "lucide-react";
 
@@ -147,7 +148,7 @@ export function SecretRequestCard({
     return (
       <AskSettledLine icon={<X size={13} />} ariaLabel={secret.label}>
         <span className="text-ink-secondary" title={description}>{secret.label}</span>
-        <span> · Superseded by a newer request</span>
+        <span> {translateUi("ui.literal.71c6161e1c2b")}</span>
       </AskSettledLine>
     );
   }
@@ -156,7 +157,7 @@ export function SecretRequestCard({
     return (
       <AskSettledLine icon={<X size={13} />} ariaLabel={secret.label}>
         <span className="text-ink-secondary" title={secret.description}>{secret.label}</span>
-        <span> · Stopped</span>
+        <span> {translateUi("ui.literal.28b099ec6db5")}</span>
       </AskSettledLine>
     );
   }
@@ -165,7 +166,7 @@ export function SecretRequestCard({
     const retry = !secret.resumed && !stopped && error ? (
       <button type="button" onClick={() => void retryResume()} disabled={saving} className={cn(ASK_QUIET_BUTTON, "text-accent-text")}>
         {saving ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-        Try again
+        {translateUi("ui.literal.042c862e4467")}
       </button>
     ) : undefined;
     return (
@@ -198,7 +199,7 @@ export function SecretRequestCard({
     >
       {remoteClient ? (
         <div className="text-[13px] leading-relaxed text-ink-secondary">
-          This key must be saved on the host computer. Open this conversation on the host to continue securely.
+          {translateUi("ui.literal.62362c46f0ea")}
         </div>
       ) : (
         <form onSubmit={(event) => void save(event)}>
@@ -232,7 +233,7 @@ export function SecretRequestCard({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-accent-text hover:underline"
               >
-                Where to get this key <ExternalLink size={11} />
+                {translateUi("ui.literal.2995a195cae6")} <ExternalLink size={11} />
               </a>
             )}
           </div>

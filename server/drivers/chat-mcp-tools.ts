@@ -13,7 +13,7 @@ import { CALL_TOOL, directoryCallTarget, isDirectoryTool } from "../mcp-director
 import { AppObserver, modelVisible, withUiExtension } from "../mcp-app-observer.ts";
 import { appMountFor, mcpStdioServer } from "../mcp-gate-config.ts";
 import { REMOTE_MCP_STARTUP_MS, remoteMcpSpec } from "../mcp-http.ts";
-import { compileToolSchema } from "../mcp-schema-validator.ts";
+import { compileToolSchema, schemaProblems } from "../mcp-schema-validator.ts";
 import { fitToolList } from "../mcp-tool-schema.ts";
 import { listsComputerTool } from "../computer-tool-list.ts";
 import { capToolList, shareToolBudget } from "../tool-count-limit.ts";
@@ -31,6 +31,7 @@ export interface ChatToolResult { text: string; ok: boolean; images?: ChatImageP
 export interface ChatToolCallView { title: string; input: Record<string, unknown>; ask: boolean; grant?: string }
 /** A dispatched operation may already have taken effect: never retry it through a new round. */
 export class ChatToolSessionError extends Error {}
+export class ChatToolArgumentsError extends Error {}
 export interface SkippedChatMcpServer { server: string; reason: string }
 /** A built-in server that listed only its first `listed` of `of` tools, so the turn fits the model's tool limit. */
 export interface TrimmedChatMcpServer { server: string; listed: number; of: number }
@@ -52,7 +53,7 @@ function chatToolName(server: string, tool: string): string {
 }
 const STARTUP_MS = 8_000;
 const DEFAULT_CALL_MS = 10 * 60_000;
-const FRAME_BYTES = 2 * 1024 * 1024;
+const FRAME_BYTES = 16 * 1024 * 1024;
 const OUTPUT_BYTES = 50 * 1024;
 const TOOL_COUNT = 128;
 /** ask_user, which the runtime lists after the MCP tools. */
@@ -383,7 +384,17 @@ export async function mountChatTools(integrations: SendTurnInput["integrations"]
               if (key in parameters) { constraints[key] = parameters[key]; delete parameters[key]; }
             }
           }
-          const description = (typeof listed.description === "string" ? listed.description : "Configured MCP tool") +
+          const properties = object(parameters.properties) ? parameters.properties : {};
+          const required = Array.isArray(parameters.required) ? parameters.required.filter((field): field is string => typeof field === "string") : [];
+          const requiredNote = required.length
+            ? ` Required arguments: ${required.map((field) => {
+              const property = properties[field];
+              const type = object(property) ? property.type : undefined;
+              return `${field}${typeof type === "string" ? ` (${type})` : Array.isArray(type) ? ` (${type.join(" | ")})` : ""}`;
+            }).join(", ")}; include each in every call.`
+              + (required.includes("path") ? ` Example shape: ${JSON.stringify({ path: "<explicit requested path>" })}; replace the placeholder with a concrete path from the request, do not guess one.` : "")
+            : "";
+          const description = (typeof listed.description === "string" ? listed.description : "Configured MCP tool") + requiredNote +
             (Object.keys(constraints).length ? " Additional argument constraints (validated before execution): " + JSON.stringify(constraints) : "");
           const base = chatToolName(server, tool.name);
           let name = base;
@@ -419,6 +430,22 @@ export async function mountChatTools(integrations: SendTurnInput["integrations"]
     if (closed || signal.aborted) throw new ChatToolSessionError("MCP session closed");
     const tool = registered.get(name);
     if (!tool) throw new Error("The requested tool was not advertised for this turn");
+    if (tool.agents && tool.name === "coordinate_bots" && object(args)) {
+      for (const [alias, field] of [["botIds", "bot_ids"], ["groupId", "group_id"], ["doneWhen", "done_when"]]) {
+        if (args[field] === undefined && args[alias] !== undefined) args[field] = args[alias];
+        delete args[alias];
+      }
+    }
+    if (tool.builtInBrowser && tool.name === "agent_browser_eval" && object(args)) {
+      const schema = tool.schema.schema;
+      const properties = object(schema) && object(schema.properties) ? schema.properties : {};
+      const field = Object.hasOwn(properties, "script") ? "script" : Object.hasOwn(properties, "expression") ? "expression" : undefined;
+      const alias = field === "script" ? "expression" : "script";
+      if (field && args[field] === undefined && typeof args[alias] === "string") {
+        args[field] = args[alias];
+        delete args[alias];
+      }
+    }
     const inner = object(args) ? args.arguments ?? {} : {};
     const excluded = (runs: string | undefined, runArgs: unknown = args ?? {}) => scope !== undefined && runs !== undefined
       && !allowsTool(scope, { kind: "mcp", server: tool.server, name: runs }, runArgs);
@@ -427,7 +454,10 @@ export async function mountChatTools(integrations: SendTurnInput["integrations"]
     // Security: should a bridged agents server answer here, use_tool is also judged by the tool it names.
     if (!directory && (excluded(tool.name) || (tool.agents && excluded(bridgedCallTarget(tool.name, args), inner)))) throw new Error("Tool selection excludes this tool");
     omitBlankDefaults(tool.builtInBrowser, tool.name, args);
-    if (!object(args) || (!directory && !tool.schema(args))) throw new Error("Tool arguments do not match the advertised input schema; use its required fields and types");
+    if (!object(args) || (!directory && !tool.schema(args))) {
+      const problems = object(args) ? schemaProblems(tool.schema.errors).join("; ") : "arguments must be an object";
+      throw new ChatToolArgumentsError(`Tool arguments do not match the advertised input schema: ${problems || "use its required fields and types"}.`);
+    }
     if (tool.searched && excluded(target(tool, args), inner)) throw new Error("Tool selection excludes this tool");
   };
   const view = (name: string, args: Record<string, unknown>): ChatToolCallView => {

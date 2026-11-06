@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   botWireProjectionIsExact,
   groupWireProjectionIsExact,
+  toPublicModelSelection,
   toWireTask,
   type BotRecord,
   type GroupRecord,
@@ -48,7 +49,8 @@ describe("shared wire model", () => {
     ]);
     expect(wire).not.toHaveProperty("resumeCursors");
     expect(wire).not.toHaveProperty("lastInstanceId");
-    expect(wire).toEqual({ ...fullTask, followsBotModel: false, resumeCursors: undefined, lastInstanceId: undefined });
+    const { resumeCursors: _resumeCursors, lastInstanceId: _lastInstanceId, ...storedWireFields } = fullTask;
+    expect(wire).toEqual({ ...storedWireFields, modelSelection: { ...fullTask.modelSelection, model: "kr-pro" }, followsBotModel: false });
     expect(fullTask.resumeCursors).toEqual({ claude: "cursor" });
     expect(fullTask.lastInstanceId).toBe("claude");
   });
@@ -65,8 +67,55 @@ describe("shared wire model", () => {
 
   it("sends the model a thread runs on, and whether it follows its bot's", () => {
     const { modelSelection: _own, ...follower } = fullTask;
-    expect(toWireTask(follower, botModel)).toMatchObject({ modelSelection: botModel, followsBotModel: true });
-    expect(toWireTask(fullTask, botModel)).toMatchObject({ modelSelection: fullTask.modelSelection, followsBotModel: false });
+    expect(toWireTask(follower, botModel)).toMatchObject({ modelSelection: { ...botModel, model: "kr-pro" }, followsBotModel: true });
+    expect(toWireTask(fullTask, botModel)).toMatchObject({ modelSelection: { ...fullTask.modelSelection, model: "kr-pro" }, followsBotModel: false });
+  });
+
+  it("projects known Guai GPT model IDs to public aliases without mutating stored selections", () => {
+    const expected = [
+      ["gpt-6-astra", "kr-max"],
+      ["gpt-6.1-terra", "kr-pro"],
+      ["gpt-6-luna", "kr-mini"],
+    ] as const;
+    for (const [internal, publicId] of expected) {
+      const selection = { instanceId: "simpleapi", model: internal, effort: "high" as const, variant: "fast" };
+      const projected = toPublicModelSelection(selection);
+      expect(projected).toEqual({ ...selection, model: publicId });
+      expect(selection.model).toBe(internal);
+    }
+    const unrelated = { instanceId: "custom", model: "vendor-model", effort: "low" as const };
+    expect(toPublicModelSelection(unrelated)).toEqual({ ...unrelated, model: "kr-pro" });
+    expect(toPublicModelSelection(unrelated)).not.toBe(unrelated);
+  });
+
+  it("projects legacy and unknown nonempty IDs to the shared public service tier", () => {
+    const cases = [
+      ["gpt-5.6-luna", "kr-mini"],
+      ["gpt-5.6-sol", "kr-pro"],
+      ["kr-max", "kr-max"],
+      ["kr-pro", "kr-pro"],
+      ["kr-mini", "kr-mini"],
+      ["unrecognized-upstream-id", "kr-pro"],
+    ] as const;
+    for (const [internal, publicId] of cases) {
+      expect(toPublicModelSelection({ instanceId: "simpleapi", model: internal })).toEqual({
+        instanceId: "simpleapi", model: publicId,
+      });
+    }
+    expect(toPublicModelSelection({ instanceId: "simpleapi", model: "" })).toEqual({
+      instanceId: "simpleapi", model: "",
+    });
+  });
+
+  it("projects aliases on both explicit task models and inherited bot models", () => {
+    const internalTaskModel = { instanceId: "simpleapi", model: "gpt-6.1-terra", effort: "high" as const };
+    const internalBotModel = { instanceId: "simpleapi", model: "gpt-6-luna", effort: "low" as const };
+    const explicit = toWireTask({ ...fullTask, modelSelection: internalTaskModel }, internalBotModel);
+    expect(explicit.modelSelection).toEqual({ ...internalTaskModel, model: "kr-pro" });
+    expect(internalTaskModel.model).toBe("gpt-6.1-terra");
+    const { modelSelection: _own, ...follower } = fullTask;
+    expect(toWireTask(follower, internalBotModel).modelSelection).toEqual({ ...internalBotModel, model: "kr-mini" });
+    expect(internalBotModel.model).toBe("gpt-6-luna");
   });
 
   it("bot and group wire projections stay exact (compile-enforced)", () => {

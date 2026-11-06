@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import type { UpdatesConsentBridge, UpdatesConsentState, UpdatesConsentStatus } from "../../electron/updates-consent.mjs";
@@ -63,7 +64,7 @@ export function UpdatesConsentDialog({ signedIn, onYes, onNo }: {
       <p id="updates-consent-body" className="mt-3 text-[14px] leading-relaxed text-ink-secondary">{t("updatesConsent.body")}</p>
       {!signedIn && <label className="mt-4 flex flex-col gap-1.5 text-[13px] font-medium">
         {t("updatesConsent.email")}
-        <input type="email" value={email} autoComplete="email" placeholder="you@example.com" disabled={busy} onChange={event => { setEmail(event.target.value); setError(null); }}
+        <input type="email" value={email} autoComplete="email" placeholder={translateUi("ui.literal.50e2b46ef877")} disabled={busy} onChange={event => { setEmail(event.target.value); setError(null); }}
           onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); yes(); } }}
           className="w-full rounded-lg border border-hairline/40 bg-inset px-3 py-2 text-[14px] font-normal text-ink placeholder:text-ink-secondary focus:outline-none" />
         <span className="text-[12px] font-normal text-ink-secondary">{t("updatesConsent.emailHint")}</span>

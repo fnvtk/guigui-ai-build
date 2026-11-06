@@ -281,7 +281,7 @@ describe("Store", () => {
     store.patchBot(chief.id, { busy: false });
     const general = store.createBot();
     store.setChiefOfStaff(general.id);
-    expect(store.deleteSection("Studio")).toMatch(/Chief/);
+    expect(store.deleteSection("Studio")).toContain("通用部门已有总协调机器人");
     expect(store.bot(chief.id)).toMatchObject({ chiefOfStaff: true, section: "Studio" });
     expect(store.deleteSection("missing")).toBe("No such department");
     expect(store.deleteSection("")).toBe("No such department");

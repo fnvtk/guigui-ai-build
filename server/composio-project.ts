@@ -14,6 +14,7 @@ import { z } from "zod";
 import { AUTH_CONFIG_ID } from "../shared/connector-availability.ts";
 import { writeFileAtomic } from "./atomic.ts";
 import { DATA_DIR } from "./config.ts";
+import { networkFetch } from "./network-fetch.ts";
 
 export const DEFAULT_BACKEND_ORIGIN = "https://backend.composio.dev";
 
@@ -116,7 +117,7 @@ async function readListing(apiKey: string): Promise<AuthConfigListing> {
   for (let page = 0; page < MAX_AUTH_CONFIG_PAGES; page++) {
     const params = new URLSearchParams({ is_composio_managed: "false", limit: "100" });
     if (cursor) params.set("cursor", cursor);
-    const res = await fetch(`${apiBase()}/auth_configs?${params}`, {
+    const res = await networkFetch(`${apiBase()}/auth_configs?${params}`, {
       headers: projectHeaders(apiKey),
       signal: AbortSignal.timeout(15_000),
     });
@@ -208,7 +209,7 @@ export function forgetProjectAuthConfigs(apiKey?: string): void {
 
 /** Changes one flag on the person's own config, and only once a connection for its toolkit needs it. */
 export async function turnOnToolRouter(apiKey: string, toolkit: string, choice: AuthConfigChoice): Promise<void> {
-  const res = await fetch(`${apiBase()}/auth_configs/${encodeURIComponent(choice.id)}`, {
+  const res = await networkFetch(`${apiBase()}/auth_configs/${encodeURIComponent(choice.id)}`, {
     method: "PATCH",
     headers: projectHeaders(apiKey, true),
     body: JSON.stringify({ type: choice.type, is_enabled_for_tool_router: true }),
@@ -256,7 +257,7 @@ export function refusedAuthConfigReason(toolkit: string, said: string): string {
 
 /** A bot's explicit `auth_config_id`, checked against the project before any Session names it. */
 async function checkAuthConfigPick(apiKey: string, toolkit: string, id: string): Promise<void> {
-  const res = await fetch(`${apiBase()}/auth_configs/${encodeURIComponent(id)}`, {
+  const res = await networkFetch(`${apiBase()}/auth_configs/${encodeURIComponent(id)}`, {
     headers: projectHeaders(apiKey),
     signal: AbortSignal.timeout(15_000),
   });

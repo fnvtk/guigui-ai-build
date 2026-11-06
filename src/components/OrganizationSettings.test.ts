@@ -132,6 +132,14 @@ describe("optional desktop Organisation settings", () => {
     expect(bridge.begin).toHaveBeenNthCalledWith(2, { portalOrigin: "https://admin.example.test" });
   });
 
+  it("translates the native portal failure into actionable product copy", async () => {
+    await ready({ status: "signed-out", message: "Could not start company sign-in. Check the Admin portal address and your connection." });
+    const html = render().html;
+    expect(html).toContain("Company sign-in could not start.");
+    expect(html).toContain("Organization settings → Advanced");
+    expect(html).not.toContain("Could not start company sign-in.");
+  });
+
   it("shows company model counts, refreshes, and requires a separate disconnect confirmation", async () => {
     await ready(connected);
     const html = render().html;

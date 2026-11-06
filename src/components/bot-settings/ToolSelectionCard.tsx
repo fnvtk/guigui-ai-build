@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { t } from "@/lib/i18n";
 import type { Bot } from "@/state/store";
@@ -78,7 +79,7 @@ export function ToolSelectionCard({ bot, engineKind }: { bot: Bot; engineKind?: 
       {fields.onlyListed && lines(fields.allow).length === 0 && <p className="text-[12px] text-ink-secondary">{t("botAccess.tools.emptyHint")}</p>}
       <label className="text-[13px] text-ink-secondary">{t("botAccess.tools.exclude")}
         <textarea aria-label={t("botAccess.tools.exclude")} rows={2} spellCheck={false} className={`${inputCls} mt-1 font-mono text-[12px]`}
-          placeholder="mcp:mail:send" value={fields.deny} onChange={event => change({ deny: event.target.value })} />
+          placeholder={translateUi("ui.literal.01a8f47c274b")} value={fields.deny} onChange={event => change({ deny: event.target.value })} />
       </label>
       <p className="text-[12px] text-ink-secondary">{t("botAccess.tools.syntax")}</p>
       {engineKind === "grokAgent" && <p className="text-[12px] text-ink-secondary">{t("botAccess.tools.grok")}</p>}

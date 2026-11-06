@@ -130,7 +130,17 @@ export function RemoteComputerSection({ hideWhenUnavailable = false }: { hideWhe
           </button>
         </div>
       ) : (
-        <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void pair(); }}>
+        <>
+          <div className="mb-4 rounded-lg border border-hairline/40 bg-inset px-3 py-3" aria-label={t("remote.client.flow.title")}>
+            <div className="text-[13px] font-medium text-ink">{t("remote.client.flow.title")}</div>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-[12px] leading-relaxed text-ink-secondary">
+              <li>{t("remote.client.flow.install")}</li>
+              <li>{t("remote.client.flow.host")}</li>
+              <li>{t("remote.client.flow.connect")}</li>
+              <li>{t("remote.client.flow.verify")}</li>
+            </ol>
+          </div>
+          <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void pair(); }}>
           {environments && bridge ? (
             <label className="flex flex-col gap-1.5 text-[12px] text-ink-secondary">
               {t("remote.client.connectionType")}
@@ -218,7 +228,8 @@ export function RemoteComputerSection({ hideWhenUnavailable = false }: { hideWhe
           <p className="text-[12px] leading-relaxed text-ink-secondary">
             {serverMode ? t("remote.client.server.switchNote") : t("remote.client.restartNote")}
           </p>
-        </form>
+          </form>
+        </>
       )}
       {state.active && error ? <p role="alert" className="mt-3 text-[13px] text-danger">{error}</p> : null}
     </Card>

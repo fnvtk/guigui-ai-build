@@ -114,12 +114,19 @@ describe("organisation sign-in row in the welcome flow", () => {
     expect(render().html).toBe("");
     await mount();
     const html = render().html;
-    expect(html).toContain("Using MausBot at work?");
+    expect(html).toContain("Using 乖乖Ai at work?");
     expect(html).toContain("Sign in with your organization.");
     expect(html).toContain("Other Admin address");
     expect(bridge.begin).not.toHaveBeenCalled();
     expect(bridge.settingsOpened).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("translates the native portal failure into actionable product copy", async () => {
+    await mount({ status: "signed-out", message: "Could not start company sign-in. Check the Admin portal address and your connection." });
+    expect(render().html).toContain("Company sign-in could not start.");
+    expect(render().html).toContain("Organization settings → Advanced");
+    expect(render().html).not.toContain("Could not start company sign-in.");
   });
 
   it("signs in to the default Admin once, then follows the browser step to connected", async () => {
@@ -152,7 +159,7 @@ describe("organisation sign-in row in the welcome flow", () => {
     button("Cancel sign-in")!.props.onClick!();
     await flush();
     expect(bridge.cancelEnrollment).toHaveBeenCalledOnce();
-    expect(render().html).toContain("Using MausBot at work?");
+    expect(render().html).toContain("Using 乖乖Ai at work?");
   });
 
   it("sends another Admin address to Settings instead of asking here", async () => {

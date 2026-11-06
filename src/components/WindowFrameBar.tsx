@@ -7,7 +7,6 @@ import { t } from "@/lib/i18n";
 import { useStore } from "@/state/store";
 import { ChromeRailToggle } from "./ChromeRailToggle";
 import { captionChrome, useDesktopCapabilities, windowFrameable, windowFramed } from "./DesktopCapabilities";
-import { UpdateIndicator } from "./UpdateIndicator";
 import { WindowPlaceTitle } from "./WindowPlaceTitle";
 
 /** A button in the frame's top bar: small, quiet, the bar's height and no more. */
@@ -38,7 +37,6 @@ export function WindowFrameBar() {
       </div>
       <WindowPlaceTitle />
       <div data-frame-bar-end className={cn("flex items-center justify-end gap-0.5", mac ? "pr-2" : "pr-[140px]")}>
-        <UpdateIndicator bar={FRAME_BAR_BUTTON} />
         <button
           type="button"
           data-frame-settings

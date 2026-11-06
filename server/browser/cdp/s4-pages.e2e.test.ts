@@ -239,7 +239,7 @@ suite("S4 pages, tabs and page state on real Chrome", () => {
     const started = Date.now();
     await page.waitFor({ ms: 150 });
     expect(Date.now() - started).toBeGreaterThanOrEqual(140);
-    await expect(page.waitFor({ text: "never there", timeoutMs: 200 })).rejects.toThrow("Waited 200ms without every condition holding.");
+    await expect(page.waitFor({ text: "never there", timeoutMs: 200 })).resolves.toEqual({ matched: false, timedOut: true, timeoutMs: 200 });
   });
 
   it("reports failed requests and log lines without the Runtime domain, and cannot see uncaught page errors", async () => {

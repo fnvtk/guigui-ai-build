@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 // Security: model text never turns an arbitrary local path into a browser request; transcript paths resolve through
 // attachmentImageUrl.
 import {
@@ -595,20 +596,20 @@ export function AttachmentPreviewDialog({
           {!loaded && !failed && (
             <div className="absolute inset-4 flex animate-pulse items-center justify-center rounded-xl bg-white/[0.055] sm:inset-8" role="status">
               <span className="flex items-center gap-2 text-[13px] text-white/55">
-                <LoaderCircle size={17} className="animate-spin" /> Loading image…
+                <LoaderCircle size={17} className="animate-spin" /> {translateUi("ui.literal.9792d0956d6c")}
               </span>
             </div>
           )}
           {failed ? (
             <div className="flex flex-col items-center gap-3 text-white/60" role="alert">
               <ImageOff size={34} />
-              <span className="text-[13px]">This image could not be loaded.</span>
+              <span className="text-[13px]">{translateUi("ui.literal.a7f644689c86")}</span>
               <button
                 type="button"
                 onClick={retry}
                 className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] text-white hover:bg-white/15"
               >
-                <RotateCcw size={13} /> Retry
+                <RotateCcw size={13} /> {translateUi("ui.literal.9f5cd8a2e880")}
               </button>
             </div>
           ) : (
@@ -679,7 +680,7 @@ export function AttachmentThumbnail({
       {state === "loading" && (
         <span className="absolute inset-0 flex animate-pulse items-center justify-center bg-raised/65" role="status">
           <LoaderCircle size={17} className="animate-spin text-ink-tertiary" />
-          <span className="sr-only">Loading {image.name}</span>
+          <span className="sr-only">{translateUi("ui.literal.8f26c6520d61")} {image.name}</span>
         </span>
       )}
       {state === "failed" ? (
@@ -881,12 +882,12 @@ export function MarkdownImagePreview({
         ) : (
           <span className="flex aspect-[4/3] max-h-96 animate-pulse items-center justify-center rounded-xl border border-hairline/40 bg-inset" role="status">
             <LoaderCircle size={17} className="animate-spin text-ink-tertiary" />
-            <span className="sr-only">Loading {name}</span>
+            <span className="sr-only">{translateUi("ui.literal.8f26c6520d61")} {name}</span>
           </span>
         )}
         {openUrl && (
           <a href={openUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-[11px] text-accent hover:underline">
-            Open original
+            {translateUi("ui.literal.57a08f10df41")}
           </a>
         )}
       </span>

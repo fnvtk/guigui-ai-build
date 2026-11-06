@@ -222,3 +222,11 @@ describe.skipIf(process.platform === "win32")("Test, where bots reach URL server
     expect(await tested(await brokerPath(), url)).toEqual({ ok: false, error: "Could not reach this address. Check the URL and your network.", reason: "unreachable" });
   });
 });
+
+it("preserves an owner-created command server's bot restriction at creation", async () => {
+  const { post, get, cfg } = await serve({ bots: [{ id: "ada" }, { id: "bea" }] });
+  const response = await post("/api/mcp/servers", { name: "project-files", command: "node", args: ["files.js", "/authorized/project"], bot: "ada", enabled: true });
+  expect(response.status).toBe(201);
+  expect(cfg.mcpServers?.["project-files"]).toMatchObject({ bot: "ada", enabled: false });
+  expect(await (await get()).json()).toMatchObject({ servers: [{ name: "project-files", bot: "ada" }] });
+});

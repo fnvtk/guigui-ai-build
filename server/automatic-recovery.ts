@@ -7,9 +7,8 @@ type Backup = Pick<ModelSelection, "instanceId" | "model">;
 
 /** The backups a bot's turn tries, in order, when its AI provably never started it: the bot's own list, which needs no
  * switch, or else the installation's one backup while Automatic recovery is on. */
-export function startupBackups(bot: { fallback?: Backup[] }, recovery?: { enabled: boolean; backup?: Backup }): Backup[] {
-  if (bot.fallback?.length) return bot.fallback;
-  return recovery?.enabled && recovery.backup ? [recovery.backup] : [];
+export function startupBackups(_bot: { fallback?: Backup[] }, _recovery?: { enabled: boolean; backup?: Backup }): Backup[] {
+  return [];
 }
 
 /** An automatic switch must not strand the task without its tools or move its filesystem to another machine. */

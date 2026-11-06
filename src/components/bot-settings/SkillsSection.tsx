@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { BookOpen, Trash2 } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
@@ -223,10 +224,10 @@ export function SkillReviewDialog({
     >
       <div className="flex max-h-[min(760px,90vh)] w-full max-w-2xl flex-col rounded-2xl bg-card p-5 shadow-2xl">
         <div id="skill-review-title" className="text-[16px] font-semibold text-ink">
-          Review {skill.name} before enabling
+          {translateUi("ui.literal.e29a79fe0c34")} {skill.name} {translateUi("ui.literal.f90a6b287397")}
         </div>
         <div className="mt-1 break-all text-[12px] text-ink-secondary">
-          Source: {skill.source}
+          {translateUi("ui.literal.922acd282cc0")} {skill.source}
         </div>
         {skill.warnings.length > 0 && (
           <div className="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-[12px] text-warning">
@@ -248,7 +249,7 @@ export function SkillReviewDialog({
             onClick={onCancel}
             className="rounded-lg px-4 py-2 text-[13px] font-medium text-ink-secondary hover:bg-raised disabled:opacity-40"
           >
-            Cancel
+            {translateUi("ui.literal.77dfd2135f4d")}
           </button>
           <button
             type="button"
@@ -256,7 +257,7 @@ export function SkillReviewDialog({
             onClick={onEnable}
             className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
           >
-            Enable reviewed skill
+            {translateUi("ui.literal.59be0d5f8147")}
           </button>
         </div>
       </div>
@@ -472,7 +473,7 @@ export function SkillsSection({ bot }: { bot: Bot }) {
                       </span>
                     )}
                     <div className="mt-0.5 line-clamp-2 text-[12px] text-ink-secondary">{skill.description}</div>
-                    <div className="mt-0.5 text-[11px] text-ink-secondary">Used when the bot decides it's relevant</div>
+                    <div className="mt-0.5 text-[11px] text-ink-secondary">{translateUi("ui.literal.a76ba695ac0b")}</div>
                   </button>
                   {skill.origin !== "native" && (
                     <Switch
@@ -485,7 +486,7 @@ export function SkillsSection({ bot }: { bot: Bot }) {
                   {skill.origin !== "imported" && skill.origin !== "native" && (
                     <button
                       aria-label={`Remove ${skill.name}`}
-                      title="Remove skill"
+                      title={translateUi("ui.literal.042bc4ab2910")}
                       disabled={Boolean(working)}
                       onClick={() => void remove(skill)}
                       className="flex size-8 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-danger/10 hover:text-danger disabled:opacity-40"
@@ -494,7 +495,7 @@ export function SkillsSection({ bot }: { bot: Bot }) {
                     </button>
                   )}
                 </div>
-                <div className="mt-1 truncate text-[11px] text-ink-secondary" title={skill.source}>Source: {skill.source}</div>
+                <div className="mt-1 truncate text-[11px] text-ink-secondary" title={skill.source}>{translateUi("ui.literal.922acd282cc0")} {skill.source}</div>
                 {skill.warnings.length > 0 && (
                   <div className="mt-1 text-[11px] text-warning">{skill.warnings.join(" · ")}</div>
                 )}
@@ -504,7 +505,7 @@ export function SkillsSection({ bot }: { bot: Bot }) {
         )}
         {staged.length > 0 && (
           <div className="mt-2 text-[12px] text-warning">
-            {staged.length} proposal{staged.length === 1 ? " is" : "s are"} waiting for a decision in chat.
+            {staged.length} {translateUi("ui.literal.426144f4dedc")}{staged.length === 1 ? " is" : "s are"} {translateUi("ui.literal.6d8ef06b4459")}
           </div>
         )}
         {error && <div role="alert" className="mt-2 text-[12px] text-danger">{error}</div>}
@@ -542,7 +543,7 @@ export function SkillsSection({ bot }: { bot: Bot }) {
                 onClick={() => setViewing(null)}
                 className="rounded-md px-2 py-1 text-[13px] text-ink-secondary hover:bg-control hover:text-ink"
               >
-                Close
+                {translateUi("ui.literal.bbfa773e5a63")}
               </button>
             </div>
             <pre

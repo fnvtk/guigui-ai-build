@@ -75,6 +75,11 @@ describe("the agents tools' aliases", () => {
     expect((await run("update_widget", { widget: WIDGET_SAMPLES.buildStatus })).result).toEqual({ text: "widget_id: is required, the id show_widget returned.", isError: true });
     expect((await run("update_html", { html: "<p>x</p>" })).result).toEqual({ text: "app_id: is required, the id show_html returned.", isError: true });
     expect((await run("session_read", { thread_id: "thread-old" })).result.text).toContain("needs both thread_id and message_id");
+    for (const args of [{}, { thread_id: 7 }, { thread_id: 7, message_id: "m1" }, { thread_id: "t1", message_id: 7 }]) {
+      const refused = await run("session_read", args);
+      expect(refused.result.isError).toBe(true);
+      expect(refused.sent).toEqual([]);
+    }
     const created = await run("manage_trigger", { trigger_id: "t-1", action: "create", changes: { name: "A", instructions: "B", when: "webhook" } });
     expect(created.result.isError).toBe(true);
     expect(created.sent).toEqual([]);

@@ -1,3 +1,4 @@
+import { t as translateUi } from "@/lib/i18n";
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Video } from "lucide-react";
 
@@ -158,7 +159,7 @@ export function CalendarEventCard({
       ) : (
         <div className="flex h-full min-w-0 items-center truncate text-[10px] font-semibold leading-none">{name}</div>
       )}
-      {isCall && <div onPointerDown={beginResize} className="absolute inset-x-1 bottom-0 h-1.5 cursor-ns-resize rounded-full opacity-0 transition group-hover:opacity-100" aria-label="Resize event"><div className="mx-auto mt-0.5 h-0.5 w-5 rounded-full bg-current opacity-50" /></div>}
+      {isCall && <div onPointerDown={beginResize} className="absolute inset-x-1 bottom-0 h-1.5 cursor-ns-resize rounded-full opacity-0 transition group-hover:opacity-100" aria-label={translateUi("ui.literal.4d081ebf2b87")}><div className="mx-auto mt-0.5 h-0.5 w-5 rounded-full bg-current opacity-50" /></div>}
     </button>
   );
 }

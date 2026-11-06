@@ -72,8 +72,8 @@ const ENDED: ReadonlySet<string> = new Set(["completed", "failed", "cancelled"])
 
 /** On unless OMB_QUOTA_SWITCH=0: a limited AI's work carries on with another AI by itself. Off, only the backups
  * Automatic recovery names take over, as before. */
-export function quotaSwitchEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.OMB_QUOTA_SWITCH?.trim() !== "0";
+export function quotaSwitchEnabled(_env: NodeJS.ProcessEnv = process.env): boolean {
+  return false;
 }
 
 const nameOf = (engine: QuotaSwitchEngine): string => engine.displayName || engine.driverKind;

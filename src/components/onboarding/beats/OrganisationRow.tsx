@@ -4,6 +4,7 @@ import type { ManagedDesktopBridge, ManagedDesktopState } from "../../../../elec
 import { productName } from "@/lib/brand";
 import { t } from "@/lib/i18n";
 import { companyModelCount, DEFAULT_ADMIN_ORIGIN } from "@/lib/onboarding";
+import { organizationConnectionMessage } from "@/lib/organization-copy";
 import { staggerIndex } from "./shared";
 
 const linkClass = "w-fit text-[12px] text-ink-secondary underline-offset-2 transition-colors hover:text-ink hover:underline";
@@ -159,7 +160,7 @@ export function OrganisationRow({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {body}
         {connection.message && (
-          <p role="status" className="text-[12px] text-ink-secondary">{connection.message}</p>
+          <p role="status" className="text-[12px] text-ink-secondary">{organizationConnectionMessage(connection.message)}</p>
         )}
         {failed && <p role="alert" className="text-[12px] text-danger">{t("organization.actionFailed")}</p>}
       </div>
