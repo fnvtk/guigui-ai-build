@@ -113,6 +113,8 @@ describe("classifyRoutineFailure", () => {
     [CRASH, { stopReason: "interrupted" }, { kind: "final" }],
     ["Provider settings changed while this thread was running", { stopReason: "interrupted" }, { kind: "final" }],
     ["The engine stopped without saying why (stop reason: refusal).", { stopReason: "refusal" }, { kind: "final" }],
+    ["MCP request timed out; execution outcome may be uncertain", {}, { kind: "final" }],
+    ["MCP server shutdown could not be confirmed; execution outcome may be uncertain", {}, { kind: "final" }],
     ["The model refused the request (HTTP 400): unsupported model", {}, { kind: "final" }],
     [CAPPED, {}, { kind: "final" }],
     ["Model-call limit reached before a final answer", {}, { kind: "final" }],

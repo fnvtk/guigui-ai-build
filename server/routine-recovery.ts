@@ -82,6 +82,9 @@ export function classifyRoutineFailure(failure: string, facts: RoutineFailureFac
   if (facts.cause === "stalled" || facts.cause === "cap") return { kind: "final" };
   if (facts.stopReason && NOT_RETRIED_STOPS.has(facts.stopReason)) return { kind: "final" };
   if (classifyContinuable(facts.stopReason, failure) === "cap") return { kind: "final" };
+  // A timed-out MCP call may already have reached the remote tool. Retrying the whole
+  // teammate turn can duplicate a write, so leave the incident for state verification.
+  if (/MCP request timed out|execution outcome may be uncertain/i.test(failure)) return { kind: "final" };
   if (facts.stalled) return { kind: "retry", cause: "stalled" };
   const engine = engineFailureKind(failure);
   const { reason, transient } = classifyError({ text: failure });
