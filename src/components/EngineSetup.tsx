@@ -412,7 +412,13 @@ function apiKeySetup(instance: InstanceInfo): boolean {
 
 function inlineKey(instance: InstanceInfo): KeyId | undefined {
   const key = keyForInstance(instance.instanceId);
-  return key && keyEntry(key).kind === "key" ? key : undefined;
+  const simpleApi = instance.driverKind === "openai-compat" && instance.displayName.replace(/\s+/g, "").toLowerCase() === "simpleapi";
+  if (key && keyEntry(key).kind === "key" && (key !== "openaiCompat" || simpleApi)) return key;
+  // SimpleAPI is the single built-in OpenAI-compatible provider. Older saved
+  // instances may have a generated id, so keep its key editor inline by its
+  // stable provider identity instead of sending the person to Settings.
+  if (simpleApi) return "openaiCompat";
+  return undefined;
 }
 
 export const openKeysFor = (instance?: InstanceInfo) =>
