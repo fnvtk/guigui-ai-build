@@ -273,15 +273,24 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
         isError: true,
       };
     }
-    const r = await api("/api/internal/coordinate-bots", { method: "POST", body: JSON.stringify({
-      groupId: typeof canonical.group_id === "string" && canonical.group_id.trim() ? canonical.group_id.trim() : undefined, botIds: ids, message: canonical.message,
-      reason: typeof canonical.reason === "string" && canonical.reason.trim() ? canonical.reason.trim() : undefined,
-      rework: canonical.rework,
-      thread: canonical.thread, reply: canonical.reply,
-      title: typeof canonical.title === "string" && canonical.title.trim() ? canonical.title.trim() : undefined, consult: canonical.consult, inMyFolder: canonical.in_my_folder,
-      done_when: typeof canonical.done_when === "string" && canonical.done_when.trim() ? canonical.done_when.trim() : undefined,
-      answers: typeof canonical.answers === "string" && canonical.answers.trim() ? canonical.answers.trim() : undefined,
-    }) });
+    let r: Json;
+    try {
+      r = await api("/api/internal/coordinate-bots", { method: "POST", body: JSON.stringify({
+        groupId: typeof canonical.group_id === "string" && canonical.group_id.trim() ? canonical.group_id.trim() : undefined, botIds: ids, message: canonical.message,
+        reason: typeof canonical.reason === "string" && canonical.reason.trim() ? canonical.reason.trim() : undefined,
+        rework: canonical.rework,
+        thread: canonical.thread, reply: canonical.reply,
+        title: typeof canonical.title === "string" && canonical.title.trim() ? canonical.title.trim() : undefined, consult: canonical.consult, inMyFolder: canonical.in_my_folder,
+        done_when: typeof canonical.done_when === "string" && canonical.done_when.trim() ? canonical.done_when.trim() : undefined,
+        answers: typeof canonical.answers === "string" && canonical.answers.trim() ? canonical.answers.trim() : undefined,
+      }) });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        text: `coordinate_bots could not confirm dispatch: ${detail}. The remote outcome is unknown; check assignment status before retrying so work is not duplicated.`,
+        isError: true,
+      };
+    }
     return { text: JSON.stringify(r), ...(r.error ? { isError: true } : {}) };
   }
   if (name === "assignment_status") {

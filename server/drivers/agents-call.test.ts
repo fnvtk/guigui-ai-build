@@ -394,3 +394,21 @@ describe("page tools", () => {
       { path: "/api/internal/pages/unpublish", body: { page_id: "abcdefghijklmnopqrstuvwxyz" } }]);
   });
 });
+
+describe("coordinate_bots", () => {
+  it("turns an uncertain dispatch transport failure into an actionable tool error", async () => {
+    const result = await callTool("coordinate_bots", {
+      bot_ids: ["bot-dev"],
+      message: "Check the failing integration.",
+    }, context({
+      client: {
+        api: async () => { throw new Error("MCP request timed out"); },
+        apiResponse: async () => ({ ok: true, status: 200, body: {} }),
+      },
+    }));
+    expect(result).toEqual({
+      text: "coordinate_bots could not confirm dispatch: MCP request timed out. The remote outcome is unknown; check assignment status before retrying so work is not duplicated.",
+      isError: true,
+    });
+  });
+});
