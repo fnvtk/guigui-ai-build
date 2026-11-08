@@ -412,7 +412,7 @@ function apiKeySetup(instance: InstanceInfo): boolean {
 
 function inlineKey(instance: InstanceInfo): KeyId | undefined {
   const key = keyForInstance(instance.instanceId);
-  return key && keyEntry(key).kind === "key" && key !== "openaiCompat" ? key : undefined;
+  return key && keyEntry(key).kind === "key" ? key : undefined;
 }
 
 export const openKeysFor = (instance?: InstanceInfo) =>

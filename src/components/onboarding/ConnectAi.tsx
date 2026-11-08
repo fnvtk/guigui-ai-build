@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, LoaderCircle, RefreshCw, X } from "lucide-react";
-import { EngineSetup, isApiKeyEngine } from "@/components/EngineSetup";
+import { EngineSetup } from "@/components/EngineSetup";
 import { engineReady } from "@/components/EngineLibrary";
 import { InstanceProviderMark } from "@/components/ProviderIcons";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
-import { aiChoices, aiWorks, organisationSignIn, plainSignIn } from "@/lib/onboarding";
+import { aiWorks, organisationSignIn, plainSignIn } from "@/lib/onboarding";
 import { api, useStore, type InstanceInfo } from "@/state/store";
 import { freeFallback } from "../../../shared/ai-ranking";
 import { OrganisationRow } from "./beats/OrganisationRow";
@@ -74,8 +74,10 @@ export function ConnectAi({ hosted = false, tested }: { hosted?: boolean; tested
   }, [refresh]);
 
   const connected = tested && aiWorks(tested) ? tested.instance : undefined;
-  const backup = state.instances.find((instance) => engineReady(instance) && freeFallback(instance));
-  const { recommended, others } = aiChoices(state.instances.filter((instance) => (instance.install || isApiKeyEngine(instance)) && !engineReady(instance)));
+  const simpleApi = state.instances.find((instance) => instance.driverKind === "openai-compat" && instance.displayName.trim().toLowerCase() === "simpleapi");
+  const recommended = simpleApi && !engineReady(simpleApi) && (simpleApi.install || simpleApi.access === "api") ? simpleApi : undefined;
+  const backup = simpleApi && engineReady(simpleApi) && freeFallback(simpleApi) ? simpleApi : undefined;
+  const others: InstanceInfo[] = [];
 
   return (
     <div className="flex w-full flex-col">

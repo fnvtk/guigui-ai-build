@@ -4,10 +4,10 @@ import { useStore, type ConfigStatus } from "@/state/store";
 import { cn } from "@/lib/cn";
 import { scrollParent, scrollWithin } from "@/lib/scroll-within";
 import { t } from "@/lib/i18n";
-import { LmStudioServer, OtherOpenAiCompatServers } from "../OpenAiCompatServers";
+import { LmStudioServer } from "../OpenAiCompatServers";
 import { KEY_CATALOG, KEY_SECTIONS, keyMatches, savedState, type KeyEntry, type KeyId, type KeySectionId } from "./key-catalog";
 import { finishKeyFocus, useKeyFocus, type KeyFocusRequest } from "./key-focus";
-import { AnthropicEveryClaudeBot, OpenAiCompatUrl, OpenCodeProviderKeys, VpsConnection } from "./KeyPanels";
+import { AnthropicEveryClaudeBot, OpenCodeProviderKeys, VpsConnection } from "./KeyPanels";
 import { KEY_ROW, KeyRow, MaskedKey, RowHeading, type KeyStatus } from "./KeyRow";
 
 const CARD = "rounded-xl bg-card in-data-[settings-look=simple]:rounded-[12px] in-data-[settings-look=simple]:border-[0.5px] in-data-[settings-look=simple]:border-(--settings-edge) in-data-[settings-look=simple]:bg-menu";
@@ -21,7 +21,6 @@ const PANELS: Partial<Record<KeyId, () => ReactNode>> = {
 
 const EXTRAS: Partial<Record<KeyId, () => ReactNode>> = {
   anthropic: () => <AnthropicEveryClaudeBot />,
-  openaiCompat: () => <><OpenAiCompatUrl /><OtherOpenAiCompatServers /></>,
 };
 
 function connected(entry: KeyEntry, config: ConfigStatus | null | undefined): boolean {
@@ -141,7 +140,9 @@ export function KeysPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [focus]);
 
-  const rows = KEY_CATALOG.filter((entry) => entry.id !== "box" && keyMatches(entry, q));
+  const rows = KEY_CATALOG.filter((entry) => entry.id !== "box"
+    && ((entry.section !== "ai" && entry.section !== "servers") || entry.id === "openaiCompat" || entry.id === "lmStudio")
+    && keyMatches(entry, q));
   const sections = KEY_SECTIONS.flatMap((section) => {
     const own = rows.filter((entry) => entry.section === section.id);
     return own.length > 0 ? [{ id: section.id, rows: own }] : [];

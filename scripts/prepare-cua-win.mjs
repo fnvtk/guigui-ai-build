@@ -53,7 +53,7 @@ async function officialBinary() {
   console.log(`Downloading CUA Driver ${release.version} from the official release…`);
   const response = await fetch(url, {
     headers: { "user-agent": "OpenMausBot-packager" },
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(600_000),
   });
   if (!response.ok) throw new Error(`CUA Driver download failed: HTTP ${response.status}`);
   const bytes = Buffer.from(await response.arrayBuffer());
