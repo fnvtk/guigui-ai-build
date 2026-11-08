@@ -207,6 +207,7 @@ function replayDelivered(
 }
 
 const CORRECTIVE_ROUND = "[OpenMausBot: a tool call in this turn failed (its result is marked ok:false). Re-run the failed operations with corrected inputs where possible, check the results, then give your final answer. Do not report results you did not get.]";
+const PERSON_INTERVENTION_ROUND = `${CORRECTIVE_ROUND} If the failure needs the person's signed-in browser, screen, or computer authorization, use ask_user to request the one manual action needed (for example, sign in, take control, or approve access). After the person answers, continue the original request and verify the result; do not end with a generic failure notice.`;
 const NUDGE_ANNOUNCED_ACTION = "You said what you would do next but called no tool. Use your tools for only the remaining work, or reply with verified results if nothing is left to do. Never repeat an operation that succeeded, was denied, or may already have taken effect; inspect its state instead. Do not retry a destructive operation.";
 
 export function announcesAction(text: string): boolean {
@@ -634,6 +635,7 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
       let toolFailed = false;
       let correctiveRounds = 0;
       const denials: string[] = [], failedCalls: string[] = [];
+      let personInterventionNeeded = false;
       const seenCalls = new Set<string>();
       const invalidCalls = new Map<string, number>();
       let nudges = 0;
@@ -761,9 +763,10 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             }
             if (toolFailed) {
               // A person's "no" is never answered with another attempt; a failure may first get the configured corrective rounds.
-              if (!denials.length && !turnEntry.ending && correctiveRounds < (turn.toolErrorCorrectiveRounds ?? 0)) {
+              const correctiveLimit = Math.max(turn.toolErrorCorrectiveRounds ?? 0, personInterventionNeeded ? 1 : 0);
+              if (!denials.length && !turnEntry.ending && correctiveRounds < correctiveLimit) {
                 correctiveRounds += 1;
-                messages.push({ role: "user", content: CORRECTIVE_ROUND });
+                messages.push({ role: "user", content: personInterventionNeeded ? PERSON_INTERVENTION_ROUND : CORRECTIVE_ROUND });
                 continue;
               }
               stopReason = "tool_error";
@@ -882,7 +885,15 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             const text = safeText(result.text);
             const output = preview({ ok: result.ok, result: text });
             emit({ ...base(turn.threadId, turnId), type: "item.completed", itemType: "tool", itemId: call.id, ok: result.ok, output });
-            if (!result.ok) { toolFailed = true; failedCalls.push(title); }
+            if (!result.ok) {
+              toolFailed = true;
+              failedCalls.push(title);
+              const diagnostic = `${title} ${text}`.toLowerCase();
+              if (/(browser|computer|screen|select_computer)/.test(diagnostic) &&
+                  /(authoriz|permission|sign in|signed-in|take control|control|access|timeout|failed|unavailable)/.test(diagnostic)) {
+                personInterventionNeeded = true;
+              }
+            }
             messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, result: text }) });
             screenshotParts.push(...chatToolImages(call.id, result.images));
             abort.signal.throwIfAborted();
