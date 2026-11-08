@@ -79,7 +79,7 @@
     "smoke:linux-package": "node scripts/run-linux-package-smoke.mjs",
     "smoke:cua-x11-input": "node scripts/smoke-cua-x11-input.mjs",
     "package:linux:dir": "pnpm package:prepare && pnpm build:cua:linux && electron-builder --linux dir --x64 --publish never",
-    "package:all": "pnpm package:mac && pnpm package:win",
+    "package:all": "pnpm package:mac && OMB_KEEP_RELEASE_OUTPUT=1 pnpm package:win",
     "package": "pnpm package:all",
     "test:packaged-server": "pnpm build:server && node scripts/smoke-packaged-server.mjs",
     "broker:types": "wrangler types --config cloudflare/composio-broker/wrangler.jsonc cloudflare/composio-broker/worker-configuration.d.ts",
