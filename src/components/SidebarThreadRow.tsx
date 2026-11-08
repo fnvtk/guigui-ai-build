@@ -108,7 +108,7 @@ export function partitionHelperThreads<T extends ThreadRowTask>(tasks: T[], acti
 }
 
 export function HelperThreadGroup<T>({ tasks, busy, renderThread }: { tasks: T[]; busy: boolean; renderThread: (task: T) => ReactNode }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   if (tasks.length === 0) return null;
   const label = t("task.helperGroup");
   return <div data-sidebar-helper-threads="">
@@ -117,7 +117,7 @@ export function HelperThreadGroup<T>({ tasks, busy, renderThread }: { tasks: T[]
       <ChevronRight aria-hidden="true" size={11} className={cn("shrink-0 transition-transform", open && "rotate-90")} />
       <span className="truncate">{label}</span>
       <span className="shrink-0 text-[10px] opacity-50">{tasks.length}</span>
-      {!open && busy && <Loader2 size={10} className="shrink-0 animate-spin text-success" />}
+      {busy && <Loader2 size={10} className="shrink-0 animate-spin text-success" aria-label={t("task.helperWorking")} />}
     </button>
     {open && <div role="group" aria-label={label}>{tasks.map(renderThread)}</div>}
   </div>;
