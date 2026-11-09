@@ -39,8 +39,11 @@ export function tregVerdict(result: { ok?: unknown; balanceUsd?: unknown; messag
 
 export interface KeyCheck { result: KeyResult; ok: boolean; text: string }
 
-export async function checkKey(provider: TestableProvider): Promise<KeyCheck> {
-  const answer = await api("/api/keys/test", { method: "POST", body: JSON.stringify({ provider }) });
+export async function checkKey(provider: TestableProvider, url?: string): Promise<KeyCheck> {
+  const body = provider === "openaiCompat"
+    ? { provider, url: url?.trim() || "https://simpleapi.quwanzhi.com/v1" }
+    : { provider };
+  const answer = await api("/api/keys/test", { method: "POST", body: JSON.stringify(body) });
   const result = keyTestResult(answer);
   if (answer.check === "treg") return { result, ok: answer.ok === true, text: tregVerdict(answer) };
   if (!answer.ok) {

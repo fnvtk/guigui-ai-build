@@ -160,7 +160,7 @@ export function KeyRow({
     const mine = ++generation.current;
     setBusy("checking");
     try {
-      const check = await checkKey(target.test);
+      const check = await checkKey(target.test, target.test === "openaiCompat" ? state.config?.openaiCompat?.url : undefined);
       if (mine === generation.current) {
         setWorks(check.ok);
         setVerdict(check.ok ? check.text : null);
