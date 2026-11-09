@@ -12,11 +12,11 @@
 
 ## 立即下载
 
-[下载乖乖AI视窗电脑安装程序](https://github.com/fnvtk/guigui-ai-build/releases/download/v0.1.138/GuiguiAI-0.1.138-Windows-x64-Setup.exe)
+[下载乖乖AI视窗电脑安装程序](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/Ai-0.1.143-setup.exe)
 
 [查看全部版本和历史下载](https://github.com/fnvtk/guigui-ai-build/releases)
 
-当前可下载版本：`v0.1.138` · 视窗电脑六十四位安装包
+当前可下载版本：`v0.1.143` · 视窗电脑六十四位安装包
 
 </div>
 
@@ -32,9 +32,9 @@
 
 | 版本 | 适用设备 | 下载 | 状态 |
 | --- | --- | --- | --- |
-| `v0.1.138` | 视窗电脑六十四位 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/download/v0.1.138/GuiguiAI-0.1.138-Windows-x64-Setup.exe) | 当前推荐 |
-| `v0.1.138` | 苹果电脑芯片版 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/download/v0.1.138/GuiguiAI-0.1.138-macOS-arm64.dmg) | 当前推荐 |
-| `v0.1.138` | 苹果电脑英特尔版 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/download/v0.1.138/GuiguiAI-0.1.138-macOS-x64.dmg) | 当前推荐 |
+| `v0.1.143` | 视窗电脑六十四位 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/Ai-0.1.143-setup.exe) | 当前推荐 |
+| `v0.1.143` | 苹果电脑芯片版 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/Ai-0.1.143-arm64.dmg) | 当前推荐 |
+| `v0.1.143` | 苹果电脑英特尔版 | [下载安装包](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/Ai-0.1.143-x64.dmg) | 当前推荐 |
 | `v0.1.138` | Linux 电脑 | 暂未发布 | 等待 Linux 六十四位构建机 |
 
 每个版本的安装程序、更新文件和校验信息，都放在对应的 GitHub 版本页面中。以后新增版本时，会继续按这个格式整理，用户只需打开“全部版本和历史下载”即可选择。
