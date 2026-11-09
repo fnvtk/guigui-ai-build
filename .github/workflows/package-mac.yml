@@ -26,7 +26,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm package:mac:local
+      - name: Build macOS installers
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: pnpm package:mac:local
       - name: Upload macOS installers to the single draft release
         shell: bash
         env:
