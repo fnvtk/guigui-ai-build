@@ -93,17 +93,18 @@ describe("the call button", () => {
     expect(onStart).toHaveBeenCalledWith("live");
   });
 
-  it("asks for the microphone before the key when Live has none", () => {
+  it("falls back to taking turns when Live has no key", () => {
     fixture.liveConfigured = false;
     setCallMode("live");
     const getUserMedia = vi.fn(() => new Promise<MediaStream>(() => {}));
     configureLiveMedia({ getUserMedia });
     const onStart = vi.fn();
     pressPhone(onStart);
-    expect(getUserMedia).toHaveBeenCalledTimes(1);
-    expect(liveMedia()).toMatchObject({ phase: "starting", botId: "atlas", threadId: "thread-atlas" });
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(liveMedia().phase).toBe("idle");
+    expect(currentCall()).toBe("atlas");
     expect(renderButton()).not.toContain("OpenAI API key");
-    expect(onStart).toHaveBeenCalledWith("live");
+    expect(onStart).toHaveBeenCalledWith("turns");
   });
 
   it("hangs up this window's Live call", () => {

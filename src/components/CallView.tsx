@@ -178,6 +178,18 @@ export function CallTargetButton({
     setHelpOpen(false);
     setMenuOpen(false);
     if (next === "live" && liveThreadId !== undefined) {
+      // Live needs the OpenAI realtime API. When this installation only has
+      // its normal model provider configured, use the local take-turns call
+      // instead of opening a dead-end key prompt.
+      if (!state.config?.live?.configured) {
+        if (!turnsReady) {
+          setHelpOpen(true);
+          return;
+        }
+        onStart("turns");
+        startCall(targetId);
+        return;
+      }
       onStart("live");
       void startLiveCall({ botId: targetId, threadId: liveThreadId });
       return;
