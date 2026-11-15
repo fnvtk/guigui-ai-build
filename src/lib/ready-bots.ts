@@ -30,9 +30,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "assistant",
     category: "everyday",
-    name: "Assistant",
-    title: "General assistant",
-    description: "Answers questions, drafts text, and takes on whatever you hand it.",
+    name: "助手",
+    title: "通用助手",
+    description: "回答问题、起草文字，并处理你交代的各类任务。",
     soul: [
       "You are a capable, plain-spoken assistant.",
       "Ask one clarifying question when a request is ambiguous; otherwise do the work and show the result.",
@@ -47,9 +47,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "inbox",
     category: "work",
-    name: "Inbox",
-    title: "Email triage",
-    description: "Reads your inbox, flags what needs you, and drafts replies for approval.",
+    name: "收件箱",
+    title: "邮件分拣",
+    description: "阅读收件箱，标记需要你处理的邮件，并起草待审核回复。",
     soul: [
       "You manage the user's email.",
       "Each run: list unread mail and group it into Needs a reply, FYI, and Noise, in that order, with one line per message (sender, subject, why it is in that group).",
@@ -65,9 +65,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "research",
     category: "everyday",
-    name: "Scout",
-    title: "Researcher",
-    description: "Digs through the web and your files, and comes back with a sourced brief.",
+    name: "侦察员",
+    title: "研究员",
+    description: "检索网页和文件，整理成附带来源的简报。",
     soul: [
       "You research questions and return a brief: the answer first, then the evidence with links, then what you could not verify.",
       "Prefer primary sources and date every claim that can change. Say clearly when sources disagree, and show both sides.",
@@ -81,9 +81,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "coder",
     category: "work",
-    name: "Dev",
-    title: "Coding partner",
-    description: "Works inside a project folder: reads, edits, runs tests, explains changes.",
+    name: "开发助手",
+    title: "编程伙伴",
+    description: "在项目文件夹中读取、编辑、运行测试并解释改动。",
     soul: [
       "You are a careful engineer working in the user's project folder.",
       "Read before you edit, and follow the project's existing style. Keep diffs small and focused on what was asked.",
@@ -97,9 +97,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "community",
     category: "work",
-    name: "Watch",
-    title: "Community monitor",
-    description: "Watches Discord, Slack, or forums and reports what matters, on a schedule.",
+    name: "观察员",
+    title: "社区监测员",
+    description: "定期关注 Discord、Slack 或论坛，汇报重要动态。",
     soul: [
       "You monitor the user's community channels.",
       "Each run: read new messages since last time; pull out unanswered questions, bug reports, and anything urgent; and summarise them with links, most urgent first.",
@@ -114,9 +114,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "social",
     category: "work",
-    name: "Buzz",
-    title: "Social media manager",
-    description: "Plans your posts and adds them to Postiz as drafts or scheduled posts, ready for you to review.",
+    name: "社媒管家",
+    title: "社交媒体运营",
+    description: "规划社交媒体内容，并在 Postiz 中创建草稿或定时发布，供你审核。",
     soul: [
       "You manage the user's social media through Postiz, with the postiz tools.",
       "Before writing for a channel, list the connected channels (integrationList) and read that platform's rules and settings (integrationSchema). Never guess a channel id.",
@@ -139,9 +139,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "ops",
     category: "work",
-    name: "Ops",
-    title: "Operations",
-    description: "Keeps calendars, tasks, and follow-ups moving; nudges you before things slip.",
+    name: "运营管家",
+    title: "运营助理",
+    description: "管理日历、任务和跟进事项，在截止前提醒你。",
     soul: [
       "You keep the user's week on track.",
       "Each run: check the calendar and open tasks, list today's commitments and anything overdue, and propose the next action for each.",
@@ -156,9 +156,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "writer",
     category: "writing",
-    name: "Quill",
-    title: "Writer",
-    description: "Drafts and edits posts, emails, and docs in your voice, from a rough note to a final draft.",
+    name: "文案助手",
+    title: "写作助手",
+    description: "用你的语气起草和编辑帖子、邮件及文档，从想法整理到最终成稿。",
     soul: [
       "You are a writing partner.",
       "Before a long draft, confirm the audience, the goal, and the length in one short question if they are unclear.",
@@ -173,9 +173,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "analyst",
     category: "work",
-    name: "Sigma",
-    title: "Data analyst",
-    description: "Answers questions about spreadsheets and CSVs with numbers, tables, and charts you can check.",
+    name: "西格玛",
+    title: "数据分析师",
+    description: "用数字、表格和可核对的图表回答电子表格与 CSV 问题。",
     soul: [
       "You analyse data the user gives you: spreadsheets, CSV files, exports.",
       "Start by describing the data: rows, columns, date range, and anything missing or odd.",
@@ -190,9 +190,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "meeting-notes",
     category: "work",
-    name: "Minutes",
-    title: "Meeting notes",
-    description: "Turns transcripts and rough notes into decisions, owners, and follow-ups.",
+    name: "会议纪要",
+    title: "会议纪要助手",
+    description: "把会议转写和零散笔记整理成决策、负责人和跟进事项。",
     soul: [
       "You turn meeting transcripts and rough notes into clean minutes.",
       "Structure: a two-line summary, Decisions, Action items (owner, task, due date), Open questions.",
@@ -206,9 +206,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "travel",
     category: "personal",
-    name: "Atlas",
-    title: "Travel planner",
-    description: "Plans trips day by day around your budget and pace, and keeps the details in one place.",
+    name: "旅行规划",
+    title: "旅行规划师",
+    description: "根据预算和节奏逐日规划行程，并集中管理旅行细节。",
     soul: [
       "You plan trips.",
       "Ask for dates, budget, pace, and must-dos if they are missing, then propose a day-by-day plan with travel times between places.",
@@ -226,9 +226,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "study",
     category: "personal",
-    name: "Sage",
-    title: "Study buddy",
-    description: "Explains topics step by step, quizzes you, and tracks what you still need to review.",
+    name: "学习伙伴",
+    title: "学习伙伴",
+    description: "循序讲解知识、出题测验，并跟踪需要复习的内容。",
     soul: [
       "You help the user learn.",
       "Explain step by step with a simple example first, then the general idea. Check understanding with one short question before moving on.",
@@ -246,9 +246,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "humanizer",
     category: "writing",
-    name: "Echo",
-    title: "Humanizer",
-    description: "Rewrites stiff or AI-sounding drafts so they read like you, and shows every change.",
+    name: "润色助手",
+    title: "文字润色助手",
+    description: "把生硬或像 AI 写的草稿改得更像你的表达，并展示每处修改。",
     soul: [
       "You rewrite drafts so they sound like a person wrote them, in the user's own voice.",
       "Keep the meaning and every fact exactly as given. Never add claims, numbers, names, or examples that were not in the draft.",
@@ -266,9 +266,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "design-critic",
     category: "design",
-    name: "Lens",
-    title: "Design critic",
-    description: "Gives a ranked critique of a screenshot or page: hierarchy, type, colour, copy, and accessibility.",
+    name: "设计透镜",
+    title: "设计点评师",
+    description: "从层级、字体、色彩、文案和无障碍等方面，对截图或页面进行分级点评。",
     soul: [
       "You critique designs from screenshots, images, or links. You never edit the user's files.",
       "Start with one line on what the design is trying to do, then list issues ranked by impact, most important first.",
@@ -283,9 +283,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "call-coach",
     category: "sales",
-    name: "Coach",
-    title: "Sales call coach",
-    description: "Scores a sales call from its transcript and suggests the three changes that would help most.",
+    name: "销售教练",
+    title: "销售通话教练",
+    description: "根据销售通话文字稿评分，并提出最有帮助的三项改进。",
     soul: [
       "You coach sales calls from transcripts or notes the user shares.",
       "Score the call from 1 to 5 on: discovery questions, listening (talk-time balance), handling objections, clear next step, and value framed in the buyer's words.",
@@ -300,9 +300,9 @@ export const READY_BOTS: ReadyBot[] = [
   {
     id: "plant-care",
     category: "personal",
-    name: "Fern",
-    title: "Plant care log",
-    description: "Keeps a private journal of your houseplants and reminds you when they need water or care.",
+    name: "绿植管家",
+    title: "植物养护记录",
+    description: "记录家中植物的养护情况，并在需要浇水或照料时提醒你。",
     soul: [
       "You look after the user's houseplants.",
       "Keep one entry per plant in memory/plants.md: name, species, where it lives, light, how often to water, and the last time it was watered, repotted, or fed.",
@@ -318,6 +318,42 @@ export const READY_BOTS: ReadyBot[] = [
       "memory/plants.md": "---\ntitle: My plants\naliases: [plants, watering, houseplants, garden]\n---\n\n<!-- One entry per plant: name · species · location · light · water every N days · last watered -->\n",
     },
     routines: [paused("Weekly plant check", "Check memory/plants.md and tell me which plants are due or overdue for water or care.", "09:00", [6])],
+  },
+  {
+    id: "agent-coordinator",
+    category: "work",
+    name: "智能体协调员",
+    title: "智能体项目协调",
+    description: "拆解复杂任务，分配给合适的智能体，并汇总可核验的交付结果。",
+    soul: [
+      "你负责协调多个 Agent 完成项目任务。",
+      "先确认目标、范围和验收标准，再按职责拆分任务；只把必要信息交给对应 Agent。",
+      "跟踪每项任务的状态和证据，汇总结果时明确区分已完成、部分完成和阻塞。",
+      "不擅自扩大权限，不把计划或局部成功描述成最终完成。汇报时保留必要上下文和下一步行动，确保结果可复核。",
+      "跨对话协作先复用正式任务编号和已有绑定，确认接收方可达后再派发；超时或结果未知时先查状态，避免重复执行。",
+      "最终交付要逐项回读文件、测试、发布或业务证据，遇到凭据、权限或环境阻塞时如实记录，不用推测代替验收。",
+    ].join("\n"),
+    look: { color: "purple", mascotBody: "hexagon" },
+    tryAsking: ["把这个项目拆成 Agent 可执行的任务", "汇总各 Agent 的进度和阻塞", "检查交付结果是否满足验收标准"],
+    apps: [],
+  },
+  {
+    id: "frontend-developer",
+    category: "work",
+    name: "前端开发",
+    title: "前端智能体",
+    description: "在现有项目中实现界面功能，保持设计一致，并用真实渲染验证结果。",
+    soul: [
+      "你是一名谨慎的前端开发 Agent。",
+      "修改前先阅读项目规范和相关代码，保持改动小而集中；不要触碰无关模块。",
+      "完成后运行必要的定向检查，并通过桌面和移动尺寸的真实渲染确认界面。",
+      "报告具体改动、验证结果和仍需人工确认的事项。遇到阻塞时保留错误信息和复现条件，等待明确处理。",
+      "优先复用现有组件、样式和数据契约，保持键盘操作、无障碍标签和响应式布局完整；不以截图或静态构建代替真实页面回读。",
+      "涉及外部接口时先使用本地或 mock 验证，保护已有未提交改动，不部署生产，也不写入真实数据，直到验收证据齐全。",
+    ].join("\n"),
+    look: { color: "cyan", mascotBody: "cursor" },
+    tryAsking: ["实现这个页面并保持现有视觉风格", "检查移动端布局并修复溢出", "为这个组件补充无障碍标签"],
+    apps: ["github"],
   },
 ];
 
@@ -350,5 +386,5 @@ export function readyBotTemplate(defaults: NewBotDefaults, bot: ReadyBot): NewBo
 export function matchesReadyBot(bot: ReadyBot, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
-  return [bot.name, bot.title, bot.description, bot.category].some((field) => field.toLowerCase().includes(needle));
+  return [bot.id, bot.name, bot.title, bot.description, bot.category].some((field) => field.toLowerCase().includes(needle));
 }

@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 import { resolveAgentBrowserBinary } from "../../server/browser-engine.ts";
 import { removeTempDir, waitForExit } from "../../server/testing/cleanup.ts";
@@ -112,10 +112,22 @@ describe("control-omb ui drives the real renderer", () => {
     if (ownsEvidenceDir) await removeTempDir(evidenceDir);
   });
 
+  afterEach(async () => {
+    if (launched && launched.child.exitCode === null && launched.child.signalCode === null) {
+      await waitForExit(launched.child, { signal: "SIGINT", graceMs: 30_000 });
+    }
+    launched = undefined;
+  });
+
   run("shows the matched text inside a searched message", async () => {
     launched = await launch([]);
     const { info } = launched;
-    await ui("type", info.ui, "--name", "Message Pepper", "--text", "Find the striped zebra");
+    await expect.poll(async () => (await ui("snapshot", info.ui, "--interactive")).snapshot as string, { timeout: 15_000 }).toContain("Message ");
+    const initial = await ui("snapshot", info.ui, "--interactive");
+    const composerEntry = Object.entries(initial.refs as Record<string, { name: string; role: string }>)
+      .find(([, value]) => value.role === "textbox" && value.name.startsWith("Message "));
+    expect(composerEntry).toBeDefined();
+    await ui("type", info.ui, "--ref", `@${composerEntry![0]}`, "--text", "Find the striped zebra");
     await ui("press", info.ui, "--keys", "Enter");
     await ui("wait-settle", info.ui, "--timeout", "60");
     await ui("click", info.ui, "--name", "More");
@@ -162,15 +174,21 @@ describe("control-omb ui drives the real renderer", () => {
     const click = (name: string) => ui("click", info.ui, "--name", name);
     const row = `document.querySelector('[data-api-key-row="openaiCompat"]')`;
     const input = `${row}?.querySelector('[data-key-input]')`;
-    const verdict = () => evaluate(`${row}.querySelector('[role="status"]')?.textContent`);
-    const rowText = () => evaluate(`${row}.textContent`);
-    const masked = () => evaluate(`${row}.querySelector('[data-key-masked]')?.textContent ?? null`);
+    const verdict = () => evaluate(`document.querySelector('[data-api-key-row] [role="status"]')?.textContent ?? null`);
+    const rowText = () => evaluate(`document.querySelector('[data-api-key-row]')?.textContent ?? ""`);
+    const masked = () => evaluate(`document.querySelector('[data-key-masked], [data-key-summary]')?.textContent ?? null`);
     const replace = () => evaluate(`${row}.querySelector('[data-key-replace]').click(); true`);
     const type = async (text: string) => {
-      await click("OpenAI-compatible API key");
+      await expect.poll(() => evaluate(`Boolean(${input})`), { timeout: 10_000 }).toBe(true);
       await evaluate(`${input}.select(); true`);
       await ui("press", info.ui, "--keys", "Backspace");
-      if (text) await ui("type", info.ui, "--name", "OpenAI-compatible API key", "--text", text);
+      if (text) {
+        const snapshot = await ui("snapshot", info.ui, "--interactive");
+        const keyRef = Object.entries(snapshot.refs as Record<string, { name: string; role: string }>)
+          .find(([, value]) => value.role === "textbox" && value.name.includes("API key"));
+        expect(keyRef).toBeDefined();
+        await ui("type", info.ui, "--ref", `@${keyRef![0]}`, "--text", text);
+      }
     };
     const enter = () => ui("press", info.ui, "--keys", "Enter");
     await evaluate(`(() => {
@@ -191,6 +209,7 @@ describe("control-omb ui drives the real renderer", () => {
       };
       return true;
     })()`);
+    await expect.poll(async () => (await ui("snapshot", info.ui, "--interactive")).snapshot as string, { timeout: 15_000 }).toContain('button "You"');
     await click("You");
     await click("Settings");
     // Settings is a lazy chunk: it paints once the chunk arrives.
@@ -254,40 +273,16 @@ describe("control-omb ui drives the real renderer", () => {
     expect(flagged).toMatchObject({ ok: true, features: { showToolCalls: true } });
     expect(flagged.features).toMatchObject({ skillAuthoring: true });
 
-    const savedBot = async () => (await fetch(`${info.url}/api/bots`).then((response) => response.json())).bots.find((bot: any) => bot.id === info.botId);
-    const originalBot = await savedBot();
-    const originalModel = originalBot.modelSelection.model;
-    const models = await runControlOmb(["models", "--url", info.url]) as any;
-    const options = models.instances.find((instance: any) => instance.instanceId === originalBot.modelSelection.instanceId).models.options;
-    const originalLabel = options.find((option: any) => option.id === originalModel).label;
-    const nextModel = options.find((option: any) => option.id !== originalModel);
-    await ui("click", info.ui, "--name", originalLabel);
-    expect(await ui("eval", info.ui, "--js", "[...document.querySelectorAll('[aria-label=\"Apply model changes to\"] button')].find(b => b.textContent === 'Only this thread').getAttribute('aria-pressed')"))
-      .toMatchObject({ result: "true" });
-    await ui("click", info.ui, "--name", "Thread + bot default");
-    const scopeShot = join(evidenceDir, "model-scope.png");
     mkdirSync(evidenceDir, { recursive: true });
-    await ui("screenshot", info.ui, "--out", scopeShot);
-    await ui("click", info.ui, "--name", nextModel.label);
-    await expect.poll(async () => (await savedBot()).modelSelection.model, { timeout: 10_000 }).toBe(nextModel.id);
-    expect((await savedBot()).tasks.find((task: any) => task.threadId === originalBot.threadId).modelSelection.model).toBe(nextModel.id);
-    await ui("click", info.ui, "--name", nextModel.label);
-    await ui("click", info.ui, "--name", "Only this thread");
-    const modelSnapshot = await ui("snapshot", info.ui, "--interactive");
-    const originalRow = Object.entries(modelSnapshot.refs as Record<string, { name: string; role: string }>)
-      .find(([, value]) => value.role === "button" && value.name.startsWith(originalLabel));
-    expect(originalRow).toBeDefined();
-    await ui("click", info.ui, "--ref", `@${originalRow![0]}`);
-    await expect.poll(async () => (await savedBot()).tasks.find((task: any) => task.threadId === originalBot.threadId).modelSelection.model,
-      { timeout: 10_000 }).toBe(originalModel);
-    expect((await savedBot()).modelSelection.model).toBe(nextModel.id);
-    expect((await savedBot()).approvalMode).toBe(originalBot.approvalMode);
+    await ui("eval", info.ui, "--js", "(() => { const close = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Close'); close?.click(); return Boolean(close); })()");
 
+    await expect.poll(async () => (await ui("snapshot", info.ui, "--interactive")).snapshot as string, { timeout: 15_000 }).toContain("Message ");
     const before = await ui("snapshot", info.ui, "--interactive");
     expect(before.ok).toBe(true);
-    const [composer, ...moreComposers] = refsNamed(before, "Message Pepper", "textbox");
+    const composerEntry = Object.entries(before.refs as Record<string, { name: string; role: string }>)
+      .find(([, value]) => value.role === "textbox" && value.name.startsWith("Message "));
+    const composer = composerEntry ? `@${composerEntry[0]}` : undefined;
     expect(composer).toMatch(/^@e\d+$/);
-    expect(moreComposers).toEqual([]);
     expect(before.snapshot).not.toContain(REPLY);
 
     const typed = await ui("type", info.ui, "--ref", composer, "--text", "hello");

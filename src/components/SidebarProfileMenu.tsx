@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
-  ArrowLeftRight,
   Check,
   CircleUserRound,
   Cloud,
@@ -21,7 +20,6 @@ import { InitialsAvatar } from "./Avatar";
 import { AboutDialog } from "./AboutDialog";
 import { CloudTile } from "./cloud-buy/parts";
 import type { WorkspacePlace } from "./DesktopWorkspaceSwitcher";
-import { railShown, usePlaces } from "@/lib/places";
 import { useAutomationsNeedYou } from "./SidebarFooterNav";
 import { useCloudFilesReady } from "@/lib/cloud-files";
 import { SidebarPopoverMenu, type SidebarMenuItem } from "./SidebarPopoverMenu";
@@ -158,13 +156,12 @@ export function accountDot({ automationsNeedYou, move }: { automationsNeedYou: b
   return null;
 }
 
-/** `besideRail`: the window's rail of places stands beside the page and switches places, so Switch to… isn't offered twice. */
-export function placeMenuItems(place: Pick<WorkspacePlace, "bridge" | "current" | "cloudHome" | "onLine" | "openMenu" | "switchable">, { owner, name, onCloudSettings, besideRail = false }: {
+/** The computer or Cloud row opens the same native place menu used to connect and switch servers. */
+export function placeMenuItems(place: Pick<WorkspacePlace, "bridge" | "current" | "cloudHome" | "onLine" | "openMenu" | "switchable">, { owner, name, onCloudSettings }: {
   owner: string | null;
   /** A team's name on a team's Cloud. */
   name?: string;
   onCloudSettings: () => void;
-  besideRail?: boolean;
 }): SidebarMenuItem[] {
   const here = <Check size={15} aria-hidden="true" className="shrink-0 text-ink-secondary" />;
   if (!place.switchable) {
@@ -177,7 +174,6 @@ export function placeMenuItems(place: Pick<WorkspacePlace, "bridge" | "current" 
     : current?.local === false || (place.cloudHome && !current) ? <Cloud size={16} /> : <Laptop size={16} />;
   return [
     ...(current ? [{ key: "place", label: current.name, ...(place.cloudHome && place.onLine ? { subtitle: place.onLine } : {}), icon, trailing: here, onSelect: place.openMenu }] : []),
-    ...(besideRail ? [] : [{ key: "switch-place", label: t("sidebar.menu.switchTo"), icon: <ArrowLeftRight size={16} />, onSelect: place.openMenu }]),
   ];
 }
 
@@ -221,9 +217,11 @@ export function profileMenuItems({
   }
   const groups = [
     move,
-    [...phone, support, settings],
     simple.tools,
+    phone,
     [...simple.places, ...present(accountItem)],
+    [support],
+    [settings],
   ].filter((group) => group.length > 0);
   return groups.flatMap((group, at) => group.map((item, index) => (at > 0 && index === 0 ? { ...item, separatorBefore: true } : item)));
 }
@@ -269,7 +267,6 @@ export function SidebarProfileMenu({ iconOnly = false, rail = false, circle = fa
   const profile = profileForSession(state.config?.profile, session);
   const name = profileLabel(profile);
   const connectTo = (destination: PhoneDestination) => selectPhoneDestination(destination, { bridge: cloudPhone.bridge, dispatch });
-  const besideRail = railShown(usePlaces());
   const filesReady = useCloudFilesReady();
   const openCloudAccount = () => dispatch({ type: "toggleAppSettings", open: true, section: "cloudAccount" });
   const move = useAccountMove(state.config?.cloudHome === true, { onOpen: openCloudAccount, onPairPhone: () => dispatch(phonePairingSettingsAction()) });
@@ -293,7 +290,7 @@ export function SidebarProfileMenu({ iconOnly = false, rail = false, circle = fa
         onFiles: filesReady ? () => dispatch({ type: "showFiles" }) : undefined,
         archived: account.archived,
       }),
-      places: placeMenuItems(account.place, { owner: account.owner, name: state.config?.team?.name, besideRail, onCloudSettings: openCloudAccount }),
+      places: placeMenuItems(account.place, { owner: account.owner, name: state.config?.team?.name, onCloudSettings: openCloudAccount }),
     } } : {}),
     onSettings: () => dispatch({ type: "toggleAppSettings" }),
     onShortcuts: () => {

@@ -6,6 +6,7 @@ type Greeting = (name: string, person?: string) => string;
 /** The first bot's seeded line is created by the server before the UI exists. */
 const GREETINGS: { en: Greeting } & Record<string, Greeting> = {
   en: (name, person) => `Hi${person ? ` ${person}` : ""}, I'm ${name}. What would you like me to do?`,
+  zh: (name, person) => `你好${person ? `，${person}` : ""}，我是${name}。你想先让我帮你做什么？`,
   es: (name, person) => `Hola${person ? ` ${person}` : ""}, soy ${name}. ¿Qué te gustaría que hiciera?`,
   "pt-br": (name, person) => `Oi${person ? ` ${person}` : ""}, eu sou ${name}. O que você gostaria que eu fizesse?`,
   ko: (name, person) => `안녕하세요${person ? `, ${person}님` : ""}. 저는 ${name}입니다. 무엇을 도와드릴까요?`,
@@ -14,6 +15,7 @@ const GREETINGS: { en: Greeting } & Record<string, Greeting> = {
 /** What the bot says the moment Set me up is pressed: no model is asked, so it is written here. */
 const SETUP_REQUEST_LINES: { en: string } & Record<string, string> = {
   en: "Great. Tell me what you'd like help with, in your own words, and I'll set myself up for it. For example: \"sort my inbox every morning\" or \"research our competitors every week\".",
+  zh: "好的，请直接告诉我需要我帮你做什么，我会按你的要求完成设置。例如：\"每天早上整理收件箱\"或\"每周研究竞争对手\"。",
   es: "Genial. Cuéntame con tus propias palabras en qué te gustaría que te ayude y me prepararé para ello. Por ejemplo: \"ordena mi bandeja de entrada cada mañana\" o \"investiga a nuestros competidores cada semana\".",
   "pt-br": "Ótimo. Me conte com suas palavras em que você gostaria de ajuda e eu me preparo para isso. Por exemplo: \"organize minha caixa de entrada toda manhã\" ou \"pesquise nossos concorrentes toda semana\".",
   ko: "좋아요. 도움이 필요한 일을 편하게 말씀해 주시면 거기에 맞게 제가 설정할게요. 예: \"매일 아침 받은편지함 정리해 줘\", \"매주 경쟁사 조사해 줘\".",
@@ -24,6 +26,7 @@ const SETUP_REQUEST_LINES: { en: string } & Record<string, string> = {
 const SETUP_CHOICES: { en: readonly string[] } & Record<string, readonly string[]> = {
   en: ["Research and digging into topics", "Keeping an eye on things for me", "Email, calendar and messages",
     "Bookings, shopping and errands", "Data, spreadsheets and reports"],
+  zh: ["资料搜索与深入研究", "持续关注和跟进事项", "邮件、日历和消息", "预约、购物和日常事务", "数据、表格和报告"],
   es: ["Investigar y profundizar en temas", "Estar pendiente de cosas por mí", "Correo, calendario y mensajes",
     "Reservas, compras y recados", "Datos, hojas de cálculo e informes"],
   "pt-br": ["Pesquisar e aprofundar temas", "Ficar de olho nas coisas para mim", "E-mail, agenda e mensagens",

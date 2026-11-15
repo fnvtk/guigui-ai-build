@@ -331,15 +331,14 @@ it("the window's own rail: drawn at every width, 36px wide with small rounded ti
   expect(expand.mock.calls.at(-1), "and gives it back once closed").toEqual([false]);
 });
 
-it("beside the window's own rail (main says so; the page never reads the list), the sidebar's switcher and Switch to… step aside at every width", async () => {
+it("beside the window's own rail (main says so; the page never reads the list), the sidebar's switcher owns place switching at every width", async () => {
   rail = { places: [], add: { cloud: false, link: false, address: false }, beside: true };
   await mount(createElement("div", null, createElement(PlacesRail), createElement(DesktopWorkspaceSwitcher, { inline: true })));
   expect(host.querySelector("[data-places-rail]"), "no rail drawn on the page itself").toBeNull();
   expect(host.querySelector("[data-switcher-beside-rail]")?.className).toBe("hidden");
   const { placeMenuItems } = await import("./SidebarProfileMenu");
   const place = { bridge: workspaces, current: { local: false, name: "Office" }, cloudHome: false, onLine: "", openMenu: () => {}, switchable: true } as never;
-  expect(placeMenuItems(place, { owner: null, onCloudSettings: () => {} }).map((item) => item.key)).toEqual(["place", "switch-place"]);
-  expect(placeMenuItems(place, { owner: null, onCloudSettings: () => {}, besideRail: true }).map((item) => item.key), "one switcher: the rail").toEqual(["place"]);
+  expect(placeMenuItems(place, { owner: null, onCloudSettings: () => {} }).map((item) => item.key), "one switcher: the place menu").toEqual(["place"]);
 });
 
 it("a right-click on a circle opens its place's menu: its colour, saved by main whatever its server runs, This computer's too; a member sees who may change it", async () => {

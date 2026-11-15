@@ -1,6 +1,8 @@
-import type { GuaiBillingBalance, GuaiBillingCatalog, GuaiBillingPlan, GuaiCheckoutOrder, GuaiCheckoutStatus } from "../shared/guai-billing.ts";
+import type { GuaiBillingBalance, GuaiBillingCatalog, GuaiBillingMembership, GuaiBillingPlan, GuaiCheckoutOrder, GuaiCheckoutStatus } from "../shared/guai-billing.ts";
 
 export interface GuaiBillingConfig {
+  provider?: "generic" | "karuo-ai";
+  sessionCookie?: string;
   apiUrl?: string;
   apiToken?: string;
   statusPath?: string;
@@ -42,8 +44,8 @@ export interface GuaiBillingDeps {
   timeoutMs?: number;
 }
 
-export function guaiBillingApiUrl(config: GuaiBillingConfig): string | undefined { return config.apiUrl ?? config.baseUrl; }
-export function guaiBillingApiToken(config: GuaiBillingConfig): string | undefined { return config.apiToken ?? config.appToken; }
+export function guaiBillingApiUrl(config: GuaiBillingConfig): string | undefined { return config.apiUrl ?? config.baseUrl ?? (config.provider === "karuo-ai" ? "https://kr-ai.quwanzhi.com" : undefined); }
+export function guaiBillingApiToken(config: GuaiBillingConfig): string | undefined { return config.provider === "karuo-ai" ? config.sessionCookie : config.apiToken ?? config.appToken; }
 export function guaiBillingStatusPath(config: GuaiBillingConfig): string | undefined { return config.statusPath ?? config.orderPathTemplate; }
 
 export class GuaiBillingError extends Error {
@@ -61,6 +63,7 @@ function allowedBaseUrl(raw: string | undefined): URL | null {
   try {
     const url = new URL(raw);
     if (url.username || url.password || url.search || url.hash) return null;
+    if (url.protocol === "https:") return url;
     if (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) return url;
   } catch { return null; }
   return null;
@@ -106,6 +109,47 @@ function parseCatalog(value: unknown): { plans: GuaiBillingPlan[]; paymentChanne
   };
 }
 
+function karuoOrder(value: unknown): { orderId: string; status: GuaiCheckoutStatus; checkoutUrl?: string } | null {
+  const root = recordPayload(value); const payment = recordPayload(root?.payment);
+  const orderId = root?.orderSn;
+  if (root?.ok !== true || typeof orderId !== "string" || !ORDER_RE.test(orderId)) return null;
+  const checkoutUrl = payment?.url ?? payment?.approveUrl ?? payment?.invoiceUrl;
+  return { orderId, status: "created", ...(typeof checkoutUrl === "string" ? { checkoutUrl } : {}) };
+}
+
+function karuoOrderStatus(value: unknown, orderId: string): { status: GuaiCheckoutStatus } | null {
+  const root = recordPayload(value); const orders = root?.orders;
+  if (root?.ok !== true || !Array.isArray(orders)) return null;
+  const item = orders.map(recordPayload).find((row) => row?.orderSn === orderId);
+  if (!item || typeof item.status !== "string") return null;
+  const status = item.status === "paid" ? "paid" : item.status === "failed" ? "failed" : item.status === "expired" ? "expired" : "pending";
+  return { status };
+}
+
+function parseKaruoMembership(value: unknown): GuaiBillingMembership | null {
+  const root = recordPayload(value); const subscription = recordPayload(root?.subscription);
+  if (root?.ok !== true || !subscription || typeof subscription.planId !== "string" || typeof subscription.status !== "string") return null;
+  return {
+    active: subscription.status === "active" && subscription.planId !== "free",
+    activeUntil: typeof subscription.renewAt === "string" ? subscription.renewAt : null,
+    memberships: [],
+  };
+}
+
+function parseKaruoCatalog(value: unknown): { plans: GuaiBillingPlan[]; paymentChannelsLiveVerified: boolean } | null {
+  const root = recordPayload(value); const plans = root?.plans;
+  const channels = recordPayload(root?.channelStatus);
+  if (root?.ok !== true || !Array.isArray(plans) || !plans.every((plan) => {
+    const item = recordPayload(plan); return !!item && typeof item.id === "string" && typeof item.name === "string";
+  })) return null;
+  const live = channels?.alipay === true;
+  return { paymentChannelsLiveVerified: live, plans: plans.map((plan) => { const item = plan as Record<string, unknown>; return {
+    skuId: item.id as string, name: item.name as string, description: typeof item.description === "string" ? item.description : undefined,
+    displayPrice: typeof item.basePrice === "number" ? `¥${item.basePrice}/月` : undefined,
+    availability: live ? "available" : "reference_only", checkoutEnabled: live, referenceOnly: !live,
+  }; }) };
+}
+
 function responseOrder(value: unknown): { orderId: string; status: GuaiCheckoutStatus; checkoutUrl?: string } | null {
   const root = recordPayload(value);
   const data = recordPayload(root?.data) ?? root;
@@ -128,14 +172,17 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
   const readiness = (config: GuaiBillingConfig) => {
     const base = allowedBaseUrl(guaiBillingApiUrl(config));
     const token = typeof guaiBillingApiToken(config) === "string" && guaiBillingApiToken(config)!.trim().length > 0;
-    const checkoutReady = !!base && token && typeof config.returnTargetId === "string" && config.returnTargetId.length > 0;
+    const checkoutReady = config.provider === "karuo-ai"
+      ? !!base && token
+      : !!base && token && typeof config.returnTargetId === "string" && config.returnTargetId.length > 0;
     return { base, checkoutReady, configured: !!base || token || !!config.returnTargetId };
   };
-  const request = async (url: URL, token: string, init: RequestInit = {}): Promise<unknown> => {
+  const request = async (url: URL, token: string, init: RequestInit = {}, configForRequest?: GuaiBillingConfig): Promise<unknown> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? 8_000);
     try {
-      const response = await doFetch(url, { ...init, headers: { authorization: `Bearer ${token}`, accept: "application/json", ...init.headers }, redirect: "error", signal: controller.signal });
+      const authHeaders = configForRequest?.provider === "karuo-ai" ? (token ? { cookie: token } : {}) : { authorization: `Bearer ${token}` };
+      const response = await doFetch(url, { ...init, headers: { ...authHeaders, accept: "application/json", ...init.headers }, redirect: "error", signal: controller.signal });
       const text = await response.text();
       let body: unknown = null;
       try { body = text ? JSON.parse(text) : null; } catch { throw new GuaiBillingError(502, "支付服务返回了无法识别的数据"); }
@@ -151,9 +198,11 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
     } finally { clearTimeout(timer); }
   };
   const providerCatalog = async (config: GuaiBillingConfig, base: URL, token: string): Promise<{ plans: GuaiBillingPlan[]; paymentChannelsLiveVerified: boolean } | null> => {
-    if (!config.catalogPath) return null;
-    const body = await request(endpoint(base, config.catalogPath), token);
-    const catalog = parseCatalog(body);
+    if (!config.catalogPath && config.provider !== "karuo-ai") return null;
+    const catalogPath = config.provider === "karuo-ai" ? "/api/billing/plans" : config.catalogPath;
+    if (!catalogPath) return null;
+    const body = await request(endpoint(base, catalogPath), token, {}, config);
+    const catalog = config.provider === "karuo-ai" ? parseKaruoCatalog(body) : parseCatalog(body);
     if (!catalog) throw new GuaiBillingError(502, "支付服务套餐目录格式无效");
     return catalog;
   };
@@ -163,9 +212,9 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
       const config = deps.config();
       const state = readiness(config);
       const token = guaiBillingApiToken(config);
-      const message = !state.base || !token ? "支付服务未配置" : !config.returnTargetId ? "支付返回目标未配置" : undefined;
-      if (state.base && token && config.catalogPath) {
-        const catalog = await providerCatalog(config, state.base, token);
+      const message = !state.base ? "支付服务未配置" : config.provider === "karuo-ai" && !token ? "卡若AI支付服务会话未授权；当前仅可读取公开套餐目录" : config.provider !== "karuo-ai" && !token ? "支付服务未配置" : config.provider !== "karuo-ai" && !config.returnTargetId ? "支付返回目标未配置" : undefined;
+      if (state.base && (token || config.provider === "karuo-ai") && (config.catalogPath || config.provider === "karuo-ai")) {
+        const catalog = await providerCatalog(config, state.base, token ?? "");
         if (!catalog) throw new GuaiBillingError(502, "支付服务套餐目录格式无效");
         const referenceOnly = !catalog.paymentChannelsLiveVerified || catalog.plans.some((plan) => plan.referenceOnly === true);
         return { configured: state.configured, catalogConnected: true, catalogStatus: referenceOnly ? "reference_only" : "connected", paymentChannelsLiveVerified: catalog.paymentChannelsLiveVerified, checkoutReady: state.checkoutReady && catalog.paymentChannelsLiveVerified && !referenceOnly, ...(referenceOnly && config.referenceSource ? { referenceSource: config.referenceSource } : {}), ...(message ? { message } : {}), plans: catalog.plans };
@@ -176,7 +225,7 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
         catalogStatus: (config.plans ?? []).some((plan) => plan.availability === "reference_only") ? "reference_only" : "not_configured",
         paymentChannelsLiveVerified: false,
         checkoutReady: false,
-        message: config.catalogPath ? (message ?? "支付目录暂不可用") : "套餐目录未接入；尚无受信套餐目录接口配置",
+        message: message ?? (config.catalogPath || config.provider === "karuo-ai" ? "支付目录暂不可用" : "套餐目录未接入；尚无受信套餐目录接口配置"),
         plans: (config.plans ?? []).filter(validPlan),
       };
     },
@@ -196,7 +245,7 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
       }
       const catalog = await providerCatalog(config, state.base, token);
       if (!catalog) throw new GuaiBillingError(503, "本地收费模块目录未接入，暂不能创建订单");
-      if (!catalog.paymentChannelsLiveVerified) throw new GuaiBillingError(503, "本地支付渠道尚未验证，暂不能创建订单");
+      if (!catalog.paymentChannelsLiveVerified) throw new GuaiBillingError(503, "卡若AI支付宝渠道尚未验证，暂不能创建订单");
       const plan = catalog.plans.find((item) => item.skuId === skuId && item.availability === "available" && item.checkoutEnabled !== false);
       if (!plan) throw new GuaiBillingError(409, "套餐不在支付服务的可购买目录中");
       let reservation = existing;
@@ -213,12 +262,12 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
       }
       if (!reservation) throw new GuaiBillingError(503, "订单预留状态暂不可读，请使用原幂等键重试");
       try {
-        const body = await request(endpoint(state.base, "/v1/checkout-sessions"), token, {
+        const body = await request(endpoint(state.base, config.provider === "karuo-ai" ? "/api/billing/create-order" : "/v1/checkout-sessions"), token, {
           method: "POST",
           headers: { "content-type": "application/json", "Idempotency-Key": idempotencyKey },
-          body: JSON.stringify({ customerId, skuId, returnTargetId: config.returnTargetId }),
-        });
-        const result = responseOrder(body);
+          body: JSON.stringify(config.provider === "karuo-ai" ? { kind: "subscription", planId: skuId, cycle: "once", provider: "alipay" } : { customerId, skuId, returnTargetId: config.returnTargetId }),
+        }, config);
+        const result = config.provider === "karuo-ai" ? karuoOrder(body) : responseOrder(body);
         if (!result) throw new GuaiBillingError(502, "支付服务未返回有效订单");
         const record = { ...reservation, orderId: result.orderId, status: result.status, ...(result.checkoutUrl ? { checkoutUrl: result.checkoutUrl } : {}) };
         await deps.orders.update(record);
@@ -237,13 +286,31 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
       if (!state.base || !token) throw new GuaiBillingError(503, "支付服务未配置完整");
       const order = await deps.orders.get(customerId, orderId);
       if (!order) throw new GuaiBillingError(404, "订单不存在");
+      if (config.provider === "karuo-ai") {
+        const body = await request(endpoint(state.base, "/api/billing/orders"), token, {}, config);
+        const result = karuoOrderStatus(body, orderId);
+        if (!result) throw new GuaiBillingError(502, "支付服务未返回有效订单状态");
+        const updated = { ...order, status: result.status };
+        await deps.orders.update(updated);
+        return { orderId, skuId: order.skuId, status: result.status };
+      }
       const path = (guaiBillingStatusPath(config) ?? "/v1/orders/{orderId}").replace("{orderId}", encodeURIComponent(orderId));
-      const body = await request(endpoint(state.base, path), token);
+      const body = await request(endpoint(state.base, path), token, {}, config);
       const result = responseOrder(body);
       if (!result || result.orderId !== orderId) throw new GuaiBillingError(502, "支付服务未返回有效订单状态");
       const updated = { ...order, status: result.status, ...(result.checkoutUrl ? { checkoutUrl: result.checkoutUrl } : {}) };
       await deps.orders.update(updated);
       return { orderId, skuId: order.skuId, status: result.status, ...(result.checkoutUrl ? { checkoutUrl: result.checkoutUrl } : {}) };
+    },
+    async membership(customerId: string | null): Promise<GuaiBillingMembership> {
+      if (!customerId) throw new GuaiBillingError(401, "当前账号缺少可信客户身份");
+      const config = deps.config();
+      const state = readiness(config);
+      if (config.provider !== "karuo-ai" || !state.base) throw new GuaiBillingError(503, "卡若AI支付服务未配置");
+      const body = await request(endpoint(state.base, "/api/billing/subscription"), guaiBillingApiToken(config) ?? "", {}, config);
+      const membership = parseKaruoMembership(body);
+      if (!membership) throw new GuaiBillingError(502, "卡若AI会员状态响应格式无效");
+      return membership;
     },
     async balance(customerId: string | null): Promise<GuaiBillingBalance> {
       if (!customerId) throw new GuaiBillingError(401, "当前账号缺少可信客户身份");
@@ -253,7 +320,7 @@ export function createGuaiBilling(deps: GuaiBillingDeps) {
       if (!state.base || !token) throw new GuaiBillingError(503, "本地收费模块未连接");
       const path = config.balancePath ?? "/v1/accounts/{customerId}/balance";
       const url = endpoint(state.base, path.replace("{customerId}", encodeURIComponent(customerId)));
-      const root = recordPayload(await request(url, token));
+      const root = recordPayload(await request(url, token, {}, config));
       const data = recordPayload(root?.data);
       if (root?.ok !== true || typeof data?.availableCredits !== "number" || typeof data.reservedCredits !== "number") throw new GuaiBillingError(502, "本地收费模块余额响应格式无效");
       return { availableCredits: data.availableCredits, reservedCredits: data.reservedCredits };

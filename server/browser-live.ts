@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import type { PageSize } from "./browser-page-size.ts";
 import { attachesToChrome, browserRuntimeEnv, type BrowserRuntime } from "./browser-runtime.ts";
 import { requestedSize } from "./browser/viewers/viewport.ts";
-import { closeBrowserSession } from "./browser-engine.ts";
+import { closeBrowserSession, releaseBrowserProfile } from "./browser-engine.ts";
 import { DialogWatch, localDevToolsUrl } from "./browser-dialogs.ts";
 import type { Cdp, CdpListeners } from "./browser-sites.ts";
 import { relay } from "./browser-relay.ts";
@@ -611,6 +611,7 @@ export class BrowserLive {
     await this.runtime.launchReady(viewer.spec).catch((error: unknown) => {
       throw new BrowserLiveError(error instanceof Error ? error.message : "The browser is not ready yet.", 503);
     });
+    await releaseBrowserProfile(viewer.spec.env?.AGENT_BROWSER_PROFILE);
     let status: ObjectValue;
     try { status = await this.command(viewer, ["stream", "status"], STATUS_PROBE_MS); }
     catch (error) {

@@ -1,12 +1,12 @@
 const NAMES = [
-  "Scout", "Pixel", "Atlas", "Nova", "Juno", "Koda", "Miso", "Mochi",
-  "Biscuit", "Pepper", "Clover", "Ember", "Willow", "Comet", "Orbit", "Echo",
-  "Indigo", "Sage", "Zephyr", "Poppy", "Maple", "Cosmo", "Luna", "Otto",
-  "Ivy", "Finch", "Wren", "Basil", "Hazel", "Nimbus", "Onyx", "Pearl",
-  "Quill", "Rocket", "Sunny", "Tango", "Vega", "Waffle", "Ziggy", "Noodle",
-  "Pickle", "Churro", "Panko", "Dumpling", "Pesto", "Olive", "Cocoa", "Taffy",
-  "Bramble", "Fig", "Juniper", "Moss", "Pebble", "Rio", "Skye", "Tuli",
-  "Ursa", "Yuki", "Zuko", "Momo", "Kiwi", "Plum", "Sprout", "Turnip",
+  "小满", "阿程", "阿策", "暖暖", "小板", "周砚修", "苏映川", "林知序",
+  "顾慎行", "沈维舟", "阿桥", "若水", "知行", "明远", "清和", "安宁",
+  "星河", "晨曦", "青禾", "云舟", "知夏", "南风", "听澜", "初晴",
+  "嘉木", "砚台", "松涛", "远山", "微澜", "清川", "朝夕", "如一",
+  "简宁", "言川", "亦安", "知微", "长风", "静姝", "景明", "乐言",
+  "子衿", "明礼", "和光", "星野", "秋水", "白露", "锦书", "松月",
+  "清越", "容与", "知衡", "听雨", "云深", "见山", "澄明", "望舒",
+  "嘉言", "予安", "昭昭", "怀瑾", "致远", "清欢", "安澜", "知意",
 ];
 
 export function pickBotName(taken: Iterable<string>): string {

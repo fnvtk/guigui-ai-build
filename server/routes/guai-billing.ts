@@ -9,6 +9,7 @@ export interface GuaiBillingRouteService {
   catalog(): ReturnType<ReturnType<typeof createGuaiBilling>["catalog"]>;
   checkout(customerId: string | null, skuId: unknown, idempotencyKey: unknown): Promise<GuaiCheckoutOrder>;
   order(customerId: string | null, orderId: string): Promise<GuaiCheckoutOrder>;
+  membership?(customerId: string | null): Promise<unknown>;
   balance(customerId: string | null): Promise<GuaiBillingBalance>;
 }
 
@@ -47,6 +48,11 @@ export function createGuaiBillingRoutes(deps: {
     }
     if (method === "GET" && path === "/api/guai-billing/balance") {
       try { return json(res, 200, await deps.billing.balance(deps.customerId(auth))); }
+      catch (error) { return billingError(res, json, error); }
+    }
+    if (method === "GET" && path === "/api/guai-billing/membership") {
+      if (!deps.billing.membership) return json(res, 503, { error: "卡若AI会员状态服务未接入" });
+      try { return json(res, 200, await deps.billing.membership(deps.customerId(auth))); }
       catch (error) { return billingError(res, json, error); }
     }
     if (method === "POST" && path === "/api/guai-billing/checkout") {

@@ -26,6 +26,12 @@ export interface GuaiBillingCatalog {
   plans: GuaiBillingPlan[];
 }
 
+export interface GuaiBillingMembership {
+  active: boolean;
+  activeUntil: string | null;
+  memberships: Array<{ skuId: string; startsAt: string; endsAt: string | null }>;
+}
+
 export interface GuaiBillingBalance {
   availableCredits: number;
   reservedCredits: number;

@@ -1,6 +1,7 @@
 import { offersSignIn } from "@/components/EngineSetup";
 import { t } from "@/lib/i18n";
 import { plainErrorLine } from "@/lib/plain-error";
+import { localizeUserFacingError } from "@/lib/user-facing-error";
 import type { Bot, InstanceInfo, Message } from "@/state/store";
 import { failedTurnCause } from "../../shared/failed-turn";
 import { toolStepLabel } from "@/lib/tool-step-label";
@@ -31,5 +32,6 @@ export function activityPreview(tool: ActivityTool, engine: InstanceInfo | undef
   if (cause !== null && isClientCancellation(cause)) return t("chat.turnStopped");
   if (cause === null) return advanced ? tool.name : STATUS_MARKER.test(tool.name) ? tool.name.replace(STATUS_MARKER, "") : toolStepLabel(tool);
   const signedOut = signedOutEngine(tool, engine);
-  return signedOut ? t("sidebar.preview.signedOut", { name: signedOut.displayName }) : plainErrorLine(cause) ?? cause;
+  const visibleCause = localizeUserFacingError(cause);
+  return signedOut ? t("sidebar.preview.signedOut", { name: signedOut.displayName }) : plainErrorLine(visibleCause) ?? visibleCause;
 }

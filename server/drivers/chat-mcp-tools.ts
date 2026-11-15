@@ -52,7 +52,8 @@ function chatToolName(server: string, tool: string): string {
   return `${server}_${tool}`.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64) || "mcp_tool";
 }
 const STARTUP_MS = 8_000;
-const DEFAULT_CALL_MS = 10 * 60_000;
+const DEFAULT_CALL_MS = 60 * 60_000;
+const MCP_TIMEOUT_MESSAGE = "MCP request timed out; execution outcome may be uncertain. The request may have been dispatched and was not retried automatically. Check the current operation status or receipt before retrying; repeat it only after confirming that no effect occurred.";
 const FRAME_BYTES = 16 * 1024 * 1024;
 const OUTPUT_BYTES = 50 * 1024;
 const TOOL_COUNT = 128;
@@ -189,7 +190,7 @@ export class ChatMcpClient {
           catch {}
           finish(aborted());
         };
-        const timer = setTimeout(() => finish(new Error("MCP request timed out; execution outcome may be uncertain")), timeout);
+        const timer = setTimeout(() => finish(new Error(MCP_TIMEOUT_MESSAGE)), timeout);
         timer.unref();
         signal.addEventListener("abort", cancel, { once: true });
         this.pending.set(id, { resolve: (value) => finish(undefined, value), reject: (error) => finish(error) });

@@ -9,6 +9,7 @@ describe("the line after Set me up", () => {
     );
     expect(setupRequestLine("es-MX")).toMatch(/^Genial\. Cuéntame/);
     expect(setupRequestLine("pt-BR")).toMatch(/^Ótimo\. Me conte/);
+    expect(setupRequestLine("zh-CN")).toMatch(/^好的，请直接告诉我/);
     expect(setupRequestLine("fr")).toBe(setupRequestLine("en"));
     expect(setupRequestLine(undefined)).toBe(setupRequestLine("en"));
   });
@@ -23,6 +24,7 @@ describe("a new bot's greeting", () => {
     expect(initialGreeting("Scout", "en", "Milind Soni")).toBe("Hi Milind, I'm Scout. What would you like me to do?");
     expect(initialGreeting("Scout", "es-MX", "  Ana  María ")).toBe("Hola Ana, soy Scout. ¿Qué te gustaría que hiciera?");
     expect(initialGreeting("Scout", "pt-BR", "João")).toBe("Oi João, eu sou Scout. O que você gostaria que eu fizesse?");
+    expect(initialGreeting("Scout", "zh-CN", "卡若")).toBe("你好，卡若，我是Scout。你想先让我帮你做什么？");
   });
 
   it("names no one when the person has not given a name", () => {

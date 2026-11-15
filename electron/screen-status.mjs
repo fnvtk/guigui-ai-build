@@ -23,7 +23,14 @@ const LINUX_UNSUPPORTED = new Set(["linux-wayland-seat-safety-blocked", "headles
 export function screenStatus({ platform = process.platform, connection = null, remote = false } = {}) {
   if (remote) return off("unsupported", null);
   if (sharedCuaConnection(connection) !== null && localComputerReady(platform, connection)) return { ready: true, lent: true, reason: null, fix: null };
-  if (platform === "darwin" && missingPermissions(connection?.reason).length > 0) return { ready: false, lent: true, reason: "permissions", fix: "allow" };
+  if (platform === "darwin" && connection?.macPermissions) {
+    const { accessibility, screenRecording } = connection.macPermissions;
+    if (accessibility !== true || screenRecording !== "granted") {
+      return { ready: false, lent: true, reason: "permissions", fix: "allow" };
+    }
+  } else if (platform === "darwin" && missingPermissions(connection?.reason).length > 0) {
+    return { ready: false, lent: true, reason: "permissions", fix: "allow" };
+  }
   if (platform === "linux") {
     if (connection?.status === "disabled" || connection?.reasonCode === "opt-in-required") return off("off", "start");
     if (connection?.status === "checking" || connection?.status === "starting") return off("starting", null);

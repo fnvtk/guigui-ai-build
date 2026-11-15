@@ -152,7 +152,7 @@ export function sectionMatches(section: (typeof SECTIONS)[number], query: string
 }
 
 export function keySearchResults(query: string): KeyEntry[] {
-  return query ? KEY_CATALOG.filter((entry) => keyMatches(entry, query)).slice(0, 8) : [];
+  return query ? KEY_CATALOG.filter((entry) => entry.section !== "ai" && keyMatches(entry, query)).slice(0, 8) : [];
 }
 
 export const openKeyResult = (entry: KeyEntry) => entry.uses ? openKeySettings(entry.uses, entry.id) : openKeySettings(entry.id);

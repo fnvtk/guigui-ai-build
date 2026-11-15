@@ -52,7 +52,7 @@ describe("readyBotTemplate", () => {
 
   it("sets who the bot is and how it looks", () => {
     const { profile } = readyBotTemplate(defaults(), plant);
-    expect(profile).toMatchObject({ name: "Fern", title: "Plant care log", soul: plant.soul, color: "green", mascotBody: "drop" });
+    expect(profile).toMatchObject({ name: "绿植管家", title: "植物养护记录", soul: plant.soul, color: "green", mascotBody: "drop" });
   });
 
   it("never changes the person's model, approval level, computer, folder or apps", () => {
@@ -80,7 +80,7 @@ describe("readyBotTemplate", () => {
 describe("matchesReadyBot", () => {
   it("finds a bot by name, title, description or category, ignoring case", () => {
     const echo = readyBot("humanizer")!;
-    expect(["echo", "HUMANIZER", "read like you", "writing", ""].every((query) => matchesReadyBot(echo, query))).toBe(true);
+    expect(["润色", "HUMANIZER", "文字润色", "writing", ""].every((query) => matchesReadyBot(echo, query))).toBe(true);
     expect(matchesReadyBot(echo, "spreadsheet")).toBe(false);
   });
 });
@@ -89,7 +89,7 @@ describe("the social media manager", () => {
   const social = readyBot("social")!;
 
   it("puts posts in Postiz as drafts or scheduled, and publishes at once only when asked", () => {
-    expect(social).toMatchObject({ title: "Social media manager", category: "work", apps: ["postiz"] });
+    expect(social).toMatchObject({ title: "社交媒体运营", category: "work", apps: ["postiz"] });
     expect(social.soul).toContain("Add every post to Postiz as a draft, unless the user gave it a time to go out: then schedule it for that time.");
     expect(social.soul).toContain("Never publish a post straight away (type now) unless the user asks for that post to go out now.");
     expect(social.routines).toEqual([expect.objectContaining({ name: "Weekly post plan", enabled: false })]);

@@ -26,4 +26,14 @@ describe("why a chat turn stopped on a tool call", () => {
   it("is never read as a spent turn budget, which would continue the run by itself", () => {
     expect(classifyContinuable("tool_error", toolFailureMessage(["stopped after 3 steps"], []))).toBeNull();
   });
+
+  it("adds a recovery path for computer, hand-off and page failures", () => {
+    expect(toolFailureMessage(["select_computer"], [])).toContain("call select_computer with no arguments");
+    expect(toolFailureMessage(["coordinate_bots"], [])).toContain("call list_bots or list_room_targets");
+    expect(toolFailureMessage(["agents_show_html"], [])).toContain("call show_html with html, jsx or path");
+    expect(toolFailureMessage(["agent_browser_wait_for_text"], [])).toContain("treat the page result as unverified");
+    expect(toolFailureMessage(["browser_agent_browser_click"], [])).toContain("confirm the target still exists");
+    expect(toolFailureMessage(["agents_coordinate_bots", "browser_agent_browser_click"], [])).toContain("call list_bots or list_room_targets");
+    expect(toolFailureMessage(["agents_coordinate_bots", "browser_agent_browser_click"], [])).toContain("confirm the target still exists");
+  });
 });

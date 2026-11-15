@@ -29,8 +29,8 @@ export function MacLocalControl() {
     setError(null);
     setAwaitingGrant(true);
     try {
-      await window.ogb?.permOpenSettings?.("accessibility");
-      await window.ogb?.permOpenSettings?.("screen");
+      const missing = missingMacCuaPermissions(reason);
+      await window.ogb?.permOpenSettings?.(missing[0] ?? "accessibility");
     } catch (reason) {
       setAwaitingGrant(false);
       setError(reason instanceof Error ? reason.message : String(reason));

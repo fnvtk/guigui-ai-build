@@ -26,6 +26,8 @@ const ENGINE_DIR = "tools/agent-browser";
 const KEY_FILE = "browser-engine-key";
 const DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
 
+export { releaseBrowserProfile } from "./browser-processes.ts";
+
 /** agent-browser's restore looks up a filename prefix; fixed-length keys keep `work` from restoring `work-client`. */
 export function browserRestoreKey(session: string): string {
   if (!/^[A-Za-z0-9_.-]{1,96}$/.test(session)) throw new Error("Invalid browser session.");

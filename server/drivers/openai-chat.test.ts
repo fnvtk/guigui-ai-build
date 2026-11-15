@@ -13,10 +13,20 @@ import { OpenAICompatDriver } from "./openai-compat.ts";
 import { MistralDriver } from "./mistral.ts";
 import { startFakeHttpMcp } from "../testing/fake-http-mcp-server.ts";
 import { whopLikeCatalog } from "../testing/whop-like-catalog.ts";
+import { isRecoverableCoordinationArgumentsError } from "./openai-chat.ts";
 
 afterEach(() => vi.unstubAllGlobals());
 
 const sse = (body: string) => new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+
+describe("coordination argument recovery", () => {
+  it("recognizes only the missing bot_ids schema error as recoverable", () => {
+    expect(isRecoverableCoordinationArgumentsError("agents_coordinate_bots", "must have required property 'bot_ids'")).toBe(true);
+    expect(isRecoverableCoordinationArgumentsError("coordinate_bots_2", "must have required property 'bot_ids'")).toBe(true);
+    expect(isRecoverableCoordinationArgumentsError("agents_coordinate_bots", "must have required property 'message'")).toBe(false);
+    expect(isRecoverableCoordinationArgumentsError("agents_list_bots", "must have required property 'bot_ids'")).toBe(false);
+  });
+});
 
 /** `body` is every request's stream, or a factory per chat completion (the catalog fetch then gets a 404). */
 async function runTurn(body: string | (() => Response), driver: "openai-compat" | "minimax" = "openai-compat") {

@@ -259,13 +259,19 @@ describe("Simple mode's account menu", () => {
   it("keeps Cloud as a place switch while removing paid account prompts and help rows", () => {
     const items = build();
     expect(groups(items)).toEqual([
-      ["support", "settings"],
       ["automations", "team-map"],
-      ["place", "switch-place", "account"],
+      ["place", "account"],
+      ["support"],
+      ["settings"],
     ]);
     expect(items.find((item) => item.key === "support")!.submenu!.map((item) => item.key)).toEqual(["shortcuts", "about"]);
     expect(items.map((item) => item.key)).not.toContain("usage");
     expect(items.map((item) => item.key)).not.toContain("update");
+  });
+
+  it("keeps the computer/server switch third from the bottom", () => {
+    const items = build({ phone: [{ key: "phone", label: "工作手机", onSelect: noop }] });
+    expect(groups(items)).toEqual([["automations", "team-map"], ["phone"], ["place", "account"], ["support"], ["settings"]]);
   });
 
   it("does not surface updater status through the account button", () => {
@@ -310,11 +316,12 @@ describe("Simple mode's account menu", () => {
     const move = [{ key: "cloud-move", label: "Try My Cloud move again", title: "My Cloud did not answer.", onSelect: noop }];
     expect(groups(build({ move }))).toEqual([
       ["cloud-move"],
-      ["support", "settings"],
       ["automations", "team-map"],
-      ["place", "switch-place", "account"],
+      ["place", "account"],
+      ["support"],
+      ["settings"],
     ]);
-    expect(groups(build({ move: [] }))[0]).toEqual(["support", "settings"]);
+    expect(groups(build({ move: [] }))).toEqual([["automations", "team-map"], ["place", "account"], ["support"], ["settings"]]);
   });
 
   it("gives a failing or moving move one row shaped like Usage and Settings: a label and an icon, no second line", () => {
@@ -351,10 +358,10 @@ describe("Simple mode's account menu", () => {
   it("ticks the current place and switches through the same native menu as the server pill", () => {
     const here = place();
     const items = placeMenuItems(here, { owner: null, onCloudSettings: noop });
-    expect(items.map((item) => [item.key, item.label])).toEqual([["place", "This computer"], ["switch-place", "Switch to…"]]);
+    expect(items.map((item) => [item.key, item.label])).toEqual([["place", "This computer"]]);
     expect(items[0]!.trailing).toBeTruthy();
     items[0]!.onSelect();
-    items[1]!.onSelect();
+    items[0]!.onSelect();
     expect(here.openMenu).toHaveBeenCalledTimes(2);
   });
 

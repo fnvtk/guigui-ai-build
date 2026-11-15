@@ -407,7 +407,35 @@ describe("coordinate_bots", () => {
       },
     }));
     expect(result).toEqual({
-      text: "coordinate_bots could not confirm dispatch: MCP request timed out. The remote outcome is unknown; check assignment status before retrying so work is not duplicated.",
+      text: "coordinate_bots could not confirm dispatch: MCP request timed out. The remote outcome is unknown. Check assignment_status first; if no assignment exists, call list_bots or list_room_targets for the exact reachable recipient before retrying.",
+      isError: true,
+    });
+  });
+});
+
+describe("select_computer", () => {
+  it("turns an unavailable computer response into a bounded retry instruction", async () => {
+    const result = await callTool("select_computer", { surface: "local" }, context({
+      client: {
+        api: async () => ({}),
+        apiResponse: async () => ({ ok: false, status: 409, body: { error: "local computer is busy" } }),
+      },
+    }));
+    expect(result).toEqual({
+      text: "local computer is busy The computer is unavailable or a switch is already pending. Do not repeat the call in this turn; open the Screen panel, fix the listed computer, then retry the original request.",
+      isError: true,
+    });
+  });
+
+  it("turns discovery transport failures into a reconnect instruction", async () => {
+    const result = await callTool("select_computer", {}, context({
+      client: {
+        api: async () => ({}),
+        apiResponse: async () => { throw new Error("connection reset"); },
+      },
+    }));
+    expect(result).toEqual({
+      text: "connection reset Computer discovery could not be confirmed. Reopen the Screen panel, wait for the computer list to load, then retry select_computer once.",
       isError: true,
     });
   });

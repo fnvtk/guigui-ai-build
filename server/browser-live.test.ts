@@ -8,8 +8,9 @@ import type { Cdp, CdpListeners } from "./browser-sites.ts";
 
 const execute = vi.hoisted(() => vi.fn());
 const nativeClose = vi.hoisted(() => vi.fn());
+const releaseProfile = vi.hoisted(() => vi.fn());
 const nativeInput = vi.fn();
-vi.mock("./browser-engine.ts", () => ({ closeBrowserSession: nativeClose }));
+vi.mock("./browser-engine.ts", () => ({ closeBrowserSession: nativeClose, releaseBrowserProfile: releaseProfile }));
 vi.mock("node:child_process", async (original) => {
   const actual = await original<typeof import("node:child_process")>();
   const { promisify } = await import("node:util");
@@ -90,14 +91,15 @@ beforeEach(() => {
   vi.stubGlobal("fetch", nativeInput);
   nativeInput.mockReset().mockImplementation(async () => Response.json({ success: true, data: { dispatched: true } }));
   nativeClose.mockReset().mockResolvedValue(true);
+  releaseProfile.mockReset().mockResolvedValue(undefined);
   execute.mockReset().mockResolvedValue(output(ready));
 });
 afterEach(() => { live.closeAll(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
-async function open({ botId = "bot-a", session = "profile-a", owner = "admin-a", current = () => true, resume, size }: { botId?: string; session?: string; owner?: string; current?: () => boolean; resume?: string; size?: { width: number; height: number } } = {}) {
+async function open({ botId = "bot-a", session = "profile-a", owner = "admin-a", current = () => true, resume, size, profile }: { botId?: string; session?: string; owner?: string; current?: () => boolean; resume?: string; size?: { width: number; height: number }; profile?: string } = {}) {
   const res = new ResponseFixture();
   await live.open({ botId, session, owner, isCurrent: current, res: res as unknown as ServerResponse, ...(resume ? { resume } : {}), ...(size ? { size } : {}),
-    spec: { command: "/trusted/agent-browser", args: ["mcp", "--tools", "core"], env: { AGENT_BROWSER_SESSION: session, AGENT_BROWSER_SOCKET_DIR: "/isolated/socket" } } });
+    spec: { command: "/trusted/agent-browser", args: ["mcp", "--tools", "core"], env: { AGENT_BROWSER_SESSION: session, AGENT_BROWSER_SOCKET_DIR: "/isolated/socket", ...(profile ? { AGENT_BROWSER_PROFILE: profile } : {}) } } });
   return { res, socket: SocketFixture.instances.at(-1)!, action: (body: unknown) => live.action({ viewerId: res.id, botId, owner, body }) };
 }
 
@@ -149,6 +151,11 @@ describe("browser viewer protocol boundary", () => {
 });
 
 describe("authenticated browser viewer relay", () => {
+  it("releases a stale saved profile lock before the live status probe", async () => {
+    await open({ profile: "/isolated/profile" });
+    expect(releaseProfile).toHaveBeenCalledWith("/isolated/profile");
+  });
+
   it("fences a late stream startup when that owner is closed during discovery", async () => {
     let finish!: (value: ReturnType<typeof output>) => void;
     execute.mockImplementationOnce(() => new Promise((resolve) => finish = resolve));

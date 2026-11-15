@@ -208,6 +208,11 @@ function replayDelivered(
 
 const CORRECTIVE_ROUND = "[OpenMausBot: a tool call in this turn failed (its result is marked ok:false). Re-run the failed operations with corrected inputs where possible, check the results, then give your final answer. Do not report results you did not get.]";
 const PERSON_INTERVENTION_ROUND = `${CORRECTIVE_ROUND} If the failure needs the person's signed-in browser, screen, or computer authorization, use ask_user to request the one manual action needed (for example, sign in, take control, or approve access). After the person answers, continue the original request and verify the result; do not end with a generic failure notice.`;
+const COORDINATION_RECOVERY_ROUND = `${CORRECTIVE_ROUND} For a teammate hand-off failure, first call list_bots or list_room_targets and copy an exact reachable id. Check the existing task, room state, or assignment receipt before retrying coordinate_bots, so an uncertain hand-off is never duplicated. Handle browser failures separately by rereading the current page state before retrying the failed click.`;
+
+export function isRecoverableCoordinationArgumentsError(toolName: string, message: string): boolean {
+  return /(?:^|_)coordinate_bots(?:_\d+)?$/u.test(toolName) && /required property[^\n]*bot_ids/u.test(message);
+}
 const NUDGE_ANNOUNCED_ACTION = "You said what you would do next but called no tool. Use your tools for only the remaining work, or reply with verified results if nothing is left to do. Never repeat an operation that succeeded, was denied, or may already have taken effect; inspect its state instead. Do not retry a destructive operation.";
 
 export function announcesAction(text: string): boolean {
@@ -636,6 +641,7 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
       let correctiveRounds = 0;
       const denials: string[] = [], failedCalls: string[] = [];
       let personInterventionNeeded = false;
+      let coordinationRecoveryNeeded = false;
       const seenCalls = new Set<string>();
       const invalidCalls = new Map<string, number>();
       let nudges = 0;
@@ -763,10 +769,10 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             }
             if (toolFailed) {
               // A person's "no" is never answered with another attempt; a failure may first get the configured corrective rounds.
-              const correctiveLimit = Math.max(turn.toolErrorCorrectiveRounds ?? 0, personInterventionNeeded ? 1 : 0);
+              const correctiveLimit = Math.max(turn.toolErrorCorrectiveRounds ?? 0, personInterventionNeeded ? 1 : 0, coordinationRecoveryNeeded ? 2 : 0);
               if (!denials.length && !turnEntry.ending && correctiveRounds < correctiveLimit) {
                 correctiveRounds += 1;
-                messages.push({ role: "user", content: personInterventionNeeded ? PERSON_INTERVENTION_ROUND : CORRECTIVE_ROUND });
+                messages.push({ role: "user", content: coordinationRecoveryNeeded ? COORDINATION_RECOVERY_ROUND : personInterventionNeeded ? PERSON_INTERVENTION_ROUND : CORRECTIVE_ROUND });
                 continue;
               }
               stopReason = "tool_error";
@@ -875,11 +881,20 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
                 const key = `${call.function.name}:${error.message}`;
                 const attempts = (invalidCalls.get(key) ?? 0) + 1;
                 invalidCalls.set(key, attempts);
-                if (attempts >= 3) fatal = new ChatToolSessionError(`Stopped repeated invalid calls to ${call.function.name}: ${error.message} No operation was dispatched for these invalid calls.`);
+                if (attempts >= 3 && !isRecoverableCoordinationArgumentsError(call.function.name, error.message)) {
+                  fatal = new ChatToolSessionError(`Stopped repeated invalid calls to ${call.function.name}: ${error.message} No operation was dispatched for these invalid calls.`);
+                }
+              }
+              const recovery = error instanceof ChatToolArgumentsError && isRecoverableCoordinationArgumentsError(call.function.name, error.message)
+                ? " No operation was dispatched. First call list_bots or list_room_targets to discover an exact reachable teammate id, then call coordinate_bots once with bot_ids (an array of 1-4 ids) and message; do not repeat this invalid call."
+                : "";
+              if (recovery) personInterventionNeeded = true;
+              if (isRecoverableCoordinationArgumentsError(call.function.name, error instanceof Error ? error.message : String(error))) {
+                coordinationRecoveryNeeded = true;
               }
               result = { ok: false, text: abort.signal.aborted
                 ? "Tool interrupted; an operation already dispatched may have taken effect. Verify its state before retrying."
-                : safeText(asError(error).message).slice(0, 2_000) };
+                : `${safeText(asError(error).message)}${recovery}`.slice(0, 2_000) };
             }
             if (!started) emit({ ...base(turn.threadId, turnId), type: "item.started", itemType: "tool", itemId: call.id, title: call.function.name });
             const text = safeText(result.text);
@@ -888,9 +903,12 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             if (!result.ok) {
               toolFailed = true;
               failedCalls.push(title);
+              if (/(?:^|_)coordinate_bots(?:_|$)|delegate_bot|ask_bot|start_thread|post_to_room/i.test(call.function.name)) {
+                coordinationRecoveryNeeded = true;
+              }
               const diagnostic = `${title} ${text}`.toLowerCase();
-              if (/(browser|computer|screen|select_computer)/.test(diagnostic) &&
-                  /(authoriz|permission|sign in|signed-in|take control|control|access|timeout|failed|unavailable)/.test(diagnostic)) {
+              if (/(browser|computer|screen|select_computer|show_html|update_html|coordinate_bots|delegate_bot|ask_bot|start_thread|post_to_room)/.test(diagnostic) &&
+                  /(authoriz|permission|sign in|signed-in|take control|control|access|timeout|failed|unavailable|required|missing|not available|already pending)/.test(diagnostic)) {
                 personInterventionNeeded = true;
               }
             }

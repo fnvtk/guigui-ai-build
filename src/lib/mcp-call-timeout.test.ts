@@ -39,10 +39,10 @@ describe("mcpCallTimeoutMinutes", () => {
   });
 
   it("falls back to the 10-minute default when a server (an older one) sends no mcp section", () => {
-    expect(DEFAULT_MCP_CALL_TIMEOUT_MINUTES).toBe(10);
-    expect(mcpCallTimeoutMinutes({})).toBe(10);
-    expect(mcpCallTimeoutMinutes({ mcp: {} })).toBe(10);
-    expect(mcpCallTimeoutMinutes(null)).toBe(10);
-    expect(mcpCallTimeoutMinutes(undefined)).toBe(10);
+    expect(DEFAULT_MCP_CALL_TIMEOUT_MINUTES).toBe(60);
+    expect(mcpCallTimeoutMinutes({})).toBe(60);
+    expect(mcpCallTimeoutMinutes({ mcp: {} })).toBe(60);
+    expect(mcpCallTimeoutMinutes(null)).toBe(60);
+    expect(mcpCallTimeoutMinutes(undefined)).toBe(60);
   });
 });

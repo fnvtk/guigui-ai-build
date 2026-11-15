@@ -55,6 +55,7 @@ let lifecycleGeneration = 0;
 let macRetry = null;
 let linuxRuntime = null;
 let linuxBundleStage = null;
+let macPermissions = null;
 let stateListener = () => {};
 const connectionStore = createCuaConnectionStore({
   getUserData: () => app.getPath("userData"),
@@ -123,7 +124,9 @@ export function setCuaStateListener(listener) {
 }
 
 function persistAndNotify(next) {
-  const connection = connectionStore.persist(next);
+  const connection = connectionStore.persist(process.platform === "darwin" && macPermissions
+    ? { ...next, macPermissions }
+    : next);
   notifyState(connection);
   return connection;
 }
@@ -233,18 +236,21 @@ async function startEmbedded(binary, signal) {
   // CUA's embedding contract needs grants before the daemon starts, asked from Electron main so macOS attributes them here.
   if (process.platform === "darwin") {
     const permissionStatus = sdk.requestMacOSPermissions();
+    macPermissions = {
+      accessibility: systemPreferences.isTrustedAccessibilityClient(false),
+      screenRecording: systemPreferences.getMediaAccessStatus("screen"),
+    };
     fs.writeFileSync(path.join(app.getPath("userData"), "mac-permission-status.json"), JSON.stringify({
       checkedAt: new Date().toISOString(),
       sdk: permissionStatus,
-      accessibility: systemPreferences.isTrustedAccessibilityClient(false),
-      screenRecording: systemPreferences.getMediaAccessStatus("screen"),
+      ...macPermissions,
     }), { mode: 0o600 });
-    if (!sdk.hasRequiredMacOSPermissions(permissionStatus)) {
+    if (macPermissions.accessibility !== true || macPermissions.screenRecording !== "granted") {
       const missing = [
-        !permissionStatus.accessibility && "Accessibility",
-        !permissionStatus.screenRecording && "Screen Recording",
+        macPermissions.accessibility !== true && "Accessibility",
+        macPermissions.screenRecording !== "granted" && "Screen Recording",
       ].filter(Boolean).join(" and ");
-      throw new Error(`${missing || "macOS permissions"} required; grant access in System Settings and restart OpenMausBot`);
+      throw new Error(`${missing} required; grant access in System Settings and restart OpenMausBot`);
     }
   }
   // The native SDK owns the child lifecycle but exposes no windowsHide option.

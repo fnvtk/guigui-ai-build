@@ -59,6 +59,15 @@ test("a Mac lacking only macOS's permissions still lends them, so a bot's first 
   assert.equal(screenFixLabel(wayland), null, "nothing here can fix a Wayland session");
 });
 
+test("native Mac permission readback overrides stale SDK error text, while missing grants still ask macOS", () => {
+  const staleSdkError = { mode: "unavailable", reason: "Accessibility and Screen Recording required; SDK check failed", macPermissions: { accessibility: true, screenRecording: "granted" } };
+  assert.deepEqual(screenStatus({ platform: "darwin", connection: staleSdkError }), { ready: false, lent: false, reason: "not-running", fix: "start" });
+  const missingScreen = { ...staleSdkError, macPermissions: { accessibility: true, screenRecording: "denied" } };
+  assert.deepEqual(screenStatus({ platform: "darwin", connection: missingScreen }), { ready: false, lent: true, reason: "permissions", fix: "allow" });
+  const legacy = { mode: "unavailable", reason: "Accessibility and Screen Recording required" };
+  assert.deepEqual(screenStatus({ platform: "darwin", connection: legacy }), { ready: false, lent: true, reason: "permissions", fix: "allow" });
+});
+
 test("the icon's menu says plainly what the Clouds can't use, why, and offers the fix", () => {
   const notRunning = screenStatus({ platform: "win32", connection: { mode: "unavailable", reason: "desktop-host-stopped" } });
   assert.deepEqual(indicatorText({ clouds: ["My Cloud"], using: [], paused: false, screen: notRunning }, "PC"),

@@ -92,9 +92,10 @@ type AssertSameKeys<A, B> = [keyof A] extends [keyof B] ? ([keyof B] extends [ke
 export type TaskWireProjectionIsExact = AssertExact<WireTask, TaskWireProjection> & AssertSameKeys<WireTask, TaskWireProjection>;
 export const taskWireProjectionIsExact: TaskWireProjectionIsExact = true;
 
-/** Project provider model IDs to the same public tier used by Guai routing. */
+/** Project SimpleAPI's private upstream IDs to its public Guai tier aliases. */
 export function toPublicModelSelection(selection: ModelSelection): ModelSelection {
-  return { ...selection, model: selection.model ? guaiServiceTier(selection.model) : selection.model };
+  if (selection.instanceId !== "simpleapi" || !selection.model) return { ...selection };
+  return { ...selection, model: guaiServiceTier(selection.model) };
 }
 
 export function toWireTask(task: TaskRecord, botModel: ModelSelection): WireTask {

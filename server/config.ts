@@ -40,7 +40,7 @@ export type FishTtsModel = (typeof FISH_TTS_MODELS)[number];
 export const DEFAULT_ROOM_TURN_TIMEOUT_MINUTES = 5;
 export const MIN_ROOM_TURN_TIMEOUT_MINUTES = 1;
 export const MAX_ROOM_TURN_TIMEOUT_MINUTES = 1_440;
-export const DEFAULT_MCP_CALL_TIMEOUT_MINUTES = 10;
+export const DEFAULT_MCP_CALL_TIMEOUT_MINUTES = 60;
 export const MIN_MCP_CALL_TIMEOUT_MINUTES = 1;
 export const MAX_MCP_CALL_TIMEOUT_MINUTES = 60;
 export const DEFAULT_MAX_CONCURRENT_BOT_THREADS = 3;
@@ -376,7 +376,7 @@ const appConfigSchema = z.object({
     .optional(),
   /** Composio project key; `userId`/`sessionId` reuse one Composio Session. */
   guaiWechat: z.object({ key: optionalText, enabled: z.boolean().optional(), appId: optionalText, merchantId: optionalText, merchantCertificatePath: optionalText, privateKeyPath: optionalText, platformCertificatePath: optionalText, platformSerialNo: optionalText, notifyUrl: optionalText }).optional(),
-  guaiBilling: z.object({ localModulePath: optionalText, key: optionalText, apiUrl: optionalText, catalogPath: optionalText, statusPath: optionalText, returnTargetId: optionalText }).optional(),
+  guaiBilling: z.object({ provider: z.enum(["generic", "karuo-ai"]).optional(), localModulePath: optionalText, key: optionalText, apiUrl: optionalText, catalogPath: optionalText, statusPath: optionalText, returnTargetId: optionalText }).optional(),
   composio: z.object({ apiKey: optionalText, userId: optionalText, sessionId: optionalText }).optional(),
   box: z.object({ token: optionalText }).optional(),
   vps: vpsConfigSchema.optional(),
@@ -504,7 +504,7 @@ export interface AppConfig extends HelperConfig {
   billing?: { currency?: string; prices?: Record<string, { inputPerMillion: number; outputPerMillion: number; cachedInputPerMillion?: number }> };
   openaiCompat?: { key?: string; url?: string; model?: string; provider?: string };
   guaiWechat?: { key?: string; enabled?: boolean; appId?: string; merchantId?: string; merchantCertificatePath?: string; privateKeyPath?: string; platformCertificatePath?: string; platformSerialNo?: string; notifyUrl?: string };
-  guaiBilling?: { localModulePath?: string; key?: string; apiUrl?: string; catalogPath?: string; statusPath?: string; returnTargetId?: string };
+  guaiBilling?: { provider?: "generic" | "karuo-ai"; localModulePath?: string; key?: string; apiUrl?: string; catalogPath?: string; statusPath?: string; returnTargetId?: string };
   composio?: { apiKey?: string; userId?: string; sessionId?: string };
   /** Boat token (ascii.dev renamed Box to Boat); config key "box", env BOX_TOKEN. */
   box?: { token?: string };
@@ -733,6 +733,7 @@ function fallbackEnv(entry: InstanceConfigMap[string]): string[] {
 
 export function changedInstanceIds(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
   return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((id) => id !== "simpleapi")
     .filter((id) => !isDeepStrictEqual(before[id], after[id]));
 }
 
@@ -1201,16 +1202,24 @@ function injectedEnvironment(cfg: AppConfig, instanceId: string, driver: string)
 export function instanceConfigs(cfg: AppConfig): InstanceConfigMap {
   const configured = cfg.instances && Object.keys(cfg.instances).length ? cfg.instances : null;
   const map: InstanceConfigMap = withoutComputerEngine(configured ? { ...configured } : { ...DEFAULT_FLEET });
-  if (!Object.values(map).some(entry => entry.driver === "openai-compat" && /^simpleapi$/i.test(entry.displayName?.trim() ?? ""))) {
+  const expandsProductFleet = configured
+    ? Object.hasOwn(configured, "claude") || Object.hasOwn(configured, "grok") || Object.hasOwn(configured, "codex")
+    : false;
+  const hasSimpleApi = Object.values(map).some(entry => entry.driver === "openai-compat" && /^simpleapi$/i.test(entry.displayName?.trim() ?? ""));
+  if ((!configured || expandsProductFleet) && !hasSimpleApi) {
     map.simpleapi = { driver: "openai-compat", displayName: "SimpleAPI", enabled: true,
       config: { url: cfg.openaiCompat?.url || "https://simpleapi.quwanzhi.com/v1", guaiTiers: true } };
   }
   if (
-    configured &&
-    (Object.hasOwn(configured, "claude") || Object.hasOwn(configured, "grok") || Object.hasOwn(configured, "codex"))
+    expandsProductFleet
   ) {
     for (const [id, entry] of Object.entries(PRODUCT_FLEET_ADDITIONS)) {
       if (!Object.hasOwn(map, id)) map[id] = { ...entry };
+    }
+  }
+  if (configured && !expandsProductFleet && hasSimpleApi) {
+    for (const id of Object.keys(map)) {
+      if (id !== "simpleapi" && !/^simpleapi$/i.test(map[id]?.displayName?.trim() ?? "")) delete map[id];
     }
   }
   // Re-applied on every load so the openai/openrouter instances never fall back to the shared key and URL.
@@ -1225,10 +1234,6 @@ export function instanceConfigs(cfg: AppConfig): InstanceConfigMap {
     if (typeof cli === "string" && cli) map.chatgpt = { ...map.chatgpt, config: { ...map.chatgpt.config as object, cli } };
   }
   for (const [id, sourceEntry] of Object.entries(map)) {
-    if (sourceEntry.driver !== "openai-compat" || !/^simpleapi$/i.test(sourceEntry.displayName?.trim() ?? "")) {
-      delete map[id];
-      continue;
-    }
     // Copy: writing into the caller's persisted entry would freeze the workspace URL into it.
     const entry = { ...sourceEntry };
     map[id] = entry;

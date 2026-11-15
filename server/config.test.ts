@@ -531,7 +531,7 @@ describe("configuration boundaries", () => {
       mcp: { callTimeoutMinutes: 30 },
     });
     expect(mcpCallTimeoutMinutes({ mcp: { callTimeoutMinutes: 30 } })).toBe(30);
-    expect(mcpCallTimeoutMinutes({})).toBe(10);
+    expect(mcpCallTimeoutMinutes({})).toBe(60);
   });
 
   it.each([0, 0.5, 61, 1440, "20", null])(

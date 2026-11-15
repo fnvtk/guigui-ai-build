@@ -239,7 +239,12 @@ async function resolveTarget(handle: UiHandle, values: Record<string, unknown>, 
   let matches: Array<[string, { name?: unknown; role?: unknown }]> = [];
   for (;;) {
     const refs = (await snapshot(handle, false)).refs as Record<string, { name?: unknown; role?: unknown }> | undefined;
-    matches = Object.entries(refs ?? {}).filter(([, element]) => element?.name === name);
+    const entries = Object.entries(refs ?? {});
+    matches = entries.filter(([, element]) => element?.name === name);
+    if (matches.length === 0) {
+      const prefixed = entries.filter(([, element]) => typeof element?.name === "string" && element.name.startsWith(name));
+      if (prefixed.length === 1) matches = prefixed;
+    }
     if (matches.length === 1) return { target: `@${matches[0]![0]}`, name };
     if (matches.length > 1 || Date.now() >= deadline) break;
     await new Promise((resolve) => setTimeout(resolve, 100));

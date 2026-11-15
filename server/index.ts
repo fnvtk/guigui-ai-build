@@ -1,11 +1,4 @@
-import { createWechatNativeBilling, type WechatNativeConfig } from "./guai-billing-wechat.ts";
-import { GuaiWechatSqliteOrderStore } from "./guai-wechat-orders.ts";
-import { importGuaiWechatCredentials } from "./guai-wechat-import.ts";
-import { createGuaiWechatFulfillment } from "./guai-billing-fulfillment.ts";
-import { GuaiWechatSqliteEntitlementStore } from "./guai-wechat-entitlements.ts";
 import { guaiSurfacePlan, guaiOffersSurface, guaiRemovedDesktopPath } from "./guai-local-product.ts";
-import { createGuaiWechatConfigRoutes } from "./routes/guai-wechat-config.ts";
-import { GuaiBillingLocalModule, GUAI_BILLING_REFERENCE_CATALOG } from "./guai-billing-local-module.ts";
 import { createGuaiBilling } from "./guai-billing.ts";
 import { GuaiBillingSqliteStore } from "./guai-billing-store.ts";
 import { createGuaiBillingRoutes } from "./routes/guai-billing.ts";
@@ -12510,77 +12503,28 @@ ROUTES.push(createMcpServerRoutes({
   mcpConfigBusy: { get: () => mcpConfigBusy, set: (busy) => { mcpConfigBusy = busy; } },
   mcpServerResponse, mcpPolicyRefusal, persistMcpServers, savedCustomDomain, appCatalog: chatAppsMcp, forgetPeople: (name) => teamConnections.forgetServer(name), health: mcpServersHost.health, botsPath: () => brokerPath(botBox),
   connectionsChanged: (change) => void routineHolds?.connections(change) }));
-const guaiBillingModulePath = "/Users/karuo/Documents/开发/4、模块/支付模块/10_运行时_统一收费核心";
-const guaiBillingLocalModule = new GuaiBillingLocalModule({
-  enabled: true,
-  moduleDirectory: guaiBillingModulePath,
-  privateDirectory: join(DATA_DIR, "billing-local-module"),
-  appId: "guai-ai-desktop",
-  tenantId: ENVIRONMENT_ID,
-  catalog: GUAI_BILLING_REFERENCE_CATALOG,
-  pythonExecutable: "/usr/local/bin/python3",
-});
 const guaiBillingConfig = () => ({
-  ...guaiBillingLocalModule.connection,
-  localModulePath: guaiBillingModulePath,
-  localModuleConnected: guaiBillingLocalModule.state === "ready",
-  localModuleError: guaiBillingLocalModule.failure ?? undefined,
+  provider: cfg.guaiBilling?.provider ?? "karuo-ai",
+  apiUrl: cfg.guaiBilling?.apiUrl,
+  apiToken: cfg.guaiBilling?.key,
+  sessionCookie: process.env.GUAI_BILLING_SESSION_COOKIE,
+  catalogPath: cfg.guaiBilling?.catalogPath,
+  statusPath: cfg.guaiBilling?.statusPath,
+  returnTargetId: cfg.guaiBilling?.returnTargetId,
+  localModuleConnected: false,
 });
-const connectGuaiBillingLocal = async () => {
-  await guaiBillingLocalModule.start();
-  saveConfig({ guaiBilling: { localModulePath: guaiBillingModulePath } });
-  Object.assign(cfg, loadConfig());
-};
-if (DESKTOP_MANAGED && !CLOUD_HOME && !HOSTED_WORKSPACE && cfg.guaiBilling?.localModulePath === guaiBillingModulePath) {
-  await connectGuaiBillingLocal().catch((error) => console.error("本机收费模块启动失败:", error instanceof Error ? error.message : error));
-}
 const guaiBillingOrders = new GuaiBillingSqliteStore(join(DATA_DIR, "guai-billing-orders.db"));
 process.once("exit", () => guaiBillingOrders.close());
 const guaiBillingBase = createGuaiBilling({ config: guaiBillingConfig, orders: guaiBillingOrders });
-const guaiWechatOrders = new GuaiWechatSqliteOrderStore(join(DATA_DIR, "guai-wechat-orders.sqlite"));
-process.once("exit", () => guaiWechatOrders.close());
-const guaiWechatEntitlements = new GuaiWechatSqliteEntitlementStore(join(DATA_DIR, "guai-wechat-entitlements.sqlite"));
-process.once("exit", () => guaiWechatEntitlements.close());
-const guaiWechatFulfillment = createGuaiWechatFulfillment({ localModule: guaiBillingLocalModule, entitlements: guaiWechatEntitlements });
-const guaiWechatConfig = (): WechatNativeConfig => ({ ...cfg.guaiWechat, apiV3Key: cfg.guaiWechat?.key });
-// Owner-requested desktop pricing, fixed independently of the external/reference catalog.
-const publishedWechatCatalog = async () => [
-  { skuId: "guai-ai-standard-monthly", name: "普通版", amountMinor: 1980, includedCredits: 2000, displayPrice: "¥19.8 / 月", priceVersionId: "guai-ai-desktop-20261104-standard-v1" },
-  { skuId: "guai-ai-pro-monthly", name: "专业版", amountMinor: 19800, includedCredits: 8000, displayPrice: "¥198 / 月", priceVersionId: "guai-ai-desktop-20261104-pro-v1" },
-  { skuId: "guai-ai-super-monthly", name: "超级版", amountMinor: 198000, includedCredits: 50000, displayPrice: "¥1980 / 月", priceVersionId: "guai-ai-desktop-20261104-super-v1" },
-].map(plan => ({ ...plan, currency: "CNY", kind: "subscription", durationMonths: 1, availability: "available" as const, checkoutEnabled: true, referenceOnly: false }));
-const makeGuaiWechat = (config: () => WechatNativeConfig) => createWechatNativeBilling({
-  config, orders: guaiWechatOrders, catalog: publishedWechatCatalog,
-  onVerifiedPaid: guaiWechatFulfillment.onVerifiedPaid,
-  fulfillmentReady: guaiWechatFulfillment.ready,
-});
-const guaiWechat = makeGuaiWechat(guaiWechatConfig);
-const guaiWechatConfigRoutes = createGuaiWechatConfigRoutes({
-  config: guaiWechatConfig,
-  readiness: candidate => makeGuaiWechat(() => candidate).readiness(),
-  save: patch => { saveConfig({ guaiWechat: patch }); Object.assign(cfg, loadConfig()); },
-  importCredentials: async () => {
-    const imported = await importGuaiWechatCredentials(
-      "/Users/karuo/Documents/开发/4、模块/支付模块/支付/微信", join(DATA_DIR, "billing-merchant"),
-    );
-    saveConfig({ guaiWechat: { ...imported, enabled: false } }); Object.assign(cfg, loadConfig());
-  },
-});
 const guaiBillingRoutes = createGuaiBillingRoutes({
   billing: {
-    catalog: async () => {
-      const catalog = await guaiBillingBase.catalog();
-      const state = await guaiWechat.readiness();
-      return state.checkoutReady && catalog.catalogConnected
-        ? { ...catalog, checkoutReady: true, catalogStatus: "connected" as const, plans: await publishedWechatCatalog() }
-        : { ...catalog, checkoutReady: false };
-    },
+    catalog: guaiBillingBase.catalog,
     balance: guaiBillingBase.balance,
-    checkout: guaiWechat.checkout,
-    order: guaiWechat.order,
+    checkout: guaiBillingBase.checkout,
+    order: guaiBillingBase.order,
+    membership: guaiBillingBase.membership,
   },
   getConfig: guaiBillingConfig,
-  connectLocal: connectGuaiBillingLocal,
   customerId: (auth) => auth.kind === "loopback" && auth.scopes.includes("admin") && auth.trust !== "service" && !auth.companionDevice
     ? `guai-${createHash("sha256").update(ENVIRONMENT_ID).digest("hex")}` : null,
 });
@@ -12590,12 +12534,7 @@ ROUTES.push(async (context) => {
   if (CLOUD_TEAM || CLOUD_HOME || auth.kind !== "loopback" || !auth.scopes.includes("admin") || auth.trust === "service" || auth.companionDevice) {
     return context.json(context.res, 403, { error: "会员与支付配置仅限本机工作区所有者" });
   }
-  if (context.path === "/api/guai-billing/membership" && context.method === "GET") {
-    const customerId = `guai-${createHash("sha256").update(ENVIRONMENT_ID).digest("hex")}`;
-    return context.json(context.res, 200, await guaiWechatFulfillment.readEntitlement(customerId));
-  }
-  const wechatConfigResult = await guaiWechatConfigRoutes(context);
-  return wechatConfigResult === PASS ? guaiBillingRoutes(context) : wechatConfigResult;
+  return guaiBillingRoutes(context);
 });
 
 ROUTES.push(createSetupImportRoutes({ local: DESKTOP_MANAGED && !CLOUD_HOME && !HOSTED_WORKSPACE, cfg, mcpPolicyRefusal, persistMcpServers,
@@ -15814,7 +15753,6 @@ const gracefulShutdown = createGracefulShutdown({
       await Promise.all([...temporaries, browserSweep.closeAll()]);
       await browserRuntime.closeAll();
     },
-    () => guaiBillingLocalModule.close(),
     () => liveCalls.shutdown(),
     () => flushAllProfileHistory(),
     () => flushAllMemoryJournals(),

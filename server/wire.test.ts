@@ -50,7 +50,7 @@ describe("shared wire model", () => {
     expect(wire).not.toHaveProperty("resumeCursors");
     expect(wire).not.toHaveProperty("lastInstanceId");
     const { resumeCursors: _resumeCursors, lastInstanceId: _lastInstanceId, ...storedWireFields } = fullTask;
-    expect(wire).toEqual({ ...storedWireFields, modelSelection: { ...fullTask.modelSelection, model: "kr-pro" }, followsBotModel: false });
+    expect(wire).toEqual({ ...storedWireFields, modelSelection: fullTask.modelSelection, followsBotModel: false });
     expect(fullTask.resumeCursors).toEqual({ claude: "cursor" });
     expect(fullTask.lastInstanceId).toBe("claude");
   });
@@ -67,8 +67,8 @@ describe("shared wire model", () => {
 
   it("sends the model a thread runs on, and whether it follows its bot's", () => {
     const { modelSelection: _own, ...follower } = fullTask;
-    expect(toWireTask(follower, botModel)).toMatchObject({ modelSelection: { ...botModel, model: "kr-pro" }, followsBotModel: true });
-    expect(toWireTask(fullTask, botModel)).toMatchObject({ modelSelection: { ...fullTask.modelSelection, model: "kr-pro" }, followsBotModel: false });
+    expect(toWireTask(follower, botModel)).toMatchObject({ modelSelection: botModel, followsBotModel: true });
+    expect(toWireTask(fullTask, botModel)).toMatchObject({ modelSelection: fullTask.modelSelection, followsBotModel: false });
   });
 
   it("projects known Guai GPT model IDs to public aliases without mutating stored selections", () => {
@@ -84,11 +84,11 @@ describe("shared wire model", () => {
       expect(selection.model).toBe(internal);
     }
     const unrelated = { instanceId: "custom", model: "vendor-model", effort: "low" as const };
-    expect(toPublicModelSelection(unrelated)).toEqual({ ...unrelated, model: "kr-pro" });
+    expect(toPublicModelSelection(unrelated)).toEqual(unrelated);
     expect(toPublicModelSelection(unrelated)).not.toBe(unrelated);
   });
 
-  it("projects legacy and unknown nonempty IDs to the shared public service tier", () => {
+  it("projects legacy and unknown SimpleAPI IDs to the public service tier", () => {
     const cases = [
       ["gpt-5.6-luna", "kr-mini"],
       ["gpt-5.6-sol", "kr-pro"],

@@ -69,6 +69,22 @@ const STATUS_WORDS: Record<string, string> = {
 };
 const RESULT_HEAD = 2_000;
 
+function computerSelectionFailure(status: number, body: Json): string {
+  const detail = String(body.error ?? `HTTP ${status}`);
+  const next = status === 403
+    ? "This request cannot switch computers from its current conversation. Start a new request from the person's own chat after opening the Screen panel."
+    : status === 409
+      ? "The computer is unavailable or a switch is already pending. Do not repeat the call in this turn; open the Screen panel, fix the listed computer, then retry the original request."
+      : status >= 500
+        ? "Computer discovery is temporarily unavailable. Keep the original request, reopen or reconnect the Screen panel, then retry after the computer list loads."
+        : "Call select_computer with no arguments to inspect the available choices, then choose one listed as available.";
+  return `${detail} ${next}`;
+}
+
+function coordinationFailure(detail: string): string {
+  return `${detail.replace(/[.;。]+$/, ".")} Check assignment_status first; if no assignment exists, call list_bots or list_room_targets for the exact reachable recipient before retrying.`;
+}
+
 function assignmentLine(a: Json): string {
   const id = typeof a.id === "string" && a.id ? a.id : "?";
   const who = typeof a.botName === "string" && a.botName ? `@${peerName(a.botName)}`
@@ -287,11 +303,12 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       return {
-        text: `coordinate_bots could not confirm dispatch: ${detail}. The remote outcome is unknown; check assignment status before retrying so work is not duplicated.`,
+        text: coordinationFailure(`coordinate_bots could not confirm dispatch: ${detail}. The remote outcome is unknown.`),
         isError: true,
       };
     }
-    return { text: JSON.stringify(r), ...(r.error ? { isError: true } : {}) };
+    if (r.error) return { text: coordinationFailure(String(r.error)), isError: true };
+    return { text: JSON.stringify(r) };
   }
   if (name === "assignment_status") {
     const id = args.id === undefined || args.id === null || args.id === "" ? "" : String(args.id).trim();
@@ -377,10 +394,16 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     if (args.surface !== undefined && (typeof args.surface !== "string" || !["auto", "local", "browser"].includes(args.surface))) {
       return { text: "Choose auto, local or browser; omit surface to inspect available choices.", isError: true };
     }
-    const result = await api("/api/internal/computer/select", args.surface === undefined ? undefined : {
-      method: "POST", body: JSON.stringify({ surface: args.surface }),
-    });
-    return { text: JSON.stringify(result) };
+    try {
+      const { ok, status, body } = await apiResponse("/api/internal/computer/select", args.surface === undefined ? undefined : {
+        method: "POST", body: JSON.stringify({ surface: args.surface }),
+      });
+      if (!ok) return { text: computerSelectionFailure(status, body), isError: true };
+      return { text: JSON.stringify(body) };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return { text: `${detail} Computer discovery could not be confirmed. Reopen the Screen panel, wait for the computer list to load, then retry select_computer once.`, isError: true };
+    }
   }
   if (name === "list_threads") {
     const query = new URLSearchParams({ fromBotId: BOT_ID, fromThreadId: THREAD_ID });
