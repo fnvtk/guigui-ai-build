@@ -1,5 +1,4 @@
-// The community templates catalog (/api/team-library/catalog). Its names and
-// summaries come in English; the built-in teams show in the app's language.
+// The built-in team catalog is served by the app and ships with its server.
 import { t } from "./i18n";
 import type { LocaleKey } from "@/locales";
 
@@ -20,7 +19,6 @@ export interface TeamCatalogEntry {
 }
 
 export interface TeamCatalog {
-  repositoryUrl: string;
   teams: TeamCatalogEntry[];
 }
 
