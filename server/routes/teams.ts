@@ -2,7 +2,6 @@ import { z } from "zod";
 import { MAX_TEAM_BACKUP_BYTES } from "../../shared/team-backup.ts";
 import type { BotVisibility, WireBot, WireGroup } from "../../shared/wire.ts";
 import { validateBotCwd } from "../bot-cwd.ts";
-import { fetchBotDirectory, matchDirectoryBots, type MatchedDirectoryBot } from "../bot-directory.ts";
 import { isBotPackage, packageSummary, parsePackageDocument, renderBotPackageMarkdown, type PackageDocument } from "../bot-package.ts";
 import { parseVisibility } from "../bot-visibility.ts";
 import type { AppConfig } from "../config.ts";
@@ -269,18 +268,6 @@ export function createTeamRoutes(deps: TeamRouteDeps): RouteHandler {
       if (!validated.cwd) return json(res, 400, { error: "scout needs a folder to read" });
       const profile = scoutProject(validated.cwd);
       return json(res, 200, { profile, suggestion: suggestTeam(profile) });
-    }
-    if (method === "GET" && path === "/api/teams/scout/directory") {
-      const validated = validateBotCwd(url.searchParams.get("cwd"));
-      if (!validated.ok) return json(res, 400, { error: validated.error });
-      if (!validated.cwd) return json(res, 400, { error: "scout needs a folder to read" });
-      let directory: MatchedDirectoryBot[] = [];
-      try {
-        directory = matchDirectoryBots(scoutProject(validated.cwd), await fetchBotDirectory());
-      } catch (error) {
-        console.warn("bot directory lookup failed:", error instanceof Error ? error.message : String(error));
-      }
-      return json(res, 200, { directory });
     }
     if (method === "GET" && path === "/api/org-library") {
       return json(res, 200, orgLibrary?.list() ?? { organization: null, packages: [] });
