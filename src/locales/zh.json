@@ -5640,7 +5640,7 @@
   "templates.teamMembers": "团队成员",
   "templates.existingMany": "你现有的 {count} 个 Bot 及其对话会保持不变。",
   "templates.explore": "探索",
-  "templates.communityTemplates": "社区模板",
+  "templates.communityTemplates": "内置团队模板",
   "templates.tryDifferentSearch": "请尝试其他搜索词。",
   "templates.githubHint": "粘贴公开仓库链接或直接的团队 JSON 链接。",
   "grokImport.linkPlaceholder": "x.ai/bot/…",

@@ -3,12 +3,11 @@ import { isBotPackage, parseBotPackage, parsePackageDocument, upgradeV1, type Pa
 import { PACKAGE_V1_VERSION } from "../shared/package-format.ts";
 import { parseTeamManifest, type ParsedTeamManifest } from "./team-manifest.ts";
 import { grokMarketplaceSlugFrom, grokMarketplaceUrl, grokShareIdFrom, grokShareUrl, type GrokTemplateCard } from "../shared/grok-import.ts";
+import { BUILTIN_TEAM_LIBRARY, BUILTIN_TEAM_PACKAGES } from "./data/team-library.ts";
 
-export const TEAM_LIBRARY_REPOSITORY = "https://github.com/milind-soni/openmausbot-teams";
-export const TEAM_LIBRARY_RAW_ROOT = "https://raw.githubusercontent.com/milind-soni/openmausbot-teams/main";
-export const TEAM_LIBRARY_CATALOG_URL = `${TEAM_LIBRARY_RAW_ROOT}/catalog.json`;
+export const TEAM_LIBRARY_CATALOG_URL = "builtin://team-library/catalog";
+export const TEAM_LIBRARY_RAW_ROOT = "builtin://team-library";
 
-const MAX_CATALOG_BYTES = 256_000;
 const MAX_MANIFEST_BYTES = 1_000_000;
 
 export interface TeamCatalogEntry {
@@ -30,7 +29,7 @@ export interface TeamCatalogEntry {
 export interface TeamCatalog {
   format: "openmaus.catalog";
   version: 1;
-  repositoryUrl: typeof TEAM_LIBRARY_REPOSITORY;
+  repositoryUrl?: string;
   teams: TeamCatalogEntry[];
 }
 
@@ -114,7 +113,6 @@ export function parseTeamCatalog(value: unknown): TeamCatalog {
   return {
     format: "openmaus.catalog",
     version: 1,
-    repositoryUrl: TEAM_LIBRARY_REPOSITORY,
     teams,
   };
 }
@@ -155,7 +153,8 @@ async function fetchText(url: string, maxBytes: number, fetcher: Fetcher): Promi
 }
 
 export async function fetchTeamCatalog(fetcher: Fetcher = fetch): Promise<TeamCatalog> {
-  return parseTeamCatalog(await fetchJson(TEAM_LIBRARY_CATALOG_URL, MAX_CATALOG_BYTES, fetcher));
+  void fetcher;
+  return BUILTIN_TEAM_LIBRARY;
 }
 
 export type ParsedShareableTeam = ParsedTeamManifest | ParsedBotPackage | PackageDocument;
@@ -175,10 +174,13 @@ async function fetchShareable(url: string, fetcher: Fetcher): Promise<ParsedShar
 
 export async function fetchLibraryTeam(slug: string, fetcher: Fetcher = fetch): Promise<ParsedShareableTeam> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error("That team name is invalid");
-  const catalog = await fetchTeamCatalog(fetcher);
+  void fetcher;
+  const catalog = BUILTIN_TEAM_LIBRARY;
   const entry = catalog.teams.find((team) => team.slug === slug);
   if (!entry) throw Object.assign(new Error("That library team was not found"), { status: 404 });
-  return fetchShareable(`${TEAM_LIBRARY_RAW_ROOT}/${entry.package ?? entry.manifest}`, fetcher);
+  const packageText = BUILTIN_TEAM_PACKAGES[entry.slug];
+  if (!packageText) throw Object.assign(new Error("That built-in team is unavailable"), { status: 404 });
+  return parseShareable(packageText);
 }
 
 const MAX_CHIEF_TEAMS = 30;
@@ -206,11 +208,12 @@ function libraryRoles(team: ParsedShareableTeam): LibraryRole[] {
 /** Each ready-made team's name, one line and roles: enough for a Chief to create the team itself, one specialist at a
  * time. A team whose file cannot be read keeps its name and summary with no roles. */
 export async function libraryTeamRoles(fetcher: Fetcher = fetch): Promise<LibraryTeamRoles[]> {
-  const catalog = await fetchTeamCatalog(fetcher);
+  void fetcher;
+  const catalog = BUILTIN_TEAM_LIBRARY;
   return Promise.all(catalog.teams.slice(0, MAX_CHIEF_TEAMS).map(async (entry) => ({
     name: entry.name,
     summary: entry.summary,
-    roles: await fetchShareable(`${TEAM_LIBRARY_RAW_ROOT}/${entry.package ?? entry.manifest}`, fetcher).then(libraryRoles, () => []),
+    roles: BUILTIN_TEAM_PACKAGES[entry.slug] ? libraryRoles(parseShareable(BUILTIN_TEAM_PACKAGES[entry.slug])) : [],
   })));
 }
 
