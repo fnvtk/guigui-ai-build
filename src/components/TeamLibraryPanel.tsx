@@ -8,7 +8,7 @@ import { orgCardAction, orgPackagePreview, type OrgLibraryListing, type OrgLibra
 import type { PackageDocument } from "../../shared/package-format";
 import type { Routine } from "@/lib/routines";
 import { api, useStore, type Bot, type Group } from "@/state/store";
-import { ArrowLeft, Check, Compass, ExternalLink, FolderOpen, Github, Loader2, Search, Share2, UploadCloud, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Compass, ExternalLink, FolderOpen, Loader2, Search, Share2, UploadCloud, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { catalogCopy, catalogMatches, type TeamCatalog, type TeamCatalogEntry } from "@/lib/team-catalog";
@@ -22,8 +22,6 @@ import { OrgLibraryTab } from "./TeamLibraryPanelOrg";
 import { MAX_TEAM_BACKUP_BYTES } from "../../shared/team-backup";
 import { takeImportName } from "../../shared/import-name";
 import { isGrokLink } from "../../shared/grok-import";
-const COMMUNITY_TEAMS_REPOSITORY = "https://github.com/milind-soni/openmausbot-teams";
-
 export { TeamImportDetails };
 
 export interface TeamImportResult {
@@ -109,8 +107,6 @@ export function TeamLibraryPanel({
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingTeamImport | null>(null);
   const [source, setSource] = useState<ImportSource>("file");
-  const [githubUrl, setGithubUrl] = useState("");
-  const [githubLoading, setGithubLoading] = useState(false);
   const [grokLink, setGrokLink] = useState<string | null>(null);
   const [finishing, setFinishing] = useState<{ notes: NonNullable<PendingTeamImport["grokSetup"]>; bot: Bot; result: TeamImportResult } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -246,14 +242,9 @@ export function TeamLibraryPanel({
     }
   };
 
-  const loadGithubTeam = async () => {
-    await loadGithubUrl(githubUrl);
-  };
-
   const loadGithubUrl = async (requestedUrl: string) => {
     if (!requestedUrl.trim()) return;
     if (isGrokLink(requestedUrl)) return setGrokLink(requestedUrl.trim());
-    setGithubLoading(true);
     setError("");
     try {
       const manifest = await api("/api/team-library/github", {
@@ -263,8 +254,6 @@ export function TeamLibraryPanel({
       previewManifest(teamImportPreview(manifest), "github");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setGithubLoading(false);
     }
   };
 
@@ -272,7 +261,6 @@ export function TeamLibraryPanel({
     if (!initialUrl) return;
     tabChosen.current = true;
     setTab("import");
-    setGithubUrl(initialUrl);
     void loadGithubUrl(initialUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUrl]);
@@ -496,17 +484,6 @@ export function TeamLibraryPanel({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {!pending && (
-              <button
-                onClick={() => void openExternal(catalog?.repositoryUrl ?? COMMUNITY_TEAMS_REPOSITORY)}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] text-ink-secondary hover:bg-raised hover:text-ink"
-                title={t("templates.openRepository")}
-              >
-                <Github size={16} />
-                <span className="max-sm:hidden">{t("templates.communityRepo")}</span>
-                <ExternalLink size={12} />
-              </button>
-            )}
             <button
               onClick={onClose}
               disabled={importing}
@@ -766,29 +743,6 @@ export function TeamLibraryPanel({
                       <span className="mt-1 text-[13px] text-ink-secondary">{t("templates.dropFile")}</span>
                     </button>
 
-                    <div className="flex min-h-56 flex-col justify-center rounded-2xl bg-raised/25 px-6">
-                      <Github size={25} className="text-ink-secondary" />
-                      <h3 className="mt-3 text-[14px] font-medium text-ink">{t("templates.loadGithub")}</h3>
-                      <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">{t("templates.githubHint")}</p>
-                      <div className="mt-4 flex gap-2">
-                        <input
-                          value={githubUrl}
-                          onChange={(event) => setGithubUrl(event.target.value)}
-                          onKeyDown={(event) => event.key === "Enter" && void loadGithubTeam()}
-                          placeholder={t("templates.githubPlaceholder")}
-                          aria-label={t("templates.githubUrl")}
-                          className="min-w-0 flex-1 rounded-xl bg-raised/80 px-3 py-2.5 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none"
-                        />
-                        <button
-                          onClick={() => void loadGithubTeam()}
-                          disabled={!githubUrl.trim() || githubLoading}
-                          className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2.5 text-[13px] font-medium text-white hover:bg-accent/90 disabled:opacity-40"
-                        >
-                          {githubLoading && <Loader2 size={13} className="animate-spin" />}
-                          {t("templates.load")}
-                        </button>
-                      </div>
-                    </div>
                   </div>
                   <GrokImportFlow link={grokLink} onPreview={(preview) => { setGrokLink(null); previewManifest(preview, "grok"); }} />
                   {error && <div role="alert" className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-[13px] text-danger">{error}</div>}
