@@ -29,7 +29,6 @@ export interface TeamCatalogEntry {
 export interface TeamCatalog {
   format: "openmaus.catalog";
   version: 1;
-  repositoryUrl?: string;
   teams: TeamCatalogEntry[];
 }
 

@@ -8,7 +8,7 @@ import { orgCardAction, orgPackagePreview, type OrgLibraryListing, type OrgLibra
 import type { PackageDocument } from "../../shared/package-format";
 import type { Routine } from "@/lib/routines";
 import { api, useStore, type Bot, type Group } from "@/state/store";
-import { ArrowLeft, Check, Compass, ExternalLink, FolderOpen, Loader2, Search, Share2, UploadCloud, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Compass, FolderOpen, Loader2, Search, Share2, UploadCloud, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { catalogCopy, catalogMatches, type TeamCatalog, type TeamCatalogEntry } from "@/lib/team-catalog";
@@ -43,27 +43,6 @@ interface ScoutResult {
     };
     reasons: Record<string, string>;
   };
-}
-
-interface DirectoryCandidate {
-  slug: string;
-  name: string;
-  category: string;
-  integrations: string[];
-  prompt: string;
-  detailUrl: string;
-  matched: string[];
-}
-
-const DIRECTORY_COLORS = ["cyan", "red", "purple", "green", "orange"] as const;
-
-async function openExternal(url: string): Promise<void> {
-  if (window.ogb?.openExternal) {
-    await window.ogb.openExternal(url);
-    return;
-  }
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (opened) opened.opener = null;
 }
 
 export function shareableTeamList(sections: readonly string[], bots: ReadonlyArray<Pick<Bot, "section" | "hidden">>): Array<{ name: string; bots: number }> {
@@ -118,8 +97,6 @@ export function TeamLibraryPanel({
   const [scouted, setScouted] = useState<ScoutResult | null>(null);
   // The folder the current result was read from: the import pins the room to this, never to the input's current value.
   const [scoutedFolder, setScoutedFolder] = useState("");
-  const [directory, setDirectory] = useState<DirectoryCandidate[] | null>(null);
-  const [pickedDirectory, setPickedDirectory] = useState<Set<string>>(new Set());
   const [roomName, setRoomName] = useState("");
   const [creating, setCreating] = useState(false);
   const [sharing, setSharing] = useState<string | null>(null);
@@ -353,8 +330,6 @@ export function TeamLibraryPanel({
     setScouting(true);
     setError("");
     setScouted(null);
-    setDirectory(null);
-    setPickedDirectory(new Set());
     try {
       // SAFETY: this endpoint is owned by the app and returns ScoutResult.
       const result = (await api(`/api/teams/scout?cwd=${encodeURIComponent(folder)}`)) as ScoutResult;
@@ -363,14 +338,6 @@ export function TeamLibraryPanel({
       setScoutedFolder(folder);
       setRoomName(result.suggestion.roomName);
       track("team_scouted", { signals: result.suggestion.manifest.team.members.length - 1 });
-      void api(`/api/teams/scout/directory?cwd=${encodeURIComponent(folder)}`)
-        // SAFETY: this endpoint is owned by the app and returns candidates.
-        .then((extra) => {
-          if (request === scoutRequest.current) setDirectory((extra as { directory: DirectoryCandidate[] }).directory);
-        })
-        .catch(() => {
-          if (request === scoutRequest.current) setDirectory([]);
-        });
     } catch (cause) {
       if (request !== scoutRequest.current) return;
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -391,24 +358,7 @@ export function TeamLibraryPanel({
     setCreating(true);
     setError("");
     try {
-      // Security: community bots join as ordinary manifest members, so the import boundary (persona only, no grants)
-      // applies.
-      const extras = (directory ?? [])
-        .filter((candidate) => pickedDirectory.has(candidate.slug))
-        .map((candidate, index) => ({
-          key: `dir-${candidate.slug}`,
-          name: candidate.name,
-          title: candidate.category || t("templates.communityBot"),
-          description: candidate.prompt,
-          appearance: { color: DIRECTORY_COLORS[index % DIRECTORY_COLORS.length] },
-        }));
-      const manifest = {
-        ...scouted.suggestion.manifest,
-        team: {
-          ...scouted.suggestion.manifest.team,
-          members: [...scouted.suggestion.manifest.team.members, ...extras],
-        },
-      };
+      const manifest = scouted.suggestion.manifest;
       const room = roomName.trim() || scouted.suggestion.roomName;
       // SAFETY: this endpoint is owned by the app and returns imported bots.
       const response = (await api(
@@ -849,50 +799,6 @@ export function TeamLibraryPanel({
                           </div>
                         ))}
                       </div>
-
-                      {directory && directory.length > 0 && (
-                        <>
-                          <div className="mt-5 text-[12px] font-medium text-ink-secondary">{t("templates.communityDirectory")}</div>
-                          <div className="mt-1 flex flex-col">
-                            {directory.map((candidate) => (
-                              <div key={candidate.slug} className="flex items-center gap-3 border-b border-hairline/35 px-1 py-3">
-                                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={pickedDirectory.has(candidate.slug)}
-                                    onChange={() =>
-                                      setPickedDirectory((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(candidate.slug)) next.delete(candidate.slug);
-                                        else next.add(candidate.slug);
-                                        return next;
-                                      })
-                                    }
-                                    className="size-4 accent-accent"
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate text-[14px] font-medium text-ink">
-                                      {candidate.name}
-                                      {candidate.category && <span className="font-normal text-ink-secondary"> · {candidate.category}</span>}
-                                    </div>
-                                    <div className="mt-0.5 truncate text-[12px] text-ink-secondary">
-                                      {t("templates.matches", { values: candidate.matched.join(", ") })}
-                                    </div>
-                                  </div>
-                                </label>
-                                <button
-                                  onClick={() => void openExternal(candidate.detailUrl)}
-                                  aria-label={t("templates.openDirectory", { name: candidate.name })}
-                                  title={t("templates.readBeforeAdding")}
-                                  className="rounded-lg p-1.5 text-ink-secondary hover:bg-raised hover:text-ink"
-                                >
-                                  <ExternalLink size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
 
                       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                         <input

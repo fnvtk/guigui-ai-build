@@ -46,11 +46,11 @@ const ROLE_PATTERNS: Record<keyof typeof MBTI_ROLE_AVATAR_RECOMMENDATIONS, RegEx
   leader: /项目负责人|团队负责人|团队管理|总智能体|总协调机器人|\bCEO\b|chief of staff|project lead|team lead|leader/i,
   product: /产品经理|产品负责人|product manager/i,
   growth: /增长负责人|增长运营|增长专员|growth/i,
-  engineer: /开发专员|开发工程师|前端开发|后端开发|developer|engineer/i,
-  designer: /设计师|设计负责人|designer/i,
+  engineer: /开发|程序员|软件工程师|developer|engineer/i,
+  designer: /设计|视觉|交互|designer/i,
   operator: /运营|客服|客户成功|社群管理|operator/i,
-  researcher: /研究员|分析师|researcher|analyst/i,
-  quality: /质量交付|质量保障|测试工程师|测试开发|quality|\bqa\b|\bdelivery\b/i,
+  researcher: /研究|分析|researcher|analyst/i,
+  quality: /质量|测试|交付|quality|\bqa\b|\bdelivery\b/i,
 };
 
 export function resolveMbtiAvatar(input: {

@@ -238,6 +238,16 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
   }, [dispatch]);
 
   useEffect(() => {
+    return window.ogb?.environments?.onOpenSettings?.((computerId) => {
+      const url = new URL(window.location.href);
+      if (computerId) url.searchParams.set("share-computer", computerId);
+      else url.searchParams.delete("share-computer");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      dispatch({ type: "toggleAppSettings", open: true, section: "computer" });
+    });
+  }, [dispatch]);
+
+  useEffect(() => {
     return window.ogb?.desktopViewer?.onState((viewer) => {
       if (viewer.open || !viewer.contextId) return;
       const botId = viewer.contextId;

@@ -41,7 +41,7 @@ export const READY_BOTS: ReadyBot[] = [
       "When a task will take several steps, say what you are about to do in one line before doing it.",
     ].join("\n"),
     look: { color: "green", mascotBody: "cursor" },
-    tryAsking: ["Plan my week from this list of to-dos", "Explain this contract clause in plain English", "Draft a polite reply declining this meeting"],
+    tryAsking: ["根据这份待办清单安排我的本周计划", "用通俗中文解释这条合同条款", "起草一封礼貌拒绝这次会议的回复"],
     apps: [],
   },
   {
@@ -58,7 +58,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Note recurring senders and the user's preferences in memory so each triage gets sharper.",
     ].join("\n"),
     look: { color: "blue", mascotBody: "squircle" },
-    tryAsking: ["What in my inbox needs me today?", "Draft replies to the three most urgent emails", "Who have I not answered in over a week?"],
+    tryAsking: ["今天收件箱里哪些邮件需要我处理？", "为最紧急的三封邮件起草回复", "哪些人已经超过一周没有收到我的回复？"],
     apps: ["gmail"],
     routines: [paused("Morning inbox triage", "Triage my unread email and draft replies for anything that needs one.", "08:30", WEEKDAYS)],
   },
@@ -75,7 +75,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Keep briefs scannable: a three-line summary, then sections, then sources.",
     ].join("\n"),
     look: { color: "purple", mascotBody: "diamond" },
-    tryAsking: ["What changed in EU AI rules this year? Sources please", "Compare the top three note-taking apps for a small team", "Fact-check the claims in this paragraph"],
+    tryAsking: ["今年欧盟人工智能规则有哪些变化？请附来源", "比较最适合小团队的三个笔记应用", "核查这段话中的事实和说法"],
     apps: [],
   },
   {
@@ -91,7 +91,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Explain what changed and why in a few lines. Never push, publish, or delete branches unless told to.",
     ].join("\n"),
     look: { color: "cyan", mascotBody: "hexagon" },
-    tryAsking: ["Find why the tests fail and fix it", "Explain how this repository is organised", "Add input validation to the signup form"],
+    tryAsking: ["找出测试失败的原因并修复", "解释这个仓库的目录结构", "为注册表单添加输入校验"],
     apps: ["github"],
   },
   {
@@ -107,7 +107,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Never post, reply, or react in the channels yourself; you report to the user.",
     ].join("\n"),
     look: { color: "orange", mascotBody: "shield" },
-    tryAsking: ["What did the community ask about since yesterday?", "List open bug reports from this week", "Which question keeps coming up?"],
+    tryAsking: ["从昨天到现在社区提出了哪些问题？", "列出本周仍未解决的错误报告", "哪个问题被反复提到？"],
     apps: ["discord", "slack"],
     routines: [paused("Community digest", "Summarise what happened in my community channels since the last digest.", "17:00", WEEKDAYS)],
   },
@@ -128,7 +128,7 @@ export const READY_BOTS: ReadyBot[] = [
       "If the postiz tools are missing, say in one line that the user can connect Postiz in Apps, and offer to write the posts here meanwhile.",
     ].join("\n"),
     look: { color: "coral", mascotBody: "star" },
-    tryAsking: ["Plan next week's posts for LinkedIn and X", "Draft three posts about our launch and add them to Postiz", "What is scheduled in Postiz this week?"],
+    tryAsking: ["规划下周在 LinkedIn 和 X 发布的内容", "起草三篇发布相关内容并加入 Postiz", "本周 Postiz 安排了哪些内容？"],
     apps: ["postiz"],
     notes: {
       "MEMORY.md": "- Voice, topics and channels for social posts live in memory/social.md; read it before writing a post.\n",
@@ -149,7 +149,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Flag clashes and days that are overbooked before they happen.",
     ].join("\n"),
     look: { color: "yellow", mascotBody: "capsule" },
-    tryAsking: ["What's on today, and what's overdue?", "Find an hour for deep work this week", "Which follow-ups am I late on?"],
+    tryAsking: ["今天有哪些安排？哪些任务已逾期？", "本周找出一小时用于专注工作", "哪些跟进事项已经逾期？"],
     apps: ["googlecalendar", "notion", "linear"],
     routines: [paused("Daily plan", "Give me today's commitments, anything overdue, and the next action for each.", "08:00", WEEKDAYS)],
   },
@@ -167,7 +167,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Learn the user's voice: note words they like and avoid in memory, and follow them.",
     ].join("\n"),
     look: { color: "pink", mascotBody: "drop" },
-    tryAsking: ["Turn these notes into a LinkedIn post", "Tighten this email to half its length", "Write three subject lines for this newsletter"],
+    tryAsking: ["把这些笔记整理成一篇 LinkedIn 帖子", "把这封邮件压缩到一半长度", "为这封 newsletter 写三个标题"],
     apps: [],
   },
   {
@@ -184,7 +184,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Call out outliers and caveats that could change the conclusion.",
     ].join("\n"),
     look: { color: "teal", mascotBody: "circle" },
-    tryAsking: ["What are the top 10 customers by revenue in this CSV?", "Show the monthly trend and anything unusual", "Find duplicate rows in this export"],
+    tryAsking: ["这个 CSV 中收入最高的十位客户是谁？", "展示月度趋势并指出异常", "找出这个导出文件中的重复行"],
     apps: [],
   },
   {
@@ -200,7 +200,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Offer to draft the follow-up message, and never send it yourself.",
     ].join("\n"),
     look: { color: "coral", mascotBody: "squircle" },
-    tryAsking: ["Summarise this transcript into decisions and action items", "Draft the follow-up email from these notes", "What did we leave unresolved?"],
+    tryAsking: ["把这份转写整理成决定事项和行动项", "根据这些笔记起草跟进邮件", "我们还有哪些问题没有解决？"],
     apps: [],
   },
   {
@@ -217,7 +217,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Never book or pay for anything; give links and options instead.",
     ].join("\n"),
     look: { color: "blue", mascotBody: "star" },
-    tryAsking: ["Plan four relaxed days in Lisbon in May", "What should I book now for a Japan trip in autumn?", "Make a packing list for a rainy week in Scotland"],
+    tryAsking: ["规划五月里斯本四天的轻松行程", "秋季去日本旅行，现在应该预订什么？", "列一份苏格兰雨季一周的行李清单"],
     apps: ["googlecalendar"],
     notes: {
       "memory/travel.md": "---\ntitle: Travel preferences\naliases: [trips, holidays, flights, hotels]\n---\n\n- Home airport:\n- Budget style (budget / mid / comfort):\n- Pace (relaxed / balanced / packed):\n- Seat, diet, and accessibility needs:\n",
@@ -237,7 +237,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Do not write graded work for the user to hand in as their own; teach them to do it.",
     ].join("\n"),
     look: { color: "purple", mascotBody: "blob" },
-    tryAsking: ["Explain recursion like I'm new to programming", "Quiz me on the French Revolution", "Make a one-week revision plan for my exam"],
+    tryAsking: ["像给初学者一样解释递归", "用法国大革命考考我", "为我的考试制定一周复习计划"],
     apps: [],
     notes: {
       "memory/study.md": "---\ntitle: Study progress\naliases: [revision, exam, quiz, weak topics]\n---\n\n- Subjects:\n- Exam dates:\n- Topics to review:\n",
@@ -257,7 +257,7 @@ export const READY_BOTS: ReadyBot[] = [
       "If the user shares samples of their writing, note their voice in memory/voice.md and match it.",
     ].join("\n"),
     look: { color: "pink", mascotBody: "blob" },
-    tryAsking: ["Make this email sound less robotic", "Rewrite this landing page intro in my voice", "Here are three posts I wrote; learn my style"],
+    tryAsking: ["让这封邮件听起来不那么像机器生成", "用我的语气重写这个落地页开场", "这是我写的三篇帖子，请学习我的风格"],
     apps: [],
     notes: {
       "memory/voice.md": "---\ntitle: My writing voice\naliases: [tone, style, voice]\n---\n\n- Words and phrases I use:\n- Words and phrases I avoid:\n- Formality (casual / neutral / formal):\n",
@@ -277,7 +277,7 @@ export const READY_BOTS: ReadyBot[] = [
       "End with the two or three things that already work well, so they survive the next round.",
     ].join("\n"),
     look: { color: "red", mascotBody: "diamond" },
-    tryAsking: ["Critique this landing page screenshot", "What would make this dashboard easier to scan?", "Check this mobile screen for accessibility problems"],
+    tryAsking: ["点评这张落地页截图", "怎样让这个仪表板更易浏览？", "检查这个手机页面是否有无障碍问题"],
     apps: ["figma"],
   },
   {
@@ -294,7 +294,7 @@ export const READY_BOTS: ReadyBot[] = [
       "Keep recurring patterns for each rep in memory so coaching builds over time.",
     ].join("\n"),
     look: { color: "orange", mascotBody: "star" },
-    tryAsking: ["Score this discovery call transcript", "How did I handle the pricing objection?", "What should I ask differently next time?"],
+    tryAsking: ["给这份客户沟通记录打分", "我应对价格异议的方式怎么样？", "下次我应该换一种方式问什么？"],
     apps: ["gong", "hubspot"],
   },
   {
@@ -311,7 +311,7 @@ export const READY_BOTS: ReadyBot[] = [
       "When the user describes or shows a struggling plant, suggest the most likely causes in order and one thing to try first.",
     ].join("\n"),
     look: { color: "green", mascotBody: "drop" },
-    tryAsking: ["Add my monstera: living room, bright indirect light", "I watered the fern and the pothos today", "Why are my snake plant's leaves going yellow?"],
+    tryAsking: ["添加我的龟背竹：客厅，明亮散射光", "我今天给蕨类和绿萝浇水了", "为什么我的虎尾兰叶子变黄？"],
     apps: [],
     notes: {
       "MEMORY.md": "- Plant entries live in memory/plants.md; update them whenever the user waters, moves, or repots a plant.\n",

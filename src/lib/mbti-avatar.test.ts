@@ -15,6 +15,10 @@ describe("resolveMbtiAvatar", () => {
     expect(resolveMbtiAvatar({ title: "团队负责人" })).toMatchObject({ type: "ENTJ", source: "role-recommendation" });
     expect(resolveMbtiAvatar({ title: "增长负责人" })).toMatchObject({ type: "ENTJ", source: "role-recommendation" });
     expect(resolveMbtiAvatar({ title: "开发专员" })).toMatchObject({ type: "INTJ", source: "role-recommendation" });
+    expect(resolveMbtiAvatar({ title: "开发" })).toMatchObject({ type: "INTJ", source: "role-recommendation" });
+    expect(resolveMbtiAvatar({ title: "设计" })).toMatchObject({ type: "INFP", source: "role-recommendation" });
+    expect(resolveMbtiAvatar({ title: "研究" })).toMatchObject({ type: "INTP", source: "role-recommendation" });
+    expect(resolveMbtiAvatar({ title: "测试" })).toMatchObject({ type: "ISTJ", source: "role-recommendation" });
     expect(resolveMbtiAvatar({ title: "质量交付" })).toMatchObject({ type: "ISTJ", source: "role-recommendation" });
     expect(resolveMbtiAvatar({ title: "CEO 总智能体 · 总协调机器人" })).toMatchObject({ type: "ENTJ", source: "role-recommendation" });
     expect(resolveMbtiAvatar({ chiefOfStaff: true })).toMatchObject({ type: "ENTJ", source: "role-recommendation" });

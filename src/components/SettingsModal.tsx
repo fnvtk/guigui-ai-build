@@ -32,6 +32,7 @@ import { shortcutLabel } from "./ShortcutHint";
 import { SkillsSection } from "./SkillsSection";
 import { LicenseExpiryBanner } from "./LicenseExpiryBanner";
 import { WorkspacesSection, workspacesAvailable } from "./WorkspacesSection";
+import { RemoteComputerSection } from "./RemoteComputerSection";
 import { SkinPicker } from "./SkinPicker";
 import { ThemeRow } from "./ThemeRow";
 import { ChatWidthRow, FontRow, SidebarToolsLayoutRow } from "./AppearanceSelectRows";
@@ -170,7 +171,6 @@ export function SettingsModal() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchFirst = useRef(advanced);
   const [query, setQuery] = useState("");
-  useEffect(() => window.ogb?.environments?.onOpenSettings?.(() => setQuery("")), []);
   useEffect(() => window.ogb?.onOpenAppSettings?.(() => setQuery("")), []);
   const q = query.trim().toLowerCase();
   const ownerOrAdmin = useOwnerOrAdmin();
@@ -366,7 +366,7 @@ export function SettingsModal() {
       case "companion":
         return <>{remoteAccess.client}{remoteAccess.domain}{remoteAccess.pairing}{remoteAccess.companion}</>;
       case "computer":
-        return <><BuiltInBrowserRow /><BrowserProfilesRow /></>;
+        return <><RemoteComputerSection /><BuiltInBrowserRow /><BrowserProfilesRow /></>;
       case "logins":
         return <LoginsSettings />;
       case "skills":
