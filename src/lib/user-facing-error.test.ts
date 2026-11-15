@@ -14,4 +14,8 @@ describe("localizeUserFacingError", () => {
   it("translates coordination failures", () => {
     expect(localizeUserFacingError("agents_coordinate_bots failed")).toContain("机器人协作分派未确认成功");
   });
+  it("translates missing API key setup guidance", () => {
+    expect(localizeUserFacingError("No API key — open Settings → API keys.")).toBe("未设置 API 密钥，请打开“设置 → API 密钥”完成配置。");
+    expect(localizeUserFacingError("No SimpleAPI API key — open Settings → API keys.")).toContain("配置SimpleAPI");
+  });
 });

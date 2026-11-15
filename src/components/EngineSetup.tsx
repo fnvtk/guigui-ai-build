@@ -3,6 +3,7 @@ import { AlertTriangle, Check, Copy, Download, ExternalLink, KeyRound, Loader2, 
 import { api, type InstanceInfo, useStore } from "@/state/store";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
+import { localizeUserFacingError } from "@/lib/user-facing-error";
 import { copyText } from "@/lib/copy-text";
 import { DEVICE_SIGN_IN_COPY, DeviceSignIn, deviceSignInProvider } from "./DeviceSignIn";
 import { ClaudeSignIn } from "./ClaudeSignIn";
@@ -553,7 +554,7 @@ export function EngineSetup({
       <div className={cn(!unframed && "rounded-xl border border-hairline/40 bg-control/30 p-3", className)}>
         <div className="text-[13px] font-semibold text-ink">{t("engineSetup.notReady", { name: instance.displayName })}</div>
         <p className="mt-1 text-[12px] leading-relaxed text-ink-secondary">
-          {instance.snapshot.authenticationUnavailableReason ?? instance.snapshot.reason ?? t("engineSetup.noReason")}
+          {localizeUserFacingError(instance.snapshot.authenticationUnavailableReason ?? instance.snapshot.reason ?? t("engineSetup.noReason"))}
         </p>
       </div>
     );
@@ -579,11 +580,11 @@ export function EngineSetup({
       {instance.snapshot.state === "unavailable" && instance.snapshot.reason && (quiet ? (
         <details data-engine-setup-reason className="mt-2 text-[12px] leading-4 text-ink-tertiary">
           <summary className="cursor-pointer select-none hover:text-ink-secondary">{t("engineSetup.details")}</summary>
-          <p className="mt-1 whitespace-pre-wrap">{instance.snapshot.reason}</p>
+          <p className="mt-1 whitespace-pre-wrap">{localizeUserFacingError(instance.snapshot.reason)}</p>
         </details>
       ) : (
         <p role="alert" className="mt-2 text-[12px] leading-relaxed text-danger">
-          {instance.snapshot.reason}
+          {localizeUserFacingError(instance.snapshot.reason)}
         </p>
       ))}
 
