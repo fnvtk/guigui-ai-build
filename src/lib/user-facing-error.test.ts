@@ -8,6 +8,9 @@ describe("localizeUserFacingError", () => {
   it("translates uncertain timeouts without suggesting blind retry", () => {
     expect(localizeUserFacingError("MCP request timed out; execution outcome may be uncertain")).toContain("执行结果可能未知");
   });
+  it("translates startup timeouts without implying that a tool ran", () => {
+    expect(localizeUserFacingError("MCP server startup timed out; no tool operation was dispatched")).toContain("尚未执行工具操作");
+  });
   it("translates coordination failures", () => {
     expect(localizeUserFacingError("agents_coordinate_bots failed")).toContain("机器人协作分派未确认成功");
   });

@@ -54,6 +54,7 @@ function chatToolName(server: string, tool: string): string {
 const STARTUP_MS = 8_000;
 const DEFAULT_CALL_MS = 60 * 60_000;
 const MCP_TIMEOUT_MESSAGE = "MCP request timed out; execution outcome may be uncertain. The request may have been dispatched and was not retried automatically. Check the current operation status or receipt before retrying; repeat it only after confirming that no effect occurred.";
+const MCP_STARTUP_TIMEOUT_MESSAGE = "MCP server startup timed out; no tool operation was dispatched. Check the MCP server status and retry.";
 const FRAME_BYTES = 16 * 1024 * 1024;
 const OUTPUT_BYTES = 50 * 1024;
 const TOOL_COUNT = 128;
@@ -173,7 +174,7 @@ export class ChatMcpClient {
     if (Buffer.byteLength(this.buffer) > this.frameBytes) this.fail(new Error("MCP response exceeds the frame limit"));
   }
 
-  async call(method: string, params: unknown, signal: AbortSignal, timeout: number, keepOnRefusal = false): Promise<unknown> {
+  async call(method: string, params: unknown, signal: AbortSignal, timeout: number, keepOnRefusal = false, timeoutMessage = MCP_TIMEOUT_MESSAGE): Promise<unknown> {
     if (signal.aborted) { await this.close(); throw aborted(); }
     if (this.closed) throw new Error("MCP session closed");
     const id = this.nextId++;
@@ -190,7 +191,7 @@ export class ChatMcpClient {
           catch {}
           finish(aborted());
         };
-        const timer = setTimeout(() => finish(new Error(MCP_TIMEOUT_MESSAGE)), timeout);
+        const timer = setTimeout(() => finish(new Error(timeoutMessage)), timeout);
         timer.unref();
         signal.addEventListener("abort", cancel, { once: true });
         this.pending.set(id, { resolve: (value) => finish(undefined, value), reject: (error) => finish(error) });
@@ -206,19 +207,19 @@ export class ChatMcpClient {
   async tools(signal: AbortSignal, include: (tool: unknown) => boolean = () => true, startupMs = STARTUP_MS, observer?: AppObserver): Promise<unknown[]> {
     const deadline = Date.now() + startupMs;
     const remaining = () => {
-      if (Date.now() >= deadline) throw new Error("MCP startup timed out");
+      if (Date.now() >= deadline) throw new Error(MCP_STARTUP_TIMEOUT_MESSAGE);
       return deadline - Date.now();
     };
     const handshake = { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "openmausbot-chat", version: "1" } };
     let initialized: unknown;
     if (observer?.mount.extension) {
-      try { initialized = await this.call("initialize", withUiExtension(handshake), signal, remaining(), true); }
+      try { initialized = await this.call("initialize", withUiExtension(handshake), signal, remaining(), true, MCP_STARTUP_TIMEOUT_MESSAGE); }
       catch (error) {
         if (!(error instanceof McpRequestRefused)) throw error;
-        initialized = await this.call("initialize", handshake, signal, remaining());
+        initialized = await this.call("initialize", handshake, signal, remaining(), false, MCP_STARTUP_TIMEOUT_MESSAGE);
       }
     } else {
-      initialized = await this.call("initialize", handshake, signal, remaining());
+      initialized = await this.call("initialize", handshake, signal, remaining(), false, MCP_STARTUP_TIMEOUT_MESSAGE);
     }
     if (!object(initialized)) throw new Error("MCP initialization returned an invalid result");
     observer?.initialized(initialized);
@@ -228,7 +229,7 @@ export class ChatMcpClient {
     const cursors = new Set<string>();
     let cursor: string | undefined;
     for (let page = 0; page < MAX_PAGES; page += 1) {
-      const result = await this.call("tools/list", cursor ? { cursor } : {}, signal, remaining());
+      const result = await this.call("tools/list", cursor ? { cursor } : {}, signal, remaining(), false, MCP_STARTUP_TIMEOUT_MESSAGE);
       if (!object(result) || !Array.isArray(result.tools)) throw new Error("MCP tools/list returned an invalid result");
       observer?.listed(result);
       tools.push(...result.tools.filter((tool) => modelVisible(tool) && include(tool)));
@@ -304,6 +305,7 @@ export async function mountChatTools(integrations: SendTurnInput["integrations"]
   if (servers.length > 32) throw new Error("MCP server count exceeds the 32-server limit");
   const clients: ChatMcpClient[] = [];
   const skippable = new Set(Object.keys(integrations?.custom ?? {}));
+  if (integrations?.browser) skippable.add("browser");
   const skipped: SkippedChatMcpServer[] = [];
   const trimmed: TrimmedChatMcpServer[] = [];
   const started = new Map<string, ChatMcpClient>();

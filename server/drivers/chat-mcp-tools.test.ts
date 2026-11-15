@@ -743,7 +743,36 @@ describe("Chat MCP startup budgets", () => {
       // stopped at 8 seconds: well short of the 30 a URL server gets
       await settleWithin(1_000, () => mounting.done);
       expect(mounting.error).toBeUndefined();
-      expect(mounting.value?.skipped).toEqual([{ server: "audit", reason: expect.stringMatching(/timed out/) }]);
+      expect(mounting.value?.skipped).toEqual([{ server: "audit", reason: expect.stringContaining("MCP server startup timed out") }]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("reports an initialize timeout as startup failure", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const f = fixture(`if (message.method === "initialize") return;`);
+      const mounting = watch(f.mount());
+      const initialized = () => { try { return f.read().calls.some((call) => call.method === "initialize"); } catch { return false; } };
+      await untilReal(initialized);
+      await vi.advanceTimersByTimeAsync(8_100);
+      await settleWithin(1_000, () => mounting.done);
+      expect(mounting.error).toBeUndefined();
+      expect(mounting.value?.skipped).toEqual([{ server: "audit", reason: expect.stringContaining("MCP server startup timed out") }]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("skips an unavailable built-in browser and keeps the turn's other tools", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const f = fixture(`if (message.method === "tools/list") return;`);
+      const mounting = watch(mountChatTools({ browser: f.server }, f.controller.signal, true));
+      const listed = () => { try { return f.read().calls.some((call) => call.method === "tools/list"); } catch { return false; } };
+      await untilReal(listed);
+      await vi.advanceTimersByTimeAsync(8_100);
+      await settleWithin(1_000, () => mounting.done);
+      expect(mounting.error).toBeUndefined();
+      expect(mounting.value?.definitions).toEqual([]);
+      expect(mounting.value?.skipped).toEqual([{ server: "browser", reason: expect.stringContaining("MCP server startup timed out") }]);
     } finally { vi.useRealTimers(); }
   });
 });
