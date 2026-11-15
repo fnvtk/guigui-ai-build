@@ -25,6 +25,8 @@ const WAV = Buffer.from("RIFF....WAVEfmt ");
 let modelsFail = false;
 let modelsDrop = false;
 let audioVoicesFail = false;
+let audioVoicesDrop = false;
+let speechEmpty = false;
 let stubBase = "";
 // The streamed-response case: the first chunk goes out at once, the rest only when the test releases them.
 let speakStreamed: { first: Buffer; rest: Buffer; release: Promise<void> } | null = null;
@@ -138,9 +140,13 @@ beforeAll(async () => {
       }
       if (path === "/v1/audio/speech") {
         res.writeHead(200, { "content-type": "audio/wav" });
-        return res.end(WAV);
+        return res.end(speechEmpty ? undefined : WAV);
       }
       if (path === "/v1/audio/voices") {
+        if (audioVoicesDrop) {
+          req.socket?.destroy();
+          return;
+        }
         if (audioVoicesFail) return send(404, { detail: "no audio voices route" });
         return send(200, {
           status: "ok",
@@ -606,6 +612,16 @@ describe("Chatterbox (local server)", () => {
     expect(call.url).not.toContain("key");
   });
 
+  it("rejects an empty successful response instead of publishing a blank clip", async () => {
+    speechEmpty = true;
+    try {
+      const { speak } = await voice();
+      await expect(speak(cfg(chatCfg({ baseUrl: stubBase, voice: "alex" })), "hi")).rejects.toThrow("audio came back empty");
+    } finally {
+      speechEmpty = false;
+    }
+  });
+
   it("accepts a base that already ends in /v1, and honors the model setting", async () => {
     refuse = null;
     seen.length = 0;
@@ -668,6 +684,18 @@ describe("Chatterbox (local server)", () => {
     ]);
     modelsFail = false;
     audioVoicesFail = false;
+  });
+
+  it("does not turn an unreachable voice endpoint into a fake Default voice", async () => {
+    modelsDrop = true;
+    audioVoicesDrop = true;
+    try {
+      const { listVoices } = await voice();
+      await expect(listVoices(cfg(chatCfg({ baseUrl: stubBase })))).rejects.toThrow(/couldn't reach|timed out/i);
+    } finally {
+      modelsDrop = false;
+      audioVoicesDrop = false;
+    }
   });
 
   it("lists no voices without a server address, rather than calling out", async () => {

@@ -89,6 +89,8 @@ describe("room header", () => {
     expect(identity[1].split(" ")).toEqual(expect.arrayContaining(["min-w-0", "@max-3xl/roomhead:basis-full"]));
     const controls = /data-roomhead-controls="[^"]*" class="([^"]*)"/.exec(markup)!;
     expect(controls[1].split(" ")).toEqual(expect.arrayContaining(["@max-3xl/roomhead:ml-auto", "@max-3xl/roomhead:flex-wrap"]));
+    expect(markup).toContain("<details");
+    expect(markup).toContain("更多设置");
     expect(markup).toContain("Launch planning");
   });
 });

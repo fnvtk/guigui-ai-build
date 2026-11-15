@@ -42,44 +42,45 @@ async function request(url: string, init: RequestInit, what: string, baseUrl: st
 }
 
 export async function listChatterboxVoices(baseUrl: string): Promise<Voice[]> {
+  let modelsError: unknown;
   try {
-    try {
-      const res = await request(
-        `${apiRoot(baseUrl)}/models`,
-        { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10_000) },
-        "listing voices",
-        baseUrl,
-      );
-      if (res.ok) {
-        const body = await safeJson(res);
-        const voices = (body?.data ?? [])
-          .map((m: any): Voice => ({ id: String(m?.id ?? ""), label: String(m?.id ?? "") }))
-          .filter((v: Voice) => v.id);
-        if (voices.length) return voices;
-      }
-    } catch {
-    }
-    // Some servers (Chatterbox-TTS-Server) list voices here instead.
-    const voicesRes = await request(
-      `${apiRoot(baseUrl)}/audio/voices`,
+    const res = await request(
+      `${apiRoot(baseUrl)}/models`,
       { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10_000) },
       "listing voices",
       baseUrl,
     );
-    if (voicesRes.ok) {
-      const body = await safeJson(voicesRes);
-      const voices = (body?.voices ?? [])
-        .map((entry: any): Voice => {
-          // Chatterbox-TTS-Server returns filename strings; its docs describe { filename, display_name } objects.
-          if (typeof entry === "string") return { id: entry, label: entry };
-          const id = String(entry?.filename ?? entry?.id ?? "");
-          return { id, label: String(entry?.display_name ?? entry?.name ?? id) };
-        })
+    if (res.ok) {
+      const body = await safeJson(res);
+      const voices = (body?.data ?? [])
+        .map((m: any): Voice => ({ id: String(m?.id ?? ""), label: String(m?.id ?? "") }))
         .filter((v: Voice) => v.id);
       if (voices.length) return voices;
     }
-  } catch {
+  } catch (error) {
+    modelsError = error;
   }
+
+  // Some servers (Chatterbox-TTS-Server) list voices here instead.
+  const voicesRes = await request(
+    `${apiRoot(baseUrl)}/audio/voices`,
+    { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10_000) },
+    "listing voices",
+    baseUrl,
+  );
+  if (voicesRes.ok) {
+    const body = await safeJson(voicesRes);
+    const voices = (body?.voices ?? [])
+      .map((entry: any): Voice => {
+        // Chatterbox-TTS-Server returns filename strings; its docs describe { filename, display_name } objects.
+        if (typeof entry === "string") return { id: entry, label: entry };
+        const id = String(entry?.filename ?? entry?.id ?? "");
+        return { id, label: String(entry?.display_name ?? entry?.name ?? id) };
+      })
+      .filter((v: Voice) => v.id);
+    if (voices.length) return voices;
+  }
+  if (modelsError) throw modelsError;
   return FALLBACK_VOICES;
 }
 
@@ -111,5 +112,7 @@ export async function synthesizeChatterbox(
         : header.startsWith("audio/")
           ? header
           : "audio/wav";
-  return { bytes: new Uint8Array(await res.arrayBuffer()), mime };
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (!bytes.byteLength) throw new Error("speaking failed: the audio came back empty");
+  return { bytes, mime };
 }

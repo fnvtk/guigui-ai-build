@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { ChevronRight, Pause, Plus, Search } from "lucide-react";
+import { ChevronRight, Pause, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { roomContextWarnings } from "@/lib/context-warning";
@@ -121,6 +121,7 @@ function memberMauses(group: Group, members: Bot[]) {
 }
 
 const SIMPLE_FACES = 3;
+const ADVANCED_FACES = 5;
 
 export function RoomHeader({
   group,
@@ -196,6 +197,17 @@ export function RoomHeader({
       </div>
     );
   }
+  const more = members.length - ADVANCED_FACES;
+  const visibleFaces = (
+    <>
+      {faces.slice(0, ADVANCED_FACES)}
+      {more > 0 && (
+        <span className="flex size-6 min-w-6 items-center justify-center rounded-full border border-dashed border-hairline/70 px-1 text-[11px] font-medium tabular-nums text-ink-secondary">
+          +{more}
+        </span>
+      )}
+    </>
+  );
   return (
       <div
         {...headerDragProps}
@@ -232,18 +244,29 @@ export function RoomHeader({
           >
             <Search size={18} />
           </button>
-          <ExportTranscriptMenu
-            title={group.name}
-            messages={group.messages}
-            isGroup
-          />
-          {!setupPending && <ConversationTurnLimit group={group} />}
-          <RoomHeaderCallButton group={group} members={members} />
-          <GroupUsageChip usage={group.usage} />
-          {!remoteClient && !setupPending && !group.dm && <RoomWorkingFolderChip group={group} onToggle={onToggleFolder} />}
-          {!remoteClient && !setupPending && !group.dm && <DefaultResponderSelect group={group} members={members} />}
+          <details className="relative shrink-0">
+            <summary
+              className="flex size-8 cursor-pointer list-none items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-ink/[0.06] hover:text-ink [&::-webkit-details-marker]:hidden"
+              aria-label="更多设置"
+              title="更多设置"
+            >
+              <SlidersHorizontal size={17} />
+            </summary>
+            <div className="absolute right-0 top-9 z-20 flex min-w-[220px] flex-col items-stretch gap-2 rounded-xl border border-hairline/60 bg-card p-2 shadow-lg">
+              <ExportTranscriptMenu
+                title={group.name}
+                messages={group.messages}
+                isGroup
+              />
+              {!setupPending && <ConversationTurnLimit group={group} />}
+              <RoomHeaderCallButton group={group} members={members} />
+              <GroupUsageChip usage={group.usage} />
+              {!remoteClient && !setupPending && !group.dm && <RoomWorkingFolderChip group={group} onToggle={onToggleFolder} />}
+              {!remoteClient && !setupPending && !group.dm && <DefaultResponderSelect group={group} members={members} />}
+            </div>
+          </details>
           {group.dm || remoteClient ? (
-            faces
+            <span className="flex items-center gap-0.5">{visibleFaces}</span>
           ) : (
             <button
               ref={membersTriggerRef}
@@ -253,7 +276,7 @@ export function RoomHeader({
               aria-label={membersLabel}
               className="flex items-center gap-1.5 rounded-full py-0.5 pl-1 pr-1.5 hover:bg-raised/60"
             >
-              {faces}
+              {visibleFaces}
               <span className="flex size-[18px] items-center justify-center rounded-full border border-dashed border-hairline/70 text-ink-secondary">
                 <Plus size={11} />
               </span>

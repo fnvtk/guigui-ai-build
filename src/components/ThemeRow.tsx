@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
-import { SKINS, THEME_SKINS, applySkinChoice, readSkinChoice, subscribeSkin, type SkinChoice } from "@/lib/skins";
+import type { LocaleKey } from "@/locales";
+import { THEME_SKINS, applySkinChoice, readSkinChoice, subscribeSkin, type SkinChoice } from "@/lib/skins";
 import { SettingRow } from "./SettingsPrimitives";
 
 const THEMES = [
@@ -16,7 +17,9 @@ export function useSkinChoice(): SkinChoice {
 
 export function ThemeRow({ simple = false }: { simple?: boolean }) {
   const choice = useSkinChoice();
-  const look = THEMES.some((theme) => theme.choice === choice) ? undefined : SKINS.find((skin) => skin.id === choice)?.name;
+  const look = THEMES.some((theme) => theme.choice === choice) ? undefined : choice
+    ? t(`settings.skin.name.${choice}` as LocaleKey)
+    : undefined;
   return (
     <SettingRow
       title={t("settings.theme.title")}

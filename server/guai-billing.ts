@@ -143,7 +143,11 @@ function parseKaruoCatalog(value: unknown): { plans: GuaiBillingPlan[]; paymentC
     const item = recordPayload(plan); return !!item && typeof item.id === "string" && typeof item.name === "string";
   })) return null;
   const live = channels?.alipay === true;
-  return { paymentChannelsLiveVerified: live, plans: plans.map((plan) => { const item = plan as Record<string, unknown>; return {
+  const paidPlans = plans.filter((plan) => {
+    const item = plan as Record<string, unknown>;
+    return typeof item.basePrice === "number" && item.basePrice > 0;
+  });
+  return { paymentChannelsLiveVerified: live, plans: paidPlans.map((plan) => { const item = plan as Record<string, unknown>; return {
     skuId: item.id as string, name: item.name as string, description: typeof item.description === "string" ? item.description : undefined,
     displayPrice: typeof item.basePrice === "number" ? `¥${item.basePrice}/月` : undefined,
     availability: live ? "available" : "reference_only", checkoutEnabled: live, referenceOnly: !live,

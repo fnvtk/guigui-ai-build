@@ -87,6 +87,8 @@ describe("default skin", () => {
   it("shows System as the theme and the matching look as the selected skin in Appearance on a fresh install", async () => {
     os.dark = true;
     await boot();
+    const { setLocale } = await import("@/lib/i18n");
+    setLocale("en");
     const [{ SkinPicker }, { ThemeRow }] = await Promise.all([import("@/components/SkinPicker"), import("@/components/ThemeRow")]);
     const picker = renderToStaticMarkup(createElement(SkinPicker));
     const pressed = [...picker.matchAll(/aria-pressed="true"[\s\S]*?<div class="text-\[13px\] font-medium text-ink">([^<]+)</g)].map(([, name]) => name);

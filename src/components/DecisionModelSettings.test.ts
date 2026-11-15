@@ -84,7 +84,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("DecisionModelSettings", () => {
   it("explains itself, then the switch, the key, and what it decides", () => {
     const view = render();
-    const order = ["Small, fast models that sort and read things for your bots", "Decisions: not set up · Extraction: not set up", "Cloudflare Workers AI (free tier)",
+    const order = ["Small, fast models that sort and read things for your bots", "Decisions: not set up · Extraction: not set up",
       "Use fast decisions and extraction", "Jev API key", "What it decides", "Who answers in rooms"]
       .map((text) => view.html.indexOf(text));
     expect(order.every((at) => at >= 0)).toBe(true);
@@ -214,7 +214,7 @@ describe("DecisionModelSettings", () => {
     for (const [result, text] of [
       [{ ok: false, reason: "http_error", status: 402 }, "Decisions are included with an active Cloud subscription."],
       [{ ok: false, reason: "rate_limited", status: 429 }, "Your Cloud plan&#x27;s decisions are busy or used up for this month. Try again later."],
-      [{ ok: false, reason: "rejected", status: 401 }, "MausBot Cloud did not accept this machine&#x27;s decisions. Try again later."],
+      [{ ok: false, reason: "rejected", status: 401 }, "乖乖Ai Cloud did not accept this machine&#x27;s decisions. Try again later."],
     ] as const) {
       fixture.api.mockResolvedValueOnce(result);
       click(render().test);
@@ -443,7 +443,7 @@ describe("DecisionModelSettings", () => {
       expect(text({ reason: "http_error", status: 500 })).toBe("OpenRouter sent back an error (500). Try again in a moment.");
       expect(text({ reason: "rate_limited" })).toBe("OpenRouter is limiting requests right now. Try again in a moment.");
       expect(text({ reason: "overloaded" })).toBe("The model is overloaded right now. Try again shortly.");
-      expect(text({ reason: "malformed" })).toBe("The model sent an answer MausBot could not read. Try another model.");
+      expect(text({ reason: "malformed" })).toBe("The model sent an answer 乖乖Ai could not read. Try another model.");
       expect(text({ reason: "unreachable" })).toBe("Could not reach OpenRouter. Check your connection.");
       expect(text({ reason: "timeout" })).toBe("OpenRouter did not answer in time. Try again.");
       expect(text({ reason: "no_key" })).toBe("Paste a key or save one first.");

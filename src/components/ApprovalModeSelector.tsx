@@ -5,7 +5,6 @@ import { approvalModeFor, type ApprovalMode } from "../../shared/approval-mode";
 import { cn } from "@/lib/cn";
 import { useMenuMotion } from "./MenuMotion";
 import { MENU_ITEM_SEPARATOR, MENU_SHEET } from "./menu-recipe";
-import { APPROVAL_LEVELS_URL, openExternalLink } from "@/lib/app-links";
 import { t } from "@/lib/i18n";
 import {
   approvalModeOptions,
@@ -142,13 +141,6 @@ export function ApprovalModeSelector({
               {t("approvalMode.question", { provider: providerName })}
             </div>
             {busy && <p role="status" className="mt-1 text-[12px] leading-snug text-ink-secondary">{t("approvalMode.whileWorking")}</p>}
-            <button
-              type="button"
-              onClick={() => void openExternalLink(APPROVAL_LEVELS_URL)}
-              className="mt-1 text-[12px] text-ink-secondary underline underline-offset-2 hover:text-ink"
-            >
-              {t("approvalMode.learnMore")}
-            </button>
           </div>
           <div role="separator" className={MENU_ITEM_SEPARATOR} />
           <div className="flex flex-col gap-1">

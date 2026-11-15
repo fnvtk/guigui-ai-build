@@ -7,7 +7,6 @@ import { t } from "@/lib/i18n";
 import type { LocaleKey } from "@/locales";
 import { Card, SettingRow, Switch } from "./SettingsPrimitives";
 import { Select } from "./Select";
-import { WorkersAiKeyCard } from "./WorkersAiKeyCard";
 import { openKeySettings } from "./keys/key-focus";
 
 const KEY_URL = { jev: "https://typesafe.ai", openrouter: "https://openrouter.ai/keys" } as const;
@@ -206,7 +205,6 @@ export function DecisionModelSettings() {
         <p className="text-[13px] leading-relaxed text-ink-secondary">{t("decider.intro")}</p>
         <p role="status" data-testid="helpers-status" className="text-[13px] font-medium text-ink">{helpersStatusLine(state.config)}</p>
       </section>
-      <WorkersAiKeyCard failureText={(result) => deciderFailureText(result, false, "workersai")} />
       <SettingRow title={t("decider.provider.label")}>
         <Select className="w-48"
           data-testid="decider-provider"

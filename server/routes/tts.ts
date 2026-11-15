@@ -56,6 +56,7 @@ export function createTtsRoutes(deps: TtsRouteDeps): RouteHandler {
       if (text.length > 500) return json(res, 413, { error: "voice utterances are limited to 500 characters" });
       try {
         const audio = await tts.speak(cfg, text, typeof body.voiceId === "string" ? body.voiceId : undefined);
+        if (!audio.bytes.byteLength) throw new Error("voice service returned empty audio");
         res.writeHead(200, {
           "content-type": audio.mime,
           "content-length": String(audio.bytes.byteLength),
