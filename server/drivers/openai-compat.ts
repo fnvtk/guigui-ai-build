@@ -301,6 +301,9 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
       missingKeyError: missingKey,
       unavailableReason: missingKey,
       timeoutMs: config.replyWaitMinutes ? config.replyWaitMinutes * 60_000 : idleTimeoutMs(),
+      // SimpleAPI and other compatible gateways can briefly return 5xx while routing a model.
+      // Retry only transient failures; authentication, quota and invalid-request errors remain terminal.
+      retryScale: 1,
       ...(onThisNetwork(config.url) ? { livenessEveryMs: livenessEveryMs() } : {}),
       reasoning: true,
       billing: "metered",

@@ -18,4 +18,7 @@ describe("localizeUserFacingError", () => {
     expect(localizeUserFacingError("No API key — open Settings → API keys.")).toBe("未设置 API 密钥，请打开“设置 → API 密钥”完成配置。");
     expect(localizeUserFacingError("No SimpleAPI API key — open Settings → API keys.")).toContain("配置SimpleAPI");
   });
+  it("translates upstream 503 failures without hiding the cause", () => {
+    expect(localizeUserFacingError("upstream HTTP 503: Service temporarily unavailable")).toContain("上游 AI 服务暂时不可用（503）");
+  });
 });
