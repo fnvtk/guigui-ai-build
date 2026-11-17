@@ -57,6 +57,19 @@ jobs:
           echo "version: $(node -p "require('./package.json').version")"
           echo "commit:  $(git rev-parse HEAD)"
           ls -lh release/*.exe release/*.yml 2>/dev/null || true
+      - name: align update manifest with installer asset
+        shell: bash
+        run: |
+          exe=$(find release -maxdepth 1 -type f -name '*.exe' ! -name '*.blockmap' -printf '%f\n' | head -n 1)
+          [ -n "$exe" ] || { echo "::error::missing Windows installer"; exit 1; }
+          node --input-type=module - "$exe" <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const exe = process.argv[2];
+          const path = 'release/latest.yml';
+          const text = readFileSync(path, 'utf8').replaceAll(/openmausbot-setup-[^\n]+\.exe/g, exe);
+          writeFileSync(path, text);
+          NODE
+          grep -Fq "url: $exe" release/latest.yml || { echo "::error::latest.yml does not reference $exe"; exit 1; }
       # Three things silently produce an installer that builds fine and is
       # broken in the field, and none of them can be checked from the Mac the
       # release is cut on — the artifact carries only the .exe. So assert them
