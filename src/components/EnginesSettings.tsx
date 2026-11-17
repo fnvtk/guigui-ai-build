@@ -18,6 +18,7 @@ import { Select } from "./Select";
 import { SettingsGroup, SettingsRows } from "./SettingsPrimitives";
 import { InstanceProviderMark } from "./ProviderIcons";
 import { isSimpleApi } from "../../shared/ai-ranking";
+import { keyEntry, savedState } from "./keys/key-catalog";
 
 interface ProbeResult {
   ok: boolean;
@@ -334,7 +335,10 @@ function RemoveAntigravityAccount({ instance }: { instance: InstanceInfo }) {
   </>;
 }
 
-function EngineRow({ instance, bare = false }: { instance: InstanceInfo; bare?: boolean }) {
+function EngineRow({ instance, bare = false, readyOverride }: { instance: InstanceInfo; bare?: boolean; readyOverride?: boolean }) {
+  const { state } = useStore();
+  const savedSimpleApiKey = isSimpleApi(instance) && savedState(keyEntry("openaiCompat"), state.config).configured;
+  const ready = readyOverride ?? engineReady(instance) || savedSimpleApiKey;
   const policyNote = instance.policy && <p className="mb-2 text-[12px] leading-relaxed text-ink-secondary">
     <span className="font-medium text-ink">{t("policy.managedBy", { organization: instance.policy.organizationName })}</span> · {instance.policy.reason}
   </p>;
@@ -351,10 +355,10 @@ function EngineRow({ instance, bare = false }: { instance: InstanceInfo; bare?: 
   return (
     <EngineCard instance={instance} bare={bare}>
       {policyNote}
-      {!engineReady(instance) && <EngineSetup instance={instance} intent={instance.access === "custom" ? "inject" : "cloud"} unframed />}
-      {engineReady(instance) && <ApiKeyEngineManage instance={instance} className="mt-3" />}
+      {!ready && <EngineSetup instance={instance} intent={instance.access === "custom" ? "inject" : "cloud"} unframed />}
+      {ready && <ApiKeyEngineManage instance={instance} className="mt-3" />}
       {/* The setup panel that first said so is gone once the engine is Ready. */}
-      {engineReady(instance) && <AppCopyNotice instance={instance} className="mt-3" />}
+      {ready && <AppCopyNotice instance={instance} className="mt-3" />}
       {instance.snapshot.update && <EngineUpdateNotice update={instance.snapshot.update} instance={instance} className="mt-3" quiet />}
       {instance.snapshot.warning && <EngineWarningNotice warning={instance.snapshot.warning} className="mt-3" />}
       {engineReady(instance) && instance.snapshot.authenticated === true && (
@@ -393,13 +397,15 @@ function SimpleEngines({ rows, isReady, renderEngine }: {
   isReady: (instance: InstanceInfo) => boolean;
   renderEngine: (instance: InstanceInfo, bare?: boolean) => ReactNode;
 }) {
+  const { state } = useStore();
   const [opened, setOpened] = useState<string | null>(null);
   const featured = rows.filter((instance) => isSimpleApi(instance) && !instance.readOnly);
   return (
     <SettingsGroup label={t("settings.simple.ai.yours")} actions={<RefreshEngines />}>
       <SettingsRows>
         {featured.map((instance) => {
-          const ready = isReady(instance), open = opened === instance.instanceId;
+          const keyConfigured = isSimpleApi(instance) && savedState(keyEntry("openaiCompat"), state.config).configured;
+          const ready = isReady(instance) || keyConfigured, open = opened === instance.instanceId;
           return (
             <div key={instance.instanceId} data-simple-engine={instance.instanceId} className="group">
               <div className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
