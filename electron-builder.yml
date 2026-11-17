@@ -15,7 +15,11 @@ protocols:
 # artifacts — a release missing latest.yml leaves every Windows install
 # stranded on its installed version.
 # Releases are delivered by the product owner; never install upstream binaries over this distribution.
-publish: []
+publish:
+  provider: github
+  owner: fnvtk
+  repo: guigui-ai-build
+  releaseType: release
 
 directories:
   buildResources: build

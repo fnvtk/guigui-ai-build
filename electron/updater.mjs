@@ -159,6 +159,12 @@ export function startUpdater(signals = null) {
     return;
   }
   // The coordinator starts each download itself, so it owns macOS staging and quiet failures.
+  autoUpdater.setFeedURL({
+    provider: "github",
+    owner: "fnvtk",
+    repo: "guigui-ai-build",
+    releaseType: "release",
+  });
   autoUpdater.autoDownload = false;
   autoUpdater.logger = updaterLogger();
 
