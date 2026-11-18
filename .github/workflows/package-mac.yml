@@ -27,6 +27,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm package:mac:local
+      - name: Align update manifest with packaged ZIPs
+        run: node scripts/align-mac-update-manifest.mjs
       - name: Upload macOS installers to the single draft release
         shell: bash
         env:

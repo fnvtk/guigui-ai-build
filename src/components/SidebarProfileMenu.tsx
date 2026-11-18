@@ -172,9 +172,8 @@ export function placeMenuItems(place: Pick<WorkspacePlace, "bridge" | "current" 
   const current = place.current;
   const icon = cloudColor(current?.color) ? <CloudTile color={current?.color} size={16} />
     : current?.local === false || (place.cloudHome && !current) ? <Cloud size={16} /> : <Laptop size={16} />;
-  return [
-    ...(current ? [{ key: "place", label: current.name, ...(place.cloudHome && place.onLine ? { subtitle: place.onLine } : {}), icon, trailing: here, onSelect: place.openMenu }] : []),
-  ];
+  if (!current) return [];
+  return [{ key: "place", label: current.name, ...(place.cloudHome && place.onLine ? { subtitle: place.onLine } : {}), icon, trailing: here, onSelect: place.openMenu }];
 }
 
 export function profileMenuItems({
