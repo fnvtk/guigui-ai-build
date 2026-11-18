@@ -422,13 +422,30 @@ function restartCua() {
  * Linux (its Enable button's). */
 export async function requestComputerUse() {
   if (process.platform === "darwin") {
-    const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 8, height: 8 } });
-    fs.writeFileSync(path.join(app.getPath("userData"), "mac-screen-capture-status.json"), JSON.stringify({
-      checkedAt: new Date().toISOString(),
-      sourceCount: sources.length,
-      nonEmptyThumbnails: sources.filter(source => !source.thumbnail.isEmpty()).length,
-      screenRecording: systemPreferences.getMediaAccessStatus("screen"),
-    }), { mode: 0o600 });
+    try {
+      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 8, height: 8 } });
+      fs.writeFileSync(path.join(app.getPath("userData"), "mac-screen-capture-status.json"), JSON.stringify({
+        checkedAt: new Date().toISOString(),
+        sourceCount: sources.length,
+        nonEmptyThumbnails: sources.filter(source => !source.thumbnail.isEmpty()).length,
+        screenRecording: systemPreferences.getMediaAccessStatus("screen"),
+      }), { mode: 0o600 });
+    } catch (error) {
+      console.error("[cua] macOS screen capture probe failed:", error);
+      const missing = [
+        systemPreferences.getMediaAccessStatus("screen") !== "granted" && "Screen Recording",
+        !systemPreferences.isTrustedAccessibilityClient(false) && "Accessibility",
+      ].filter(Boolean);
+      if (missing.length) {
+        return {
+          enabled: false,
+          status: "error",
+          reasonCode: "permissions-required",
+          message: `${missing.join(" and ")} required; grant access in System Settings and restart OpenMausBot`,
+        };
+      }
+      throw error;
+    }
     return restartCua();
   }
   if (process.platform === "win32") return restartCua();

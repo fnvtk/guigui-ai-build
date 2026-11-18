@@ -5,8 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const fixture = vi.hoisted(() => ({ home: "", script: "", socketReady: false, children: [], calls: [], embeddedDelays: [], hosts: [], handlers: new Map() }));
-vi.mock("electron", () => ({ app: { isPackaged: false, getPath: () => fixture.home }, ipcMain: { handle: (name, handler) => fixture.handlers.set(name, handler) }, desktopCapturer: { getSources: async () => [] }, systemPreferences: { isTrustedAccessibilityClient: () => true, getMediaAccessStatus: () => "granted" } }));
+const fixture = vi.hoisted(() => ({ home: "", script: "", socketReady: false, children: [], calls: [], embeddedDelays: [], hosts: [], handlers: new Map(), screenSourceError: null, accessibility: true, screenRecording: "granted", standaloneAvailable: true }));
+vi.mock("electron", () => ({ app: { isPackaged: false, getPath: () => fixture.home }, ipcMain: { handle: (name, handler) => fixture.handlers.set(name, handler) }, desktopCapturer: { getSources: async () => { if (fixture.screenSourceError) throw fixture.screenSourceError; return []; } }, systemPreferences: { isTrustedAccessibilityClient: () => fixture.accessibility, getMediaAccessStatus: () => fixture.screenRecording } }));
 vi.mock("@trycua/cua-driver/embedded", () => ({
   EmbeddedCuaDriverHost: class {
     constructor() { this.delay = fixture.embeddedDelays.shift(); fixture.hosts.push(this); }
@@ -29,7 +29,7 @@ vi.mock("@trycua/cua-driver/electron", () => ({
 vi.mock("node:fs", async (original) => {
   const fs = await original();
   return { ...fs, default: { ...fs.default, existsSync: (file) => {
-    if (file === "/Applications/CuaDriver.app/Contents/MacOS/cua-driver") return true;
+    if (file === "/Applications/CuaDriver.app/Contents/MacOS/cua-driver") return fixture.standaloneAvailable;
     if (String(file).endsWith("cua-driver.sock")) return fixture.socketReady;
     return fs.existsSync(file);
   } } };
@@ -78,6 +78,10 @@ beforeEach(async () => {
   fixture.calls = [];
   fixture.embeddedDelays = [];
   fixture.hosts = [];
+  fixture.screenSourceError = null;
+  fixture.accessibility = true;
+  fixture.screenRecording = "granted";
+  fixture.standaloneAvailable = true;
   fixture.handlers.clear();
   vi.stubEnv("OPENMAUSBOT_CUA_EMBEDDED", "1");
   vi.stubEnv("CUA_DRIVER_PATH", "/fixture/cua-driver");
@@ -100,6 +104,19 @@ afterEach(async () => {
 });
 
 describe.skipIf(process.platform !== "darwin")("async standalone CUA launch (isolated commands)", () => {
+  it("reports denied screen capture through the macOS permission flow", async () => {
+    fixture.screenSourceError = new Error("Failed to get sources");
+    fixture.accessibility = false;
+    fixture.screenRecording = "denied";
+    fixture.standaloneAvailable = false;
+    const request = await cua.requestComputerUse();
+    expect(request).toMatchObject({
+      enabled: false,
+      status: "error",
+      message: "Screen Recording and Accessibility required; grant access in System Settings and restart OpenMausBot",
+    });
+  });
+
   it("keeps the event loop responsive and publishes the existing descriptor shape", async () => {
     let ticks = 0;
     const timer = setInterval(() => ticks++, 10);
