@@ -730,17 +730,17 @@ describe("Chat MCP startup budgets", () => {
     }
   });
 
-  it("still gives a command server 8 seconds", async () => {
+  it("gives a command server 30 seconds", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       const f = fixture(`if (message.method === "tools/list") return;`);
       const mounting = watch(f.mount());
       const listed = () => { try { return f.read().calls.some((call) => call.method === "tools/list"); } catch { return false; } };
       await untilReal(listed);
-      await vi.advanceTimersByTimeAsync(7_900);
+      await vi.advanceTimersByTimeAsync(29_900);
       expect(mounting.done).toBe(false);
       await vi.advanceTimersByTimeAsync(200);
-      // stopped at 8 seconds: well short of the 30 a URL server gets
+      // Startup expires at the shared local and remote MCP budget.
       await settleWithin(1_000, () => mounting.done);
       expect(mounting.error).toBeUndefined();
       expect(mounting.value?.skipped).toEqual([{ server: "audit", reason: expect.stringContaining("MCP server startup timed out") }]);
@@ -754,7 +754,7 @@ describe("Chat MCP startup budgets", () => {
       const mounting = watch(f.mount());
       const initialized = () => { try { return f.read().calls.some((call) => call.method === "initialize"); } catch { return false; } };
       await untilReal(initialized);
-      await vi.advanceTimersByTimeAsync(8_100);
+      await vi.advanceTimersByTimeAsync(30_100);
       await settleWithin(1_000, () => mounting.done);
       expect(mounting.error).toBeUndefined();
       expect(mounting.value?.skipped).toEqual([{ server: "audit", reason: expect.stringContaining("MCP server startup timed out") }]);
@@ -768,7 +768,7 @@ describe("Chat MCP startup budgets", () => {
       const mounting = watch(mountChatTools({ browser: f.server }, f.controller.signal, true));
       const listed = () => { try { return f.read().calls.some((call) => call.method === "tools/list"); } catch { return false; } };
       await untilReal(listed);
-      await vi.advanceTimersByTimeAsync(8_100);
+      await vi.advanceTimersByTimeAsync(30_100);
       await settleWithin(1_000, () => mounting.done);
       expect(mounting.error).toBeUndefined();
       expect(mounting.value?.definitions).toEqual([]);
