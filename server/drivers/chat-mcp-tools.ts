@@ -51,7 +51,7 @@ type RegisteredTool = { client: ChatMcpClient; server: string; launch: string; b
 function chatToolName(server: string, tool: string): string {
   return `${server}_${tool}`.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64) || "mcp_tool";
 }
-const STARTUP_MS = 8_000;
+const STARTUP_MS = 30_000;
 const DEFAULT_CALL_MS = 60 * 60_000;
 const MCP_TIMEOUT_MESSAGE = "MCP request timed out; execution outcome may be uncertain. The request may have been dispatched and was not retried automatically. Check the current operation status or receipt before retrying; repeat it only after confirming that no effect occurred.";
 const MCP_STARTUP_TIMEOUT_MESSAGE = "MCP server startup timed out; no tool operation was dispatched. Check the MCP server status and retry.";

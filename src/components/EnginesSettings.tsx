@@ -338,7 +338,7 @@ function RemoveAntigravityAccount({ instance }: { instance: InstanceInfo }) {
 function EngineRow({ instance, bare = false, readyOverride }: { instance: InstanceInfo; bare?: boolean; readyOverride?: boolean }) {
   const { state } = useStore();
   const savedSimpleApiKey = isSimpleApi(instance) && savedState(keyEntry("openaiCompat"), state.config).configured;
-  const ready = readyOverride ?? engineReady(instance) || savedSimpleApiKey;
+  const ready = readyOverride ?? (engineReady(instance) || savedSimpleApiKey);
   const policyNote = instance.policy && <p className="mb-2 text-[12px] leading-relaxed text-ink-secondary">
     <span className="font-medium text-ink">{t("policy.managedBy", { organization: instance.policy.organizationName })}</span> · {instance.policy.reason}
   </p>;
