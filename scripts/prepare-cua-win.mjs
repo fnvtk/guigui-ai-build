@@ -35,10 +35,12 @@ if (expectedVersion !== release.version) {
 async function binaryVersion(candidate) {
   if (!candidate || !existsSync(candidate)) return null;
   try {
-    const { stdout } = await run(candidate, ["--version"], { timeout: 5000, windowsHide: true });
-    return stdout.match(/cua-driver\s+([\d.]+)/)?.[1] ?? null;
-  } catch {
-    return null;
+    const result = await run(candidate, ["--version"], { timeout: 5000, windowsHide: true });
+    return [result.stdout, result.stderr].join("\n").match(/cua-driver(?:-rs)?\s+v?([\d.]+)/i)?.[1] ?? null;
+  } catch (error) {
+    const result = error && typeof error === "object" ? error : {};
+    return [result.stdout, result.stderr].filter((value) => typeof value === "string").join("\n")
+      .match(/cua-driver(?:-rs)?\s+v?([\d.]+)/i)?.[1] ?? null;
   }
 }
 
