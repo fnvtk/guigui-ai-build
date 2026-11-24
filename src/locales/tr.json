@@ -1035,6 +1035,8 @@
   "update.button.downloadingStart": "Bir güncelleme indiriliyor",
   "update.button.downloading": "Bir güncelleme indiriliyor, %{percent}",
   "update.card.title": "Güncelleme mevcut",
+  "update.card.availableNote": "Daha yeni bir sürüm var. Güncellemeyi hazırlamak için indirin.",
+  "update.card.download": "Güncellemeyi indir",
   "update.card.current": "mevcut sürümünüz: {version}",
   "update.card.whatsNew": "Yenilikler",
   "update.card.allNotes": "Tüm sürüm notları",
@@ -5158,5 +5160,6 @@
   "botAccess.overview.cell": "{name}, {bot} ile neler yapabilir",
   "botAccess.overview.toastEveryone": "{bot}: {team} ekibindeki herkes · {level}",
   "botAccess.overview.toastPerson": "{bot}: {name} · {level}",
-  "settings.simple.language.partial": "Varsayılan dil Basitleştirilmiş Çincedir; başka bir dil seçebilirsiniz."
+  "settings.simple.language.partial": "Varsayılan dil Basitleştirilmiş Çincedir; başka bir dil seçebilirsiniz.",
+  "update.button.available": "Yeni sürüm var: {app} {version}"
 }

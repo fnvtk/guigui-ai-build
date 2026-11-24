@@ -6,11 +6,11 @@ import { stringify } from "yaml";
 const version = process.env.npm_package_version ?? JSON.parse(readFileSync("package.json", "utf8")).version;
 const releaseDir = resolve(process.argv[2] ?? "release");
 const files = ["x64", "arm64"].map((arch) => {
-  const name = `乖乖Ai-${version}-${arch}.zip`;
+  const name = `Ai-${version}-${arch}.zip`;
   const path = resolve(releaseDir, name);
   const contents = readFileSync(path);
   return {
-    url: basename(path).replace(/^乖乖/, ""),
+    url: basename(path),
     sha512: createHash("sha512").update(contents).digest("base64"),
     size: statSync(path).size,
   };

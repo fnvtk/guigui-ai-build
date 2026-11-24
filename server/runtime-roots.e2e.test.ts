@@ -810,7 +810,7 @@ it("T12 a turn the watchdog stops after it posted connector cards fails as stall
   }
 }, hostTimeout(90_000));
 
-it("T12 a turn the watchdog stops after it posted a sign-in card fails as stalled and stops the card", () => scenario(async (f) => {
+it("T12 a turn the watchdog stops after it posted a sign-in card parks on the card instead of failing", () => scenario(async (f) => {
   await browserPlace(f);
   f.script(f.clive.id, { key: "C0", match: ["T12S-JOB"], steps: [{ tool: "request_sign_in", arguments: { site: "https://example.com/dashboard", reason: "The dashboard is behind a login." } }],
     gateFile: f.gate("c0"), reply: "T12S-LATE: never shown." });
@@ -818,9 +818,15 @@ it("T12 a turn the watchdog stops after it posted a sign-in card fails as stalle
   await f.say(f.clive.id, job, "T12S-JOB: check my example.com dashboard.");
   await expect.poll(async () => (await f.messages(job)).find((message: { kind: string }) => message.kind === "signin")?.id, { timeout: 30_000 }).toBeTruthy();
   const card = (await f.messages(job)).find((message: { kind: string }) => message.kind === "signin");
-  await stallOverCards(f, job, [card.id]);
+  const marker = join(f.dataDir, "stall-turns");
+  writeFileSync(marker, "now");
+  try { await expect.poll(() => f.roots()[0]?.status, { timeout: 20_000 }).not.toBe("running"); } finally { rmSync(marker, { force: true }); }
+  expect(f.roots()[0]).toMatchObject({ status: "waiting", cards: [card.id] });
+  expect((await f.messages(job)).find((message: { id: string }) => message.id === card.id)?.signIn?.stopped).not.toBe(true);
+  f.script(f.clive.id, { key: "C-RESUME", match: ["OpenMausBot sign-in update", "finished signing in"], reply: "T12S-RESUMED: the dashboard is open." });
   const done = await f.api("POST", `/api/bots/${f.clive.id}/sign-in-cards/${card.id}/done`, { threadId: job });
   expect(done.status, JSON.stringify(done.body)).toBe(200);
-  expect(done.body).toEqual({ done: true, resumed: false });
-  await answerStartsNothing(f, job);
+  expect(done.body).toEqual({ done: true, resumed: true });
+  await expect.poll(() => f.said(job, "T12S-RESUMED"), { timeout: 30_000 }).toBe(1);
+  await expect.poll(() => f.roots()[0]?.status, { timeout: 15_000 }).toBe("completed");
 }, { fake: STALL_CLOCK }), hostTimeout(60_000));

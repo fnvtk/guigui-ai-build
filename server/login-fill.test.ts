@@ -350,6 +350,17 @@ describe("one-time codes and fields", () => {
     expect(await fill("Bob")).toMatchObject({ ok: true });
     expect(page.field("#password").value).toBe("fake-bob-pw");
     expect((await fill("carol")).text).toContain('has the username "carol"');
+    expect((await fill("carol")).text).toContain("Do not invent a username");
+  });
+
+  it("fills the only saved login when the asked username is not one of them, and tells the bot not to invent one", async () => {
+    const { page, fill } = setup("https://example.com/login", LOGIN_FORM, [{ host: "example.com", username: "alice", password: "fake-alice-pw" }], { submit: false });
+    const outcome = await fill("admin");
+    expect(outcome).toMatchObject({ ok: true, filled: ["username", "password"] });
+    expect(page.field("#password").value).toBe("fake-alice-pw");
+    expect(outcome.text).toContain('There is no saved login named "admin" for example.com');
+    expect(outcome.text).toContain("used the only saved login instead");
+    expect(outcome.text).toContain("Do not invent a username");
   });
 
   it("says when the page has no login fields", async () => {

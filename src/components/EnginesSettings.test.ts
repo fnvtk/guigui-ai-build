@@ -260,7 +260,7 @@ describe("Settings → Engines → setup cards", () => {
 
     vi.stubGlobal("window", { ogb: { remoteClient: { active: true } } });
     const remote = renderToStaticMarkup(createElement(EnginesSettings));
-    expect(remote).toContain("open Settings → API keys on the computer running 乖乖Ai");
+    expect(remote).toContain("open Settings → API keys on the computer running 乖乖AI");
     expect(remote).not.toContain("data-key-row");
 
     vi.stubGlobal("window", {});

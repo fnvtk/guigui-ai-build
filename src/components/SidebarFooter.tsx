@@ -12,6 +12,7 @@ import { SidebarConnectApps } from "./SidebarConnectApps";
 import { SidebarBottomButtons, SidebarFooterNav } from "./SidebarFooterNav";
 import { phoneSettingsAction, SidebarPhoneButton } from "./SidebarPhoneButton";
 import { SidebarProfileMenu, useSimpleAccount, type ArchivedBots } from "./SidebarProfileMenu";
+import { UpdateIndicator } from "./UpdateIndicator";
 
 export function useSimplePlace(): WorkspacePlace {
   const { state, dispatch } = useStore();
@@ -41,6 +42,7 @@ function SimpleSidebarFooter({ owner, archived }: { owner: string | null; archiv
       <div className="flex items-center gap-2 not-first:mt-2">
         <SidebarProfileMenu simple={account} />
         <SidebarConnectApps />
+        <UpdateIndicator />
       </div>
     </div>
   );
@@ -61,6 +63,7 @@ export function SidebarFooter({ density, simple = false, owner = null, archived,
       <SidebarFooterNav density={density} collapsed={toolsCollapsed} onToggleCollapsed={onToggleTools} />
       {density === "icons" ? (
         <>
+          <UpdateIndicator />
           <SidebarPhoneButton density={density} onOpen={() => dispatch(phoneSettingsAction())} />
           <div className="flex flex-col items-center justify-center gap-1">
             <SidebarProfileMenu iconOnly />
@@ -75,6 +78,7 @@ export function SidebarFooter({ density, simple = false, owner = null, archived,
               <SidebarProfileMenu />
             </div>
             <SidebarBottomButtons />
+            <UpdateIndicator />
           </div>
         </>
       )}

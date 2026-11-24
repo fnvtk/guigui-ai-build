@@ -40,7 +40,7 @@ it("retains existing Cloud plan status and settings access without purchase prom
   const html = await markup(ProSettingsCard, active);
   expect(html).toContain('data-cloud-plan="paid"');
   expect(html).not.toMatch(/data-cloud-offer|Add a Cloud|free trial|upgrade|plans from/i);
-  expect(html).toContain("MausBot Cloud settings");
+  expect(html).toContain("乖乖AI Cloud settings");
   expect(bridge.offer).not.toHaveBeenCalled();
 });
 

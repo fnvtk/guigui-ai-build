@@ -6,6 +6,7 @@ import { loginLabel, loginOriginCheck, loginPageCheck, type LoginPlace, type Log
 import { scrubHeldSecrets } from "../shared/redact.ts";
 import type { SecretHold } from "./browser-secret-hold.ts";
 import { totpCode, type TotpKey } from "./totp.ts";
+import { withLoginStayGuidance } from "./host/credential-stay.ts";
 
 /** Its secrets are read only when it is about to be filled. */
 export interface FillCandidate extends LoginPlace {
@@ -290,14 +291,20 @@ export async function fillLogin(input: FillLoginInput, deps: FillLoginDeps): Pro
   if (!all.length) {
     const trouble = input.trouble?.();
     const missing = trouble ? ` 1Password could not be read just now, so its logins may be missing: ${trouble}` : "";
-    return { ok: false, host: pageHost, text: `No saved login for ${pageHost}. A login fills on its own site and the sign-in hosts saved with it, never on another site. ${listed(await input.available())}${missing} Open that site's login page, or call request_sign_in so the person signs in.` };
+    return { ok: false, host: pageHost, text: withLoginStayGuidance(`No saved login for ${pageHost}. A login fills on its own site and the sign-in hosts saved with it, never on another site. ${listed(await input.available())}${missing} Open that site's login page, or call request_sign_in so the person signs in.`) };
   }
   let chosen = all;
   const wanted = input.username?.trim();
+  let usedOnlySaved = false;
   if (wanted) {
     chosen = all.filter((login) => login.username.toLowerCase() === wanted.toLowerCase());
     if (!chosen.length) {
-      return { ok: false, host: pageHost, text: `No saved login for ${pageHost} has the username ${JSON.stringify(wanted)}. The usernames saved there: ${all.map((login) => login.username).join(", ")}.` };
+      if (all.length === 1) {
+        chosen = all;
+        usedOnlySaved = true;
+      } else {
+        return { ok: false, host: pageHost, text: `No saved login for ${pageHost} has the username ${JSON.stringify(wanted)}. The usernames saved there: ${all.map((login) => login.username).join(", ")}. Call fill_login again with one of those usernames, or omit username. Do not invent a username.` };
+      }
     }
   }
   if (chosen.length > 1) {
@@ -307,7 +314,10 @@ export async function fillLogin(input: FillLoginInput, deps: FillLoginDeps): Pro
   if (!loginOriginCheck(pageUrl, login).ok) {
     return { ok: false, host: pageHost, text: `This page's host (${pageHost}) is not one the saved login for ${loginLabel(login)} fills on.` };
   }
-  return new LoginRun(login, { submit: input.submit !== false, host: pageHost, deps, now, sleep }).run();
+  const outcome = await new LoginRun(login, { submit: input.submit !== false, host: pageHost, deps, now, sleep }).run();
+  if (!usedOnlySaved) return outcome;
+  const notice = `There is no saved login named ${JSON.stringify(wanted)} for ${pageHost}; used the only saved login instead. Do not invent a username. `;
+  return { ...outcome, text: notice + outcome.text };
 }
 
 interface Found {

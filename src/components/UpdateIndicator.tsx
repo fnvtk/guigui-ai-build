@@ -11,7 +11,7 @@ import { t } from "@/lib/i18n";
 import { useDesktopCapabilities, windowFramed } from "./DesktopCapabilities";
 
 export function updateIndicatorShown(state: UpdaterState | null): boolean {
-  return Boolean(state && ["downloading", "preparing", "downloaded", "installing"].includes(state.status));
+  return Boolean(state && ["available", "downloading", "preparing", "downloaded", "installing"].includes(state.status));
 }
 
 export function updateIndicatorLabel(state: UpdaterState): string {
@@ -20,6 +20,7 @@ export function updateIndicatorLabel(state: UpdaterState): string {
   if (state.status === "downloaded" || state.status === "installing") {
     return t("update.button.ready", { app, version }).replace("  ", " ").trim();
   }
+  if (state.status === "available") return t("update.button.available", { app, version }).replace("  ", " ").trim();
   if (state.status === "preparing") return t("update.button.preparing");
   return state.percent == null
     ? t("update.button.downloadingStart")
@@ -148,7 +149,7 @@ export function UpdateCard({
     if (status === "downloaded") {
       setPending(true);
       void updater.install();
-    } else if (failed && state.retryable !== false) {
+    } else if (status === "available" || (failed && state.retryable !== false)) {
       setPending(true);
       void updater.check();
     }
@@ -160,9 +161,11 @@ export function UpdateCard({
       ? t("settings.updates.preparingShort")
       : downloading
         ? percent == null ? t("update.card.downloadingStart") : t("update.card.downloading", { percent })
-        : failed
-          ? t("update.card.tryAgain")
-          : handoff ? t("settings.updates.install") : t("update.card.restart");
+        : status === "available"
+          ? t("update.card.download")
+          : failed
+            ? t("update.card.tryAgain")
+            : handoff ? t("settings.updates.install") : t("update.card.restart");
   const primaryIcon = installing || (downloading && percent == null) || status === "preparing"
     ? <Loader2 size={14} className="animate-spin" aria-hidden />
     : downloading
@@ -171,13 +174,15 @@ export function UpdateCard({
 
   const note = failed
     ? state.message?.split("\n")[0]?.slice(0, 160) || t("update.card.failed")
-    : downloading
-      ? t("update.card.downloadingNote")
-      : handoff
-        ? t("update.card.handoffNote")
-        : status === "downloaded" && state.installsByItself
-          ? t("update.card.idleNote", { app: productName() })
-          : t("update.card.restartNote", { app: productName() });
+    : status === "available"
+      ? t("update.card.availableNote")
+      : downloading
+        ? t("update.card.downloadingNote")
+        : handoff
+          ? t("update.card.handoffNote")
+          : status === "downloaded" && state.installsByItself
+            ? t("update.card.idleNote", { app: productName() })
+            : t("update.card.restartNote", { app: productName() });
 
   return createPortal(
     <div

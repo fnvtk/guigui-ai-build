@@ -49,7 +49,9 @@ export function UpdatesRow({ title = t("settings.updates.title") }: { title?: st
                 ? t("settings.updates.handedOff")
                 : s.status === "error"
                   ? t("settings.updates.failed", { message: s.message ?? t("settings.updates.unknownError") })
-                  : t("settings.updates.latest");
+                  : s.status === "available"
+                    ? t("update.button.available", { app: productName(), version: s.version ?? "" })
+                    : t("settings.updates.latest");
   return (
     <SettingRow title={title} subtitle={label}>
       <button
@@ -69,6 +71,8 @@ export function UpdatesRow({ title = t("settings.updates.title") }: { title?: st
             ? s.installMode === "handoff"
               ? t("settings.updates.install")
               : t("settings.updates.restart")
+            : s.status === "available"
+              ? t("update.card.download")
             : s.status === "preparing"
               ? t("settings.updates.preparingShort")
               : s.status === "installing"

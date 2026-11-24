@@ -1132,7 +1132,7 @@ const sameUrl = (a: string, b: string) => a.trim().replace(/\/+$/u, "") === b.tr
 /** An instance with its own endpoint or credential never gets the workspace key, which would go to its host. */
 export function instanceOwnsRouting(
   cfg: AppConfig,
-  entry: { driver: string; config?: unknown; environment?: Record<string, string> },
+  entry: { driver: string; displayName?: string; config?: unknown; environment?: Record<string, string> },
   routingDefaults?: { url?: string; apiKeyEnv?: string },
 ): boolean {
   const config = typeof entry.config === "object" && entry.config !== null && !Array.isArray(entry.config)
@@ -1146,6 +1146,12 @@ export function instanceOwnsRouting(
     case "claudeAgent":
       return claudeInstanceOwnsRouting(entry.environment);
     case "openai-compat":
+      if (/^simpleapi$/i.test(entry.displayName?.trim() ?? "")
+        && own(cfg.openaiCompat?.key)
+        && sameUrl(typeof config.url === "string" ? config.url : "", "https://simpleapi.quwanzhi.com/v1")
+        && !own(config.key)
+        && (!own(config.apiKeyEnv) || config.apiKeyEnv === "OPENAI_COMPAT_API_KEY")
+        && !own(entry.environment?.OPENAI_COMPAT_API_KEY)) return false;
       return own(config.key) || own(entry.environment?.OPENAI_COMPAT_API_KEY)
         || own(entry.environment?.[compatKeyEnv])
         || (own(config.apiKeyEnv) && config.apiKeyEnv !== compatKeyEnv)

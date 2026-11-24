@@ -5,10 +5,10 @@ import { routineRunsOn } from "./routine-display";
 describe("where a routine runs", () => {
   it("shows local execution for new and room routines regardless of cloud account", () => {
     expect(routineRunsOn({ roomGoal: false, cloudHome: false })).toEqual({
-      label: "This computer", hint: "Starts while 乖乖Ai is open here.",
+      label: "This computer", hint: "Starts while 乖乖AI is open here.",
     });
     expect(routineRunsOn({ roomGoal: false, cloudHome: true })).toEqual({
-      label: "This computer", hint: "Starts while 乖乖Ai is open here.",
+      label: "This computer", hint: "Starts while 乖乖AI is open here.",
     });
     expect(routineRunsOn({ roomGoal: true, cloudHome: true }).label).toBe("This computer, with the whole group");
   });

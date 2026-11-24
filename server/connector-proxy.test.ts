@@ -406,15 +406,47 @@ describe("connector MCP bridge", () => {
     expect(reply.result.tools).toEqual([{ name: "COMPOSIO_MANAGE_CONNECTIONS" }]);
   });
 
-  it("returns a JSON-RPC error, not a tools result, when a non-call relay fails", async () => {
+  it("returns a JSON-RPC error, not a tools result, when a non-list, non-call relay fails", async () => {
     const lines = start({});
-    child!.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/list", params: {} })}\n`);
+    child!.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list", params: {} })}\n`);
     const reply = await nextJson(lines);
     expect(reply).toEqual({
       jsonrpc: "2.0",
       id: 3,
       error: { code: -32000, message: "connected apps are unavailable" },
     });
+  });
+
+  it("answers tools/list with local and app tools when the upstream keeps failing, instead of a JSON-RPC error", async () => {
+    let listings = 0;
+    const stderr: string[] = [];
+    const upstream = await listen((_request, response) => {
+      listings += 1;
+      response.writeHead(500, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "connector exploded" }));
+    });
+    const lines = start({
+      OMB_CONNECTOR_UPSTREAM_URL: upstream,
+      OMB_CONNECTOR_APP_TOOLS: JSON.stringify(["gmail.search_emails"]),
+    });
+    child!.stderr.on("data", (chunk) => { stderr.push(String(chunk)); });
+    child!.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 42, method: "tools/list", params: {} })}\n`);
+    const reply = await nextJson(lines);
+    expect(listings).toBe(2);
+    expect(reply).not.toHaveProperty("error");
+    expect(reply.result.tools.map((tool: { name: string }) => tool.name)).toEqual(["gmail_search_emails"]);
+    expect(reply.result.tools[0].annotations).toEqual({ readOnlyHint: true });
+    expect(stderr.join("")).toMatch(/connector-proxy: tools\/list upstream failed; continuing with local\/app tools: connector service returned HTTP 500/);
+  });
+
+  it("answers tools/list with an empty tool list when no upstream is configured, instead of failing the session", async () => {
+    const stderr: string[] = [];
+    const lines = start({});
+    child!.stderr.on("data", (chunk) => { stderr.push(String(chunk)); });
+    child!.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 43, method: "tools/list", params: {} })}\n`);
+    const reply = await nextJson(lines);
+    expect(reply).toEqual({ jsonrpc: "2.0", id: 43, result: { tools: [] } });
+    expect(stderr.join("")).toMatch(/connector-proxy: tools\/list upstream failed; continuing with local\/app tools: connected apps are unavailable/);
   });
 
   it("filters a JSON tools/list response down to the bot's grants", async () => {

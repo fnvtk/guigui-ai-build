@@ -1484,6 +1484,8 @@
   "update.button.downloadingStart": "更新をダウンロードしています",
   "update.button.downloading": "更新をダウンロードしています、{percent}%",
   "update.card.title": "更新があります",
+  "update.card.availableNote": "新しいバージョンがあります。ダウンロードして準備できます。",
+  "update.card.download": "更新をダウンロード",
   "update.card.current": "現在のバージョン: {version}",
   "update.card.whatsNew": "新機能と変更点",
   "update.card.allNotes": "すべてのリリースノート",
@@ -6587,5 +6589,6 @@
   "botAccess.overview.cell": "{name} が {bot} でできること",
   "botAccess.overview.toastEveryone": "{bot}: {team} の全員 · {level}",
   "botAccess.overview.toastPerson": "{bot}: {name} · {level}",
-  "settings.simple.language.partial": "既定の言語は簡体字中国語です。いつでも変更できます。"
+  "settings.simple.language.partial": "既定の言語は簡体字中国語です。いつでも変更できます。",
+  "update.button.available": "新しいバージョンがあります：{app} {version}"
 }

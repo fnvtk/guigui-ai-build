@@ -18,14 +18,14 @@ afterEach(() => {
 describe("About", () => {
   it("shows the current product name and the user's brand without version or upstream branding", () => {
     const html = about({ ogb: { app: { version: "0.1.127" } }, location: { host: "bots.example.test" } });
-    expect(html).toContain("乖乖Ai");
+    expect(html).toContain("乖乖AI");
     expect(html).toContain("卡若创业派对出品");
     expect(html).toContain("小程序搜「卡若创业派对」");
     expect(html).toContain("© 卡若创业派对");
     expect(html).not.toContain("0.1.127");
     expect(html).not.toContain("Version");
     expect(html).not.toContain("OpenMausBot");
-    expect(html).not.toContain("MausBot");
+    expect(html).not.toContain("乖乖AI");
   });
 
   it("removes license and third-party statement links from About", () => {

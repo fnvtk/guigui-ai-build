@@ -8,7 +8,7 @@ import type { UpdaterState } from "@/lib/updater";
 const fixture = vi.hoisted(() => ({ state: { status: "idle" } as UpdaterState }));
 // As the real hook: no state without the desktop app's updater bridge.
 vi.mock("@/lib/updater", () => ({ useUpdaterState: () => (window.ogb?.updater ? fixture.state : null) }));
-vi.mock("../lib/brand", () => ({ brand: () => ({ name: "OpenMausBot" }), productName: () => "MausBot" }));
+vi.mock("../lib/brand", () => ({ brand: () => ({ name: "OpenMausBot" }), productName: () => "乖乖AI" }));
 import { UpdateBanner } from "./UpdateBanner";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -42,7 +42,7 @@ function serverPageBridge(origin: string, answered: boolean) {
 describe("UpdateBanner", () => {
   it("shows the ready update and its restart on My Cloud's page", () => {
     const html = render({ status: "downloaded", version: "0.2.0" }, { location: { origin: CLOUD }, ogb: serverPageBridge(CLOUD, true) });
-    expect(html).toContain("MausBot 0.2.0 is ready");
+    expect(html).toContain("乖乖AI 0.2.0 is ready");
     expect(html).toContain("Restart to update");
     expect(html).toContain("Later");
   });
@@ -63,7 +63,7 @@ describe("UpdateBanner", () => {
 
   it("says a ready update installs by itself the next time the person is away, beside its Restart", () => {
     const html = render({ status: "downloaded", version: "0.2.0", installsByItself: true });
-    expect(html).toContain("MausBot installs it by itself the next time you");
+    expect(html).toContain("乖乖AI installs it by itself the next time you");
     expect(html).toContain("Restart to update");
     expect(render({ status: "downloaded", version: "0.2.0", installMode: "handoff", installsByItself: true })).not.toContain("by itself");
   });

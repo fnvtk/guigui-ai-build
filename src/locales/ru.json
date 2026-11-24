@@ -1483,6 +1483,8 @@
   "update.button.downloadingStart": "Загрузка обновления",
   "update.button.downloading": "Загрузка обновления, {percent}%",
   "update.card.title": "Доступно обновление",
+  "update.card.availableNote": "Доступна новая версия. Скачайте её, чтобы подготовить обновление.",
+  "update.card.download": "Скачать обновление",
   "update.card.current": "у вас {version}",
   "update.card.whatsNew": "Что нового",
   "update.card.allNotes": "Все примечания к выпуску",
@@ -6565,5 +6567,6 @@
   "botAccess.overview.cell": "Что {name} может делать с {bot}",
   "botAccess.overview.toastEveryone": "{bot}: все в {team} · {level}",
   "botAccess.overview.toastPerson": "{bot}: {name} · {level}",
-  "settings.simple.language.partial": "По умолчанию используется упрощённый китайский; язык можно изменить."
+  "settings.simple.language.partial": "По умолчанию используется упрощённый китайский; язык можно изменить.",
+  "update.button.available": "Доступна новая версия: {app} {version}"
 }

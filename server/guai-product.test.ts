@@ -25,6 +25,18 @@ describe("local product contracts", () => {
     expect(config.instances!.other).toBeDefined();
     expect(instanceConfigs({} as AppConfig).simpleapi).toMatchObject({ driver: "openai-compat", displayName: "SimpleAPI" });
   });
+  it("routes the saved workspace key to the built-in SimpleAPI endpoint", () => {
+    const simpleApi = instanceConfigs({ openaiCompat: { key: "synthetic-simpleapi-key" } }).simpleapi!;
+    expect(simpleApi.config).toMatchObject({ url: "https://simpleapi.quwanzhi.com/v1", guaiTiers: true });
+    expect(simpleApi.environment).toEqual({ OPENAI_COMPAT_API_KEY: "synthetic-simpleapi-key" });
+  });
+  it("keeps the workspace key off a custom endpoint even when it is labeled SimpleAPI", () => {
+    const simpleApi = instanceConfigs({
+      openaiCompat: { key: "synthetic-simpleapi-key" },
+      instances: { simpleapi: { driver: "openai-compat", displayName: "SimpleAPI", config: { url: "https://custom.example/v1" } } },
+    }).simpleapi!;
+    expect(simpleApi.environment).toEqual({});
+  });
   it("never starts a removed desktop or upgrades its permission to the person's Mac", () => {
     for (const destination of [undefined, "cloud", "vm"] as const) {
       expect(guaiSurfacePlan({ destination, browserOn: true })).toMatchObject({ computer: "off", browser: true });

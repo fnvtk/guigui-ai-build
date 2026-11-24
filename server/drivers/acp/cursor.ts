@@ -466,11 +466,9 @@ const support = (run: typeof execCli): AcpSupport => ({
 
   resolveModels: (environment, config) => fetchCursorModels(config.cli || "cursor-agent", environment, run),
 
-  // A key in the env already authenticates the session, and Cursor's cursor_login handler would then
-  // delete the saved login and open a browser once the token expired, so it is not sent.
-  pickAuthMethod: (methods, env) =>
-    nonBlank(env.CURSOR_API_KEY) || nonBlank(env.CURSOR_AUTH_TOKEN) ? null
-      : methods.some((m) => m.id === "cursor_login") ? "cursor_login" : null,
+  // Cursor's `cursor_login` authenticate handler opens a browser as a side effect. Sign-in is explicit via
+  // `cursor-agent login`; starting a normal chat must never launch the browser repeatedly.
+  pickAuthMethod: () => null,
   authFailure: "continue",
   isAuthenticated: (env, config) => probeCursorAuth(config.cli || "cursor-agent", env, run),
   classifyError: classifyCursorError,

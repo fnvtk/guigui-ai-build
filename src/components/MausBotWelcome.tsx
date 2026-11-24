@@ -31,7 +31,7 @@ export function draftOf(bot: Bot): WelcomeDraft {
 }
 
 /** What either choice saves, as the bot's own edit screen would: what the person changed, and that they chose. Add puts
- * MausBot at the top of the sidebar; Not now turns "Show MausBot in the sidebar" off. */
+ * 乖乖AI at the top of the sidebar; Not now turns "Show 乖乖AI in the sidebar" off. */
 export function welcomePatch(bot: Bot, draft: WelcomeDraft, add: boolean): Partial<Bot> {
   const was = draftOf(bot);
   const now: WelcomeDraft = { ...draft, name: welcomeName(draft.name) };
@@ -44,7 +44,7 @@ export function mausBotWelcomeDue(input: { bot: Pick<Bot, "welcomed" | "hidden">
   return Boolean(input.bot && !input.bot.welcomed && !input.bot.hidden && !input.onboardingDue && !input.welcomeOpen && !input.tourOpen);
 }
 
-/** MausBot's first-launch card is due now (mausBotWelcomeDue), and, like the Cloud Pro popup and the product-updates
+/** 乖乖AI's first-launch card is due now (mausBotWelcomeDue), and, like the Cloud Pro popup and the product-updates
  * question, waits for the first reply (unknown until the bots load), for a launch after the one whose welcome finished, and
  * for a launch the notices queue has not already used. The notices queue asks this too, so the card goes first. */
 export function useMausBotWelcomeDue(viewer: WelcomeViewer | null): { bot: Bot | undefined; due: boolean } {

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { instanceConfigs } from "./config.ts";
 import { OpenAICompatDriver } from "./drivers/openai-compat.ts";
 
 it("routes all three public tiers through the existing credential and endpoint", async () => {
@@ -23,5 +24,26 @@ it("routes all three public tiers through the existing credential and endpoint",
     expect(instance.models.options).toHaveLength(3);
   } finally {
     await instance.dispose(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+it("sends a chat through the built-in SimpleAPI using the saved workspace key", async () => {
+  const requests: Array<{ url: string; authorization?: string; model: string }> = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/models")) return Response.json({ data: [] });
+    requests.push({ url, authorization: new Headers(init?.headers).get("authorization") ?? undefined, model: JSON.parse(String(init?.body)).model });
+    return Response.json({ choices: [{ message: { content: "SimpleAPI fixture reply" } }] });
+  }));
+  const entry = instanceConfigs({ openaiCompat: { key: "synthetic-workspace-key" } }).simpleapi!;
+  const instance = await OpenAICompatDriver.create({ instanceId: "simpleapi", displayName: entry.displayName!, enabled: true,
+    config: OpenAICompatDriver.decodeConfig(entry.config), environment: entry.environment ?? {},
+  });
+  try {
+    expect(await instance.generateText!("仅回复验证通过", { model: "kr-pro" })).toBe("SimpleAPI fixture reply");
+    expect(requests).toEqual([{ url: "https://simpleapi.quwanzhi.com/v1/chat/completions", authorization: "Bearer synthetic-workspace-key", model: "gpt-6.1-terra" }]);
+  } finally {
+    await instance.dispose();
+    vi.unstubAllGlobals();
   }
 });

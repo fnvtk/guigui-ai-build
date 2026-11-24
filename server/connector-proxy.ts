@@ -66,6 +66,20 @@ function jsonRpcError(id: unknown, message: string): Json {
   return { jsonrpc: "2.0", id, error: { code: -32000, message } };
 }
 
+/** A failed tools/list would leave the engine's whole session without tools, including local and app ones. */
+function toolsListFallback(id: unknown, error: unknown): Json {
+  const messageText = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`connector-proxy: tools/list upstream failed; continuing with local/app tools: ${messageText}\n`);
+  return fittedList(rememberSchemas(withAppTools({ jsonrpc: "2.0", id, result: { tools: [] } })));
+}
+
+function sendFailure(id: unknown, method: string, error: unknown): void {
+  const messageText = error instanceof Error ? error.message : String(error);
+  if (method === "tools/call") send(textResult(id, messageText, true));
+  else if (method === "tools/list") send(toolsListFallback(id, error));
+  else send(jsonRpcError(id, messageText));
+}
+
 function initializeResult(id: unknown, protocolVersion: unknown): Json {
   return {
     jsonrpc: "2.0",
@@ -316,6 +330,7 @@ async function handle(received: Json): Promise<void> {
   }
   try {
     // The engine lists tools once per session, so one failed listing would leave the whole session without them.
+    // After a retry, a still-failing upstream must not fail that listing: keep local and app tools.
     const response = method === "tools/list"
       ? await relay(message).catch(() => delay(TOOLS_LIST_RETRY_MS).then(() => relay(message)))
       : await relay(message);
@@ -326,9 +341,7 @@ async function handle(received: Json): Promise<void> {
     }
   } catch (error) {
     if (id === undefined) return;
-    const messageText = error instanceof Error ? error.message : String(error);
-    if (method === "tools/call") send(textResult(id, messageText, true));
-    else send(jsonRpcError(id, messageText));
+    sendFailure(id, method, error);
   }
 }
 
@@ -344,10 +357,7 @@ input.on("line", (line) => {
   }
   void handle(message).catch((error) => {
     if (message.id === undefined) return;
-    const method = String(message.method ?? "");
-    const messageText = error instanceof Error ? error.message : String(error);
-    if (method === "tools/call") send(textResult(message.id, messageText, true));
-    else send(jsonRpcError(message.id, messageText));
+    sendFailure(message.id, String(message.method ?? ""), error);
   });
 });
 input.on("close", () => process.exit(0));

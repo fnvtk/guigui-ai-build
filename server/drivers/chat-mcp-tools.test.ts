@@ -290,13 +290,13 @@ describe("Chat MCP session", () => {
     expect(alive(f.read().pid)).toBe(false);
   });
 
-  it("rejects untrusted transport error text without leaking it", async () => {
-    const f = fixture(`if (message.method === "tools/call") { send({jsonrpc:"2.0",id:message.id,error:{code:-1,message:"secret-fixture-key"}}); continue; }`);
+  it("preserves a redacted RPC error code and reason", async () => {
+    const f = fixture(`if (message.method === "tools/call") { send({jsonrpc:"2.0",id:message.id,error:{code:-32602,message:"Unknown tool: propose_team_setup; api_key=sk-fixture-secret"}}); continue; }`);
     const session = await f.mount();
     const result = await session.execute("audit_write", { value: "test" }, f.controller.signal).catch((error: Error) => error);
     expect(result).toBeInstanceOf(ChatToolSessionError);
-    expect(String(result)).toContain("MCP request failed");
-    expect(String(result)).not.toContain("secret-fixture-key");
+    expect(String(result)).toContain("MCP tools/call 调用失败 (-32602)：Unknown tool: propose_team_setup");
+    expect(String(result)).not.toContain("sk-fixture-secret");
     expect(alive(f.read().pid)).toBe(false);
   });
 
@@ -817,6 +817,20 @@ describe("Chat MCP schema validation", () => {
     expect(() => session.validate("agents_coordinate_bots", {message:"No target"})).toThrow("bot_ids");
     expect(() => session.validate("agents_coordinate_bots", {botIds:"fixture-peer",message:"Wrong type"})).toThrow("array");
     expect(() => session.validate("agents_coordinate_bots", {bot_ids:7,botIds:["fixture-peer"],message:"Do not replace explicit invalid target"})).toThrow("array");
+  });
+
+  it("treats an empty optional trigger_info action as the declared list default", async () => {
+    const f = fixture(`if (message.method === "tools/list") {
+      reply(message, {tools:[{name:"trigger_info",inputSchema:{type:"object",additionalProperties:false,properties:{action:{type:"string",enum:["list","events"],default:"list"}}}}]}); return;
+    }`);
+    const session = await mountChatTools({ agents: f.server }, f.controller.signal);
+    sessions.push(session);
+    const args: Record<string, unknown> = { action: "" };
+    expect(() => session.validate("agents_trigger_info", args)).not.toThrow();
+    expect(args).toEqual({});
+    await session.execute("agents_trigger_info", args, f.controller.signal);
+    expect(f.read().calls.at(-1)).toMatchObject({ method: "tools/call", params: { name: "trigger_info", arguments: {} } });
+    expect(() => session.validate("agents_trigger_info", { action: 7 })).toThrow("input schema");
   });
 
   it("retains native unsigned/composition constraints while exposing an object schema", async () => {

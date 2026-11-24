@@ -58,7 +58,7 @@ export interface ChiefNoticeDeps {
 /** How long a run stopped for memory waits before it starts again; the memory gate then holds it until there is room. */
 export const MEMORY_RETRY_MS = 30_000;
 export const MEMORY_RETRY_TEXT = "[OpenMausBot started this again by itself, once: the last run was stopped to free memory on this Cloud. "
-  + "Continue the request above from where it stopped and finish it. If the same problem comes back, say exactly what is blocking and stop.]";
+  + "Continue the request above from where it stopped and finish it. If the work is still running (a submit, verification, login, or other backend job), wait and poll the current state instead of ending; a short timeout is not a final result. Do not close unfinished work, and do not resubmit a job that was already started. While waiting, assign and continue other ready teammate work and other logins.]";
 
 export function createChiefNotices(deps: ChiefNoticeDeps) {
   const { store } = deps;
@@ -111,7 +111,7 @@ export function createChiefNotices(deps: ChiefNoticeDeps) {
     const lead = input.automatic
       ? `${AUTO_RETRY_LEAD}, once, before telling ${chief}, your Chief of Staff, that this thread's last run failed.`
       : `${RETRY_LEAD}${chief}, your Chief of Staff, after this thread's last run stopped.${input.note ? ` Note from ${chief}: ${quoteInNote(input.note, 300)}` : ""}`;
-    await deps.startTurn(input.bot.id, `${lead} Continue the request above from where it stopped and finish it. If the same problem comes back, say exactly what is blocking and stop.]`,
+    await deps.startTurn(input.bot.id, `${lead} Continue the request above from where it stopped and finish it. If the work is still running (a submit, verification, login, or other backend job), wait and poll the current state instead of ending; a short timeout is not a final result. Do not close unfinished work, and do not resubmit a job that was already started. While waiting, assign and continue other ready teammate work and other logins.]`,
       { threadId: input.threadId, unattended: input.unattended, peerAsk: { botId: input.chief.id, name: input.chief.name, ...(input.unattended ? { unattended: true } : {}) } });
   }
 

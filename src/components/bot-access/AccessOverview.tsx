@@ -13,7 +13,7 @@ import { UndoToast, useTeamName } from "./ShareBotButton";
 
 type Change = { botId: string; before: BotAccess; after: BotAccess; text: string };
 
-/** The team's bots a person shares: each person's own MausBot is theirs alone and stays out. */
+/** The team's bots a person shares: each person's own 乖乖AI is theirs alone and stays out. */
 export const sharedBots = (bots: readonly Bot[]): Bot[] =>
   bots.filter((bot) => !bot.hidden && !bot.defaultBot?.person).sort((a, b) => a.name.localeCompare(b.name));
 

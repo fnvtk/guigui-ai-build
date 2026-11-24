@@ -58,8 +58,8 @@ export function buildApplicationMenu({ environments, activeId, onSwitch, onAddFr
   };
   const atLogin = openAtLogin ? [{ id: "open-at-login", label: "登录时打开", type: "checkbox", checked: openAtLogin.checked, click: () => openAtLogin.onToggle(!openAtLogin.checked) }] : [];
   const template = [
-    ...(isMac ? [{ label: "乖乖Ai", submenu: [{ label: "关于 乖乖Ai", click: onAbout }, { label: "设置…", accelerator: "CmdOrCtrl+,", click: () => onOpenSettings() }, ...atLogin, { type: "separator" }, { role: "hide", label: "隐藏 乖乖Ai" }, { role: "hideOthers", label: "隐藏其他应用" }, { role: "unhide", label: "显示全部" }, { type: "separator" }, { role: "quit", label: "退出 乖乖Ai" }] }] : []),
-    !isMac && openAtLogin ? { label: "文件", submenu: [...atLogin, { type: "separator" }, { role: "quit", label: "退出 乖乖Ai" }] } : { role: "fileMenu", label: "文件", submenu: [{ role: "close", label: "关闭窗口" }] },
+    ...(isMac ? [{ label: "乖乖AI", submenu: [{ label: "关于 乖乖AI", click: onAbout }, { label: "设置…", accelerator: "CmdOrCtrl+,", click: () => onOpenSettings() }, ...atLogin, { type: "separator" }, { role: "hide", label: "隐藏 乖乖AI" }, { role: "hideOthers", label: "隐藏其他应用" }, { role: "unhide", label: "显示全部" }, { type: "separator" }, { role: "quit", label: "退出 乖乖AI" }] }] : []),
+    !isMac && openAtLogin ? { label: "文件", submenu: [...atLogin, { type: "separator" }, { role: "quit", label: "退出 乖乖AI" }] } : { role: "fileMenu", label: "文件", submenu: [{ role: "close", label: "关闭窗口" }] },
     { role: "editMenu", label: "编辑", submenu: [
       { role: "undo", label: "撤销" }, { role: "redo", label: "重做" }, { type: "separator" },
       { role: "cut", label: "剪切" }, { role: "copy", label: "复制" }, { role: "paste", label: "粘贴" },

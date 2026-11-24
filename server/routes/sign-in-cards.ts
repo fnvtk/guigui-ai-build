@@ -1,6 +1,6 @@
-// POST /api/bots/<bot>/sign-in-cards/<message>/(done|cancel|save-login) with {threadId}, and GET .../save-login?threadId=
-// for where a login saved from the card would fill. A saved password goes into the encrypted store and no route ever
-// returns it.
+// POST /api/bots/<bot>/sign-in-cards/<message>/(done|cancel|save-login|fill-login) with {threadId}, GET .../save-login
+// for where a login saved from the card would fill, and GET .../fill-login?threadId= for whether a saved login exists.
+// A saved password goes into the encrypted store and no route ever returns it.
 import type { RequestAuth } from "../request-auth.ts";
 import { PASS, type RouteHandler } from "./table.ts";
 
@@ -12,13 +12,17 @@ export interface SignInCardRouteDeps {
   settle(botId: string, threadId: string, messageId: string, outcome: SignInOutcome): Answer;
   saveLogin(botId: string, threadId: string, messageId: string, body: Record<string, unknown>, auth: RequestAuth): Promise<Answer>;
   saveTarget(botId: string, threadId: string, messageId: string): Promise<Answer>;
+  /** Whether a saved login exists for this card's site; never returns a secret or a chosen username. */
+  fillStatus(botId: string, threadId: string, messageId: string): Answer | Promise<Answer>;
+  /** Fills the saved login in the in-app browser (no username from the client). Failure leaves the card open. */
+  fillLogin(botId: string, threadId: string, messageId: string): Promise<Answer>;
   /** A member reaches a card only in a thread shown to them, which in a room can be narrower than the bot. */
   threadVisible(auth: RequestAuth, threadId: string): boolean;
 }
 
 const HIDDEN: Answer = { status: 404, body: { error: "no such sign-in request" } };
 
-const CARD = /^\/api\/bots\/([\w-]+)\/sign-in-cards\/([\w-]+)\/(done|cancel|save-login)$/u;
+const CARD = /^\/api\/bots\/([\w-]+)\/sign-in-cards\/([\w-]+)\/(done|cancel|save-login|fill-login)$/u;
 
 export function createSignInCardRoutes(deps: SignInCardRouteDeps): RouteHandler {
   return async ({ req, res, url, path, method, auth, json, readBody }) => {
@@ -29,7 +33,20 @@ export function createSignInCardRoutes(deps: SignInCardRouteDeps): RouteHandler 
       const result = deps.threadVisible(auth, threadId) ? await deps.saveTarget(m[1]!, threadId, m[2]!) : HIDDEN;
       return json(res, result.status, result.body);
     }
+    if (m[3] === "fill-login" && method === "GET") {
+      const threadId = url.searchParams.get("threadId") ?? "";
+      const result = deps.threadVisible(auth, threadId) ? await deps.fillStatus(m[1]!, threadId, m[2]!) : HIDDEN;
+      return json(res, result.status, result.body);
+    }
     if (method !== "POST") return PASS;
+    if (m[3] === "fill-login") {
+      const mediaType = String(req.headers["content-type"] ?? "").split(";", 1)[0]!.trim().toLowerCase();
+      if (mediaType !== "application/json") return json(res, 415, { error: "content-type must be application/json" });
+      const body = await readBody(req);
+      const threadId = String((body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {}).threadId ?? "");
+      const result = deps.threadVisible(auth, threadId) ? await deps.fillLogin(m[1]!, threadId, m[2]!) : HIDDEN;
+      return json(res, result.status, result.body);
+    }
     if (m[3] === "save-login") {
       // JSON only, so a form posted from another local page cannot save one.
       const mediaType = String(req.headers["content-type"] ?? "").split(";", 1)[0]!.trim().toLowerCase();

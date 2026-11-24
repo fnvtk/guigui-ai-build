@@ -98,6 +98,7 @@ async function load(pageAllowed) {
   vi.resetModules();
   fixture.handlers.clear();
   const autoUpdater = new EventEmitter();
+  autoUpdater.setFeedURL = vi.fn();
   autoUpdater.checkForUpdates = vi.fn(async () => {
     autoUpdater.emit("checking-for-update");
     autoUpdater.emit("update-available", { version: "2.0.0" });

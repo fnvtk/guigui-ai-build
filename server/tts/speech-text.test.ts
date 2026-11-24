@@ -160,6 +160,10 @@ describe("narrateTool", () => {
   it("sees through an MCP tool prefix", () => {
     expect(narrateTool("mcp__computer__click")).toBe("using the computer");
     expect(narrateTool("mcp__agents__ask_bot")).toBe("asking a teammate");
+    expect(narrateTool("browser_agent_browser_open")).toBe("opening a page");
+    expect(narrateTool("browser_agent_browser_screenshot")).toBe("capturing a page screenshot");
+    expect(narrateTool("browser_agent_browser_click")).toBe("clicking the page");
+    expect(narrateTool("browser_agent_browser_wait_ms")).toBe("waiting for the page");
   });
 
   it("stays quiet for chips the user is already told about another way", () => {

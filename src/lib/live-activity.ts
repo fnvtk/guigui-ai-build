@@ -25,6 +25,46 @@ const FALLBACK_LABELS: Array<[RegExp, LocaleKey]> = [
   [/\b(?:ask_bot|send_message)\b/i, "chat.activity.askTeammate"],
 ];
 
+
+const SPOKEN_ZH: Array<[RegExp, string]> = [
+  [/^running a command$/i, "正在运行命令"],
+  [/^reading a file$/i, "正在读取文件"],
+  [/^writing a file$/i, "正在写入文件"],
+  [/^editing a file$/i, "正在编辑文件"],
+  [/^searching the web$/i, "正在搜索网页"],
+  [/^searching$/i, "正在搜索"],
+  [/^reading a page$/i, "正在阅读页面"],
+  [/^looking at the screen$/i, "正在查看屏幕"],
+  [/^using the computer$/i, "正在操作电脑"],
+  [/^opening a page$/i, "正在打开页面"],
+  [/^capturing a page screenshot$/i, "正在截取页面"],
+  [/^clicking the page$/i, "正在点击页面"],
+  [/^reading the page structure$/i, "正在读取页面结构"],
+  [/^waiting for the page$/i, "正在等待页面"],
+  [/^filling a saved login$/i, "正在填写已保存的登录信息"],
+  [/^retrying a teammate thread$/i, "正在重试队友的对话"],
+  [/^asking a teammate$/i, "正在询问队友"],
+  [/^checking who.s around$/i, "正在查看队友"],
+  [/^running browser_agent_browser_open$/i, "正在打开页面"],
+  [/^running browser_agent_browser_screenshot$/i, "正在截取页面"],
+  [/^running browser_agent_browser_click$/i, "正在点击页面"],
+  [/^running browser_agent_browser_snapshot$/i, "正在读取页面结构"],
+  [/^running browser_agent_browser_wait_ms$/i, "正在等待页面"],
+  [/^running browser_agent_browser_wait_for_load$/i, "正在等待页面加载"],
+  [/^running agents_fill_login$/i, "正在填写已保存的登录信息"],
+];
+
+function localizeSpoken(spoken: string): string {
+  const raw = spoken.trim();
+  if (activeLocale().startsWith("zh")) {
+    for (const [pattern, phrase] of SPOKEN_ZH) {
+      if (pattern.test(raw)) return phrase;
+    }
+    if (/^running /i.test(raw)) return `正在执行：${raw.replace(/^running /i, "")}`;
+  }
+  return sentenceCase(raw);
+}
+
 function sentenceCase(value: string): string {
   const trimmed = value.trim().replace(/[.\s]+$/, "");
   if (!trimmed) return t("chat.activity.thinking");
@@ -156,7 +196,7 @@ export function toolActivityPhrases(tool: ActivityTool): LiveActivityPhrases {
   const step = tool.step ? liveStatusPhrases(stepStatus(tool.step)) : null;
   if (step) return step;
   const spoken = tool.spoken?.trim();
-  if (spoken) return { phase: `spoken:${spoken}`, phrases: [sentenceCase(spoken)] };
+  if (spoken) return { phase: `spoken:${spoken}`, phrases: [localizeSpoken(spoken)] };
 
   const toolName = tool.name.replace(/^mcp__[^_]+__/, "").split(":", 1)[0] ?? "";
   for (const [pattern, key] of FALLBACK_LABELS) {

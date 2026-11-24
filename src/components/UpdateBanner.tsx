@@ -53,7 +53,7 @@ export function UpdateBanner({ sidebarIndicator = false }: UpdateBannerProps) {
     return <UpdatedLine version={s.updated} onSeen={() => void window.ogb?.updater?.seen?.().catch(() => {})} />;
   }
   if (s?.status === "error") return null;
-  if (!s || s.status === "idle" || s.status === "checking" || s.status === "downloading" || s.status === "preparing") return null;
+  if (!s || s.status === "idle" || s.status === "checking" || s.status === "available" || s.status === "downloading" || s.status === "preparing") return null;
   if (sidebarIndicator && (s.status === "downloaded" || s.status === "installing")) return null;
   const key = `${s.status}:${s.version ?? ""}`;
   if (dismissed === key) return null;

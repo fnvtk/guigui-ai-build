@@ -106,7 +106,7 @@ export function GuaiBillingSettings() {
   const orderPaymentTarget = checkoutTarget(order?.checkoutUrl);
 
   return (
-    <Card title="乖乖Ai 会员与用量" subtitle="会员开通与积分到账，以实际支付核验及入账结果为准。">
+    <Card title="乖乖AI 会员与用量" subtitle="会员开通与积分到账，以实际支付核验及入账结果为准。">
       <div className="space-y-5" data-guai-billing>
         <section aria-label="本月套餐状态" className="rounded-lg border border-hairline/50 bg-inset p-3">
           <h3 className="text-[13px] font-medium text-ink">本月套餐状态</h3>

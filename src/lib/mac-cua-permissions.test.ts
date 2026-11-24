@@ -6,8 +6,8 @@ describe("macOS CUA permission recovery", () => {
   it("names only the grants the host reported missing", () => {
     expect(missingMacCuaPermissions("embedded host failed: Screen Recording required; restart OpenMausBot")).toEqual(["screen"]);
     expect(missingMacCuaPermissions("Accessibility and Screen Recording required")).toEqual(["screen", "accessibility"]);
-    expect(macCuaPermissionMessage(["accessibility"])).toContain("Accessibility is required for 乖乖Ai");
-    expect(macCuaPermissionMessage(["screen"])).toContain("relaunch 乖乖Ai");
+    expect(macCuaPermissionMessage(["accessibility"])).toContain("Accessibility is required for 乖乖AI");
+    expect(macCuaPermissionMessage(["screen"])).toContain("relaunch 乖乖AI");
   });
 
   it("does not diagnose missing or malformed status as a grant failure", () => {
@@ -18,7 +18,6 @@ describe("macOS CUA permission recovery", () => {
     expect(macCuaPermissionMessage([])).toBeNull();
   });
 });
-
 it("translates driver details while preserving unknown diagnostic evidence", () => {
   setLocale("zh");
   expect(macCuaPermissionMessage(["screen"])).toContain("屏幕录制");
@@ -45,3 +44,16 @@ it("localizes the reported tool failure and retry notice without changing ordina
   setLocale("en");
   expect(localizeRetryNotice(original)).toBe(original);
 });
+
+it("localizes the automatic OpenMausBot retry envelope into Chinese and does not tell the bot to stop", () => {
+  setLocale("zh");
+  const automatic = "[Retry requested by OpenMausBot, automatically, once, before telling 乖乖, your Chief of Staff, that this thread's last run failed. Continue the request above from where it stopped and finish it. If the work is still running (a submit, verification, login, or other backend job), wait and poll the current state instead of ending; a short timeout is not a final result. Do not close unfinished work, and do not resubmit a job that was already started. While waiting, assign and continue other ready teammate work and other logins.]";
+  const localized = localizeRetryNotice(automatic);
+  expect(localized).toContain("系统已自动重试一次");
+  expect(localized).toContain("不要结束或结案未完成的工作");
+  expect(localized).not.toContain("Retry requested by OpenMausBot");
+  expect(localized).not.toContain("Running browser_");
+  setLocale("en");
+  expect(localizeRetryNotice(automatic)).toBe(automatic);
+});
+

@@ -323,7 +323,7 @@ describe("CursorAgentDriver", () => {
     }
   });
 
-  it("sends cursor_login only when no Cursor key is in the agent's env", async () => {
+  it("does not start Cursor browser login from a normal chat turn", async () => {
     ensureDirs();
     chmodSync(FAKE_CLI, 0o755);
     const scratch = mkdtempSync(join(tmpdir(), "omb-cursor-auth-"));
@@ -352,7 +352,7 @@ describe("CursorAgentDriver", () => {
         .filter((entry) => entry.method === "authenticate").length;
     };
 
-    expect(await authenticateCalls({})).toBe(1);
+    expect(await authenticateCalls({})).toBe(0);
     expect(await authenticateCalls({ CURSOR_API_KEY: "key-from-env" })).toBe(0);
     expect(await authenticateCalls({ CURSOR_AUTH_TOKEN: "token-from-env" })).toBe(0);
   });

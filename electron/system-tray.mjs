@@ -13,11 +13,11 @@ export function createSystemTray({ Tray, Menu, nativeImage, iconPath, getWindow,
     win.focus();
     return true;
   };
-  tray.setToolTip("乖乖Ai");
+  tray.setToolTip("乖乖AI");
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "打开乖乖Ai", click: show },
+    { label: "打开乖乖AI", click: show },
     { type: "separator" },
-    { label: "退出乖乖Ai", click: onQuit },
+    { label: "退出乖乖AI", click: onQuit },
   ]));
   tray.on("click", show);
   tray.on("double-click", show);

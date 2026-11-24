@@ -23,6 +23,7 @@ vi.mock("./AppSettingsRows", () => ({
   FollowUpRow: () => createElement("span", null, "FOLLOW UP"),
   LanguageRow: () => createElement("span", null, "LANGUAGE"),
   SendKeyRow: () => createElement("span", null, "SEND KEY"),
+  UpdatesRow: () => createElement("span", null, "CHECK UPDATES"),
 }));
 vi.mock("./ThemeRow", () => ({ ThemeRow: () => createElement("span", null, "THEME") }));
 vi.mock("./AdminOnly", () => ({ AdminOnly: ({ children }: { children: ReactNode }) => children }));
@@ -65,6 +66,7 @@ it("shows one short category at a time and opens all four General categories", (
   expect(system).toContain("DEFAULT BOT");
   expect(system).toContain("TALK SHORTCUT");
   expect(system).toContain("ANALYTICS");
+  expect(system).toContain("CHECK UPDATES");
   expect(system).not.toContain("PROFILE");
 
   const management = select("management");

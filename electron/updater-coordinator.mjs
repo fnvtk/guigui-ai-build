@@ -131,6 +131,14 @@ export function createUpdaterCoordinator(
         percent: undefined,
         message: undefined,
       });
+    } else if (!actionOwnsState && !installOperation && !downloadOperation && !nativeStagingStarted && !staged && !recoveryRequired) {
+      // A newer version exists even if a download cannot start yet: the client still shows the update icon.
+      // Never overwrite an error or another operation that already owns the updater state.
+      setState({
+        status: "available",
+        version: info?.version,
+        releaseNotes: releaseNotesText(info?.releaseNotes),
+      });
     }
   });
   updater.on("update-not-available", () => {

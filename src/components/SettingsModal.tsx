@@ -54,7 +54,7 @@ import { NotificationRows } from "./NotificationSettingsRows";
 import { useAdvancedMode } from "@/lib/interface-mode";
 import { Select } from "./Select";
 import { SavedStepsRow } from "./SavedStepsRow";
-import { BrowserProfilesRow, ColorUserBubblesRow, AdvancedModeRow, ExperimentalFeaturesRow, LanguageRow, NewBotEffortRow, PinnedCirclesRow, ReplayTourRow, RunCardRow, FollowUpRow, SendKeyRow, ShowThreadsRow, ToolCallsRow, UniversalPinsRow } from "./AppSettingsRows";
+import { BrowserProfilesRow, ColorUserBubblesRow, AdvancedModeRow, ExperimentalFeaturesRow, LanguageRow, NewBotEffortRow, PinnedCirclesRow, ReplayTourRow, RunCardRow, FollowUpRow, SendKeyRow, ShowThreadsRow, ToolCallsRow, UniversalPinsRow, UpdatesRow } from "./AppSettingsRows";
 import { GuaiBillingSettings } from "./GuaiBillingSettings";
 import { SIMPLE_ADVANCED_ONLY, SimpleAiPage, SimpleComputerPage, SimpleGeneralPage, SimpleLooksPage, type SimpleDisclosureId } from "./SettingsSimplePages";
 
@@ -306,6 +306,7 @@ export function SettingsModal() {
             </Card>
 
             <LanguageRow />
+            {!remoteActive && <UpdatesRow />}
             <OpenAtLoginRow />
             <NewBotEffortRow />
             <SavedStepsRow />

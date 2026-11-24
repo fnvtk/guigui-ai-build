@@ -14,6 +14,7 @@ afterEach(async () => {
 
 async function serve() {
   const settled: Array<{ botId: string; threadId: string; messageId: string; outcome: SignInOutcome }> = [];
+  const fills: Array<{ botId: string; threadId: string; messageId: string }> = [];
   const saved: Array<{ botId: string; threadId: string; messageId: string; body: Record<string, unknown> }> = [];
   const targets: Array<{ botId: string; threadId: string; messageId: string }> = [];
   const routes = [createSignInCardRoutes({
@@ -29,6 +30,13 @@ async function serve() {
       targets.push({ botId, threadId, messageId });
       return { status: 200, body: { site: "example.com", signInHost: "login.microsoftonline.com" } };
     },
+    fillStatus: (_botId, _threadId, messageId) => ({ status: 200, body: { hasSavedLogin: messageId !== "none" } }),
+    fillLogin: async (botId, threadId, messageId) => {
+      fills.push({ botId, threadId, messageId });
+      return messageId === "fail"
+        ? { status: 200, body: { ok: false, text: "No login fields found on example.com." } }
+        : { status: 200, body: { ok: true, text: "Filled the saved login.", done: true, resumed: true } };
+    },
     threadVisible: (_auth, threadId) => threadId !== "hidden",
   })];
   const server = createServer(async (req, res) => {
@@ -40,7 +48,7 @@ async function serve() {
   await new Promise<void>((ready) => server.listen(0, "127.0.0.1", ready));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const post = (path: string, body: unknown, type = "application/json") => fetch(`${base}${path}`, { method: "POST", headers: { "content-type": type }, body: JSON.stringify(body) });
-  return { base, settled, saved, targets, post };
+  return { base, settled, saved, targets, fills, post };
 }
 
 describe("sign-in card routes", () => {
@@ -106,5 +114,36 @@ describe("sign-in card routes", () => {
     const { saved, post } = await serve();
     expect((await post("/api/bots/scout/sign-in-cards/m1/save-login", { threadId: "t1", password: "fake-card-pass" }, "text/plain")).status).toBe(415);
     expect(saved).toEqual([]);
+  });
+
+  it("says whether a saved login exists for the card, never a secret", async () => {
+    const { base } = await serve();
+    expect(await (await fetch(`${base}/api/bots/scout/sign-in-cards/m1/fill-login?threadId=t1`)).json()).toEqual({ hasSavedLogin: true });
+    expect(await (await fetch(`${base}/api/bots/scout/sign-in-cards/none/fill-login?threadId=t1`)).json()).toEqual({ hasSavedLogin: false });
+  });
+
+  it("fills the saved login when asked, and keeps a failed fill from settling the card", async () => {
+    const { fills, settled, post } = await serve();
+    const ok = await post("/api/bots/scout/sign-in-cards/m1/fill-login", { threadId: "t1" });
+    expect(ok.status).toBe(200);
+    const body = await ok.json();
+    expect(body).toEqual({ ok: true, text: "Filled the saved login.", done: true, resumed: true });
+    expect(JSON.stringify(body)).not.toMatch(/password|secret/i);
+    const failed = await post("/api/bots/scout/sign-in-cards/fail/fill-login", { threadId: "t1" });
+    expect(failed.status).toBe(200);
+    expect(await failed.json()).toEqual({ ok: false, text: "No login fields found on example.com." });
+    expect(fills).toEqual([
+      { botId: "scout", threadId: "t1", messageId: "m1" },
+      { botId: "scout", threadId: "t1", messageId: "fail" },
+    ]);
+    expect(settled).toEqual([]);
+  });
+
+  it("hides fill-login in a thread the caller cannot see, and rejects a non-JSON fill body", async () => {
+    const { base, fills, post } = await serve();
+    expect((await fetch(`${base}/api/bots/scout/sign-in-cards/m1/fill-login?threadId=hidden`)).status).toBe(404);
+    expect((await post("/api/bots/scout/sign-in-cards/m1/fill-login", { threadId: "hidden" })).status).toBe(404);
+    expect((await post("/api/bots/scout/sign-in-cards/m1/fill-login", { threadId: "t1" }, "text/plain")).status).toBe(415);
+    expect(fills).toEqual([]);
   });
 });

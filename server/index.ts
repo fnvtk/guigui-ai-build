@@ -27,7 +27,7 @@ import { botMemoryFiles, createLendingMemory } from "./lending-memory.ts";
 import { SharedComputerControl } from "./shared-computer-control.ts";
 import { createCoordinator, type ComposedTurn, type CoordinateBotsCall, type Coordinator, type HandoffOpener, type HandoffOptions, type HandoffView, type HostTurnResult } from "./coordinator.ts";
 import { queuedBehindPersonText, UnansweredApprovals } from "./waiting-on-person.ts";
-import { askToolName, createAskCards } from "./host/ask-cards.ts"; import { createQuestionRouting } from "./host/question-routing.ts"; import { workThreadFor } from "./host/work-thread.ts"; import { resumableCards as cardsWaitedOn } from "./host/resumable-cards.ts";
+import { askToolName, createAskCards } from "./host/ask-cards.ts"; import { createQuestionRouting } from "./host/question-routing.ts"; import { workThreadFor } from "./host/work-thread.ts"; import { resumableCards as cardsWaitedOn, cardsToParkAfterTurn, stoppedSignInCardIdsToRevive } from "./host/resumable-cards.ts";
 import { assertRequestTarget, guardedRequestPath, requestConflict, requestNeedsInput } from "./guarded-requests.ts";
 import { botAvatarUrlFromStoredPath } from "../shared/bot-avatar.ts";
 import { BOT_PROFILE_LIMITS } from "../shared/bot-profile.ts";
@@ -45,7 +45,7 @@ import {
 } from "../shared/approval-mode.ts";
 import { createApprovalModeSupport } from "./harness-capabilities.ts";
 import { escapeAttribute } from "../src/lib/composer-attachments.ts";
-import { isPendingSignInRequest, normalizeSignInSite, signInOutcome, signInResumePrompt } from "../shared/sign-in-request.ts";
+import { signInWaits, isPendingSignInRequest, normalizeSignInSite, signInOutcome, signInResumePrompt } from "../shared/sign-in-request.ts";
 
 import { createRoomTurnLevels } from "./room-turn-level.ts";
 import { createSignInSettle } from "./host/sign-in-settle.ts"; import { createPersonLanguages, THIS_COMPUTER } from "./host/person-languages.ts"; import "./server-line-packs.ts"; import { serverLine, setConversationLanguage } from "./server-lines.ts";
@@ -443,13 +443,14 @@ import { HeldSecrets, LoginStore } from "./login-store.ts";
 import { OnePasswordLogins, onePasswordUnavailable, sdkOnePasswordClient, type OnePasswordSdk } from "./onepassword.ts";
 import { nativeRequire } from "./data/engine.ts";
 import { createFillLoginTurn } from "./host/fill-login-turn.ts";
+import { ensureLoginFormPage, hasSavedLoginForCard, runSavedLoginFill, shouldAutoFillSignInCard } from "./host/sign-in-fill.ts";
 import { BotLogins, cardLoginPlace, cardSignInElsewhere, observeSignInPage, type ObservedPage } from "./bot-logins.ts";
 import { relayFrame } from "./browser-relay.ts";
 import { browserEvidence, stepContext } from "./browser-steps.ts";
 import { parseLoginFields, parseTotpField, createLoginRoutes } from "./routes/logins.ts";
 import { loginSite } from "../shared/logins.ts";
 import { browserRestartRefusal } from "./browser-live.ts";
-import { browserEngineStatus } from "./browser-engine.ts";
+import { browserEngineStatus, startBrowserSession } from "./browser-engine.ts";
 import { chromeLauncher } from "./browser/chrome/launcher.ts";
 import { createBrowserHost } from "./host/browser.ts";
 import { createScreenFrameSource, rememberTurnFrame, type ScreenCapture } from "./screen-frame-source.ts";
@@ -2029,7 +2030,8 @@ function hostTurnResult(node: HandoffView | undefined, generation: string, outco
   const result: DirectTurnOutcome = { ...outcome, evidence: { ...outcome.evidence, ...turnEvidence(turnRows(node)) } };
   if (outcome.ok && !node.groupId) signInSettle.verified(node.botId, node.threadId, node.startedAt ?? node.createdAt);
   const cards = resumableCards(node.threadId, node.startedAt ?? node.createdAt, node.groupId ? node.botId : undefined);
-  if (result.stalled) stopCards(node.threadId, new Set(cards.map((card) => card.id)));
+  const after = cardsToParkAfterTurn(cards, Boolean(result.stalled));
+  if (after.stopIds.length) stopCards(node.threadId, new Set(after.stopIds));
   if (node.goalRunId) return result;
   if (seat) {
     parkedSeats.set(node.id, seat);
@@ -2037,9 +2039,10 @@ function hostTurnResult(node: HandoffView | undefined, generation: string, outco
     const { okToolCalls: _unknown, ...evidence } = result.evidence ?? {};
     return { ...result, evidence, cap: { note: COMPUTER_FREE_NOTE } };
   }
-  if (result.cap || result.stalled || !cards.length) return result;
+  if (result.cap || !after.park.length) return result;
   parkedNodesToReconcile.add(node.id);
-  return { ...result, cards: { question: `Waiting on the person: ${cards.map((card) => card.waits).join("; ")}`, ids: cards.map((card) => card.id) } };
+  // A stall is not "work is done" while a sign-in card still waits: park it so the card stays fillable and the wait resumes.
+  return { ...result, stalled: false, cards: { question: `Waiting on the person: ${after.park.map((card) => card.waits).join("; ")}`, ids: after.park.map((card) => card.id) } };
 }
 
 function settleDirectCoordination(generation: string | undefined, outcome: DirectTurnOutcome) {
@@ -3817,7 +3820,7 @@ function outstandingAssignmentsPrompt(threadId: string): string {
         : card ? "stopped on a card waiting for the person's approval in that teammate's thread; tell the person to open it" : "working on it now",
       ...(card?.kind === "question" && card.question ? { question: escapeNotes(card.question).slice(0, 400) } : {}) };
   });
-  return ` Assignments you already sent are still outstanding, and nothing in this conversation cancelled them: ${JSON.stringify(listed)}. Do not resend them, do not poll or wait for them, and do not tell the user they were lost. Each result returns to this conversation on its own and resumes you then. To change or add to one, send the change to the same teammate with coordinate_bots, with its threadId as thread: it goes into that work, answering the question it waits on or reaching the turn running it. Answer the message above with that work still in flight.`;
+  return ` Assignments you already sent are still outstanding, and nothing in this conversation cancelled them: ${JSON.stringify(listed)}. Do not resend them, and do not tell the user they were lost. Register each outstanding assignment as a wait for its receipt (回执), then continue other ready work in the team queue; do not idle the whole team. For 卡若 / website tasks, accepted is not done: keep the original runId and idempotencyKey, poll karuo_get_run or karuo_list_run_events for the receipt, and never replay with a new idempotency key. Use exact IDs from karuo_list_* or list_bots, never guess by display name. When a receipt arrives, resume that item. To change or add to one, send the change to the same teammate with coordinate_bots, with its threadId as thread: it goes into that work, answering the question it waits on or reaching the turn running it. Answer the message above with that work still in flight, and keep doing other ready tasks meanwhile.`;
 }
 
 function queuedBehindPerson(node: HandoffView): { threadId: string; kind: "approval" | "question" | "review"; title: string } | undefined {
@@ -11671,7 +11674,17 @@ function requestSignIn(from: BotRecord, threadId: string, rawSite: unknown, rawR
     ...(owner.group ? { group: { id: owner.group.id, name: owner.group.name } } : {}),
     site: target.site,
   }));
-  return { messageId: message.id, site: target.site, place };
+  const host = target.site.toLowerCase();
+  const saved = botLogins.sitesFor(from.id).some((place) => [place.site, ...place.hosts].some((name) => {
+    const n = name.toLowerCase();
+    return n === host || host.endsWith("." + n) || n.endsWith("." + host);
+  }));
+  return {
+    messageId: message.id,
+    site: target.site,
+    place,
+    ...(saved ? { hint: "A saved login exists for this site. Call fill_login in the in-app browser first (omit username, or use a saved one — do not invent a username such as admin). The open card can also fill that saved login. This card stays open if fill cannot complete; stay on this step and do not only wait for a person." } : {}),
+  };
 }
 
 /** In a room, only the asking bot's own card. */
@@ -11742,13 +11755,58 @@ async function botBrowserTarget(bot: BotRecord, threadId: string): Promise<{ ses
   return target && { ...target, env: browserRuntimeEnv({ ...target.spec.env, AGENT_BROWSER_SESSION: target.session }) };
 }
 
-const { fillLoginForTurn } = createFillLoginTurn({
+const { fillLoginForTurn, fillLoginForCard } = createFillLoginTurn({
   place: signInPlace, current: (bot, threadId) => botForThread(bot.id, threadId) ?? bot, builtInBrowserOn: () => builtInBrowserEnabled(cfg),
   browserSelectable, moveToBrowser: (turn) => selectTurnPlace(turn, "browser"), myChrome: (bot) => usesMyChrome(bot.browserProfile),
-  target: botBrowserTarget, claim: claimTurnResource, withSecretInput: (session, spec, fill, ctx) => browserRuntime.withSecretInput(session, spec, fill, ctx),
+  target: botBrowserTarget,
+  ensurePage: (browser, url) => ensureLoginFormPage({
+    engine: (args) => loginInput(browser.session, browser.spec, browser.env).engine(args),
+    start: () => startBrowserSession(browser.spec.command, browser.env),
+    pageUrl: url,
+  }).then(() => undefined),
+  claim: claimTurnResource, withSecretInput: (session, spec, fill, ctx) => browserRuntime.withSecretInput(session, spec, fill, ctx),
   logins: botLogins, onePasswordTrouble: () => botLogins.onePassword.status().error, loginInput, remember: (value, kind) => heldSecrets.remember(value, kind),
   stepContext: (bot, turn) => stepContext(bot, turn, () => liveTurnByThread.get(turn.threadId) ?? null),
 });
+
+function cardHasSavedLogin(botId: string, card: SignInRequestCardData): boolean {
+  const places = botLogins.sitesFor(botId);
+  if (hasSavedLoginForCard(places, card.site)) return true;
+  try { return hasSavedLoginForCard(places, new URL(card.url).hostname); }
+  catch { return false; }
+}
+
+function signInFillStatus(botId: string, threadId: string, messageId: string): { status: number; body: Record<string, unknown> } {
+  const message = signInMessage(botId, threadId, messageId);
+  const bot = store.bot(botId);
+  if (!bot || !message?.signIn) return { status: 404, body: { error: "no such sign-in request" } };
+  return { status: 200, body: { hasSavedLogin: cardHasSavedLogin(botId, message.signIn) } };
+}
+
+async function signInFillLogin(botId: string, threadId: string, messageId: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  const message = signInMessage(botId, threadId, messageId);
+  const bot = store.bot(botId);
+  if (!bot || !message?.signIn) return { status: 404, body: { error: "no such sign-in request" } };
+  const card = message.signIn;
+  const hasSaved = cardHasSavedLogin(botId, card);
+  const current = botForThread(botId, threadId) ?? bot;
+  const result = await runSavedLoginFill({
+    card,
+    hasSavedLogin: hasSaved,
+    fill: () => fillLoginForCard(current, threadId, messageId, card.url),
+  });
+  if (result.settle) {
+    const settled = signInSettle.settle(botId, threadId, messageId, "done");
+    return { status: settled.status, body: { ok: true, text: result.text, ...settled.body } };
+  }
+  if (result.status === 200) {
+    const latest = signInMessage(botId, threadId, messageId)?.signIn ?? card;
+    if (signInWaits(latest)) {
+      store.patchMessage(threadId, messageId, { signIn: { ...latest, error: result.text, hasSavedLogin: hasSaved } });
+    }
+  }
+  return { status: result.status, body: { ok: false, text: result.text } };
+}
 
 async function localVmPayload(target: LocalVmTarget, auth: RequestAuth) {
   const status = localVmUpdates.describe(target, await containerComputerStatus(undefined, undefined, target));
@@ -12317,7 +12375,7 @@ ROUTES.push(createBotMemoryRoutes({
 const teamMoveIn = CLOUD_TEAM ? createTeamMoveIn({ team: CLOUD_TEAM, dataDir: DATA_DIR, sessions, store, routines: () => routines, library: () => readSkillLibraryIndex(), starters: threadStarters }) : null; const cloudSendOwner = (auth: RequestAuth) => teamMoveIn ? teamMoveIn.owner(auth) : (CLOUD_HOME && auth.kind === "session" && auth.scopes.includes("admin")) || ownHome.owner(auth) ? { person: actorKey(auth as RequestAuth & { kind: "session" }), name: cfg.profile?.name?.trim() || "User" } : null; const botMoves = CLOUD_PERSONAL ? createBotMoves({ store, routines: () => routines, webhooks: () => webhooks, appEvents: () => appTriggers.manager, waits: () => botWaits, busy: (id) => botHasActiveTurn(id) || Boolean(routines?.activeRunForBot(id)) }) : null; ROUTES.push(createBotMoveRoutes({ moves: botMoves, enabled: CLOUD_PERSONAL })); if (teamMoveIn) { ROUTES.unshift(teamMoveIn.guard); ROUTES.push(teamMoveIn.routes); teamOwners.backfill(teamMoveIn.list()); } ROUTES.push(createDeciderRoutes({ decider, extractor, config: () => cfg }), createTtsRoutes({ config: () => cfg }), createHelperSuggestionRoutes({ notNow: proactive.suggestionNotNow }), createSetupRequestRoutes({ store, language: () => appLanguage() ?? Intl.DateTimeFormat().resolvedOptions().locale, sendRefusal: cloudGuestSendRefusal, presser: (auth) => setupPresser(sharedMembership(), auth, messageSender(auth)), canSetUp: (botId, threadId) => registry.get(store.projectBotForTask(botId, threadId)?.modelSelection.instanceId ?? "")?.adapter.capabilities.agentsMcp === true, send: (auth, botId, threadId, text) => acceptDirectSend({ botId, threadId, text, sender: messageSender(auth), trigger: usageTriggerFor(auth), personPresent: auth.kind === "session" || DESKTOP_MANAGED }) }), createNotificationRoutes(undefined, threadShown, CLOUD_TEAM ? (auth, entry) => teamOwners.routing.notificationReaches(teamOwners.viewer(auth), entry) : undefined), createUpdateCheckRoutes({ check: serverUpdateChecker({ desktopManaged: DESKTOP_MANAGED, managed: Boolean(CLOUD_HOME || HOSTED_WORKSPACE) }) }), createTimeZoneRoutes({ adopts: Boolean(CLOUD_HOME), dataDir: DATA_DIR, changed: () => routines?.rescheduleLocalTimes() }), createCloudSendRoutes({ appVersion: serverVersion(), ...(CLOUD_TEAM ? { refusal: personalMoveRefusal(CLOUD_TEAM), scope: (auth) => teamMoveIn?.scope(auth) ?? null } : {}), bots: () => store.bots, messagesTail: (threadId, limit) => store.messagesTail(threadId, limit), skills: (bot) => listSkills(bot.id), logins, config: () => cfg, lineLanguage: personLanguages.forLine, chats: { store, dataDir: DATA_DIR, owner: cloudSendOwner, ...(CLOUD_OWNER_KEY ? { ownerKey: CLOUD_OWNER_KEY } : {}), stamped: (threadId) => ownerOnlyCache.delete(threadId), instanceExists: (id) => Boolean(registry.get(id)), approvalSupported: (selection, mode) => supportsApprovalMode(selection, mode) }, cloudHome: Boolean(CLOUD_HOME), ownHome: ownHome.owner, automations: { routines: () => routines, calls: () => calendarCalls, webhooks: () => webhooks, appEvents: () => appTriggers.manager, waits: () => botWaits }, connections: () => cloudConnections.connections(), connectionFingerprints: (nonce) => cloudConnections.fingerprints(nonce), move: { dataDir: DATA_DIR, store, routines: () => routines, calls: () => calendarCalls, webhooks: () => webhooks, appEvents: () => appTriggers.manager, claudeCodeSkills: () => (claudeUserSkillsEnabled(cfg) ? claudeCodeSkillInputs() : []), instanceExists: (id) => Boolean(registry.get(id)), owner: cloudSendOwner, ownRoutine: (routine, person) => { cloudRoutineAuthors?.record(routine.id, routine); cloudRoutineAuthors?.wrote(routine.id, person); }, arrived: () => ownerOnlyCache.clear(), teamMemory, aboutMe: () => cfg.profile?.aboutMe ?? "", saveAboutMe: (text) => { saveConfig({ profile: { ...cfg.profile, aboutMe: text } }); Object.assign(cfg, loadConfig()); broadcast({ kind: "config", ...configStatus() }); } } }), cloudConnections.routes, createTodayRoutes({ visibleFor: (auth) => visibleTo(viewerFor(auth)), ...(teamOwners.asks ? { asks: teamOwners.asks, messages: teamMessages.needsYou } : {}), sources: () => ({ bots: store.bots, groups: store.groups, routines, parked: coordinator.active(), engines: registry.instances().map((instance) => ({ instanceId: instance.instanceId, snapshot: registry.lastSnapshot(instance.instanceId) })) }) }), createInboxRoutes(teamMessages));
 if (CLOUD_TEAM) teamHost.adoptServerProfile(sessions.list().flatMap((session) => session.email ? [session.email] : []));
 ROUTES.push(createSidebarSectionRoutes({ store, teamComputers, maxBots: MAX_WORKSPACE_BOTS, assertTeamComputerChangeIdle, wireBot }), createPresenceRoutes({ isOwner: ownerOrAdmin, heard: (auth, language) => personLanguages.heard(auth.kind === "session" ? actorKey(auth) : THIS_COMPUTER, language), sawChat: (auth, threadId) => { if (ownerOrAdmin(auth) && store.botByThread(threadId)) sawThread(threadId); }, active: async (source, zone, language) => { const answer = await proactive.brief.active(source, zone, language); firstHourHooks.arrived(); return answer; }, ...(CLOUD_TEAM ? { member: teamMessages.arrived } : {}) }), createMeRoutes({ team: CLOUD_TEAM, session: (auth) => (auth.kind === "session" ? auth.session : null), profile: teamHost.memberProfile, save: teamHost.saveMemberProfile, seed: teamHost.seedMemberProfile, seeded: teamHost.seededFields, changed: () => broadcast({ kind: "config", ...configStatus() }) }), createTeamPhoneRoutes({ team: CLOUD_TEAM, sessions, publicBase: (req, auth) => publicUrl() ?? (auth.kind === "session" ? requestOrigin(req) : null) }),
-  createTeamConnectionRoutes({ host: teamConnections, cfg: () => cfg, composio, publicOrigin: CLOUD_HOME?.publicOrigin ?? null, record: (auth, row) => appendAdminAction(DATA_DIR, { ...row, actor: decisionActorFor(auth) }) }), createSignInCardRoutes({ settle: signInSettle.settle, saveLogin: (botId, threadId, messageId, body, auth) => CLOUD_TEAM && !auth.scopes.includes("admin") ? Promise.resolve({ status: 403 as const, body: { error: memberLoginRefusal(CLOUD_TEAM) } }) : saveLoginFromCard(botId, threadId, messageId, body), saveTarget: signInSaveTarget, threadVisible: (auth, threadId) => visibleTo(viewerFor(auth)).thread(threadId) }));
+  createTeamConnectionRoutes({ host: teamConnections, cfg: () => cfg, composio, publicOrigin: CLOUD_HOME?.publicOrigin ?? null, record: (auth, row) => appendAdminAction(DATA_DIR, { ...row, actor: decisionActorFor(auth) }) }), createSignInCardRoutes({ settle: signInSettle.settle, saveLogin: (botId, threadId, messageId, body, auth) => CLOUD_TEAM && !auth.scopes.includes("admin") ? Promise.resolve({ status: 403 as const, body: { error: memberLoginRefusal(CLOUD_TEAM) } }) : saveLoginFromCard(botId, threadId, messageId, body), saveTarget: signInSaveTarget, fillStatus: signInFillStatus, fillLogin: signInFillLogin, threadVisible: (auth, threadId) => visibleTo(viewerFor(auth)).thread(threadId) }));
 ROUTES.push(createRoomHoldRoutes({
   group: (id) => store.group(id),
   groupFor: personRooms.groupForAuth,
@@ -15668,6 +15726,7 @@ server.listen(PORT, "127.0.0.1", async () => {
   browserSweep.start(); moveFreeze.hold(() => appTriggers.start(), () => void appTriggers.stop()); startCloudHomeConnectedApps({ cloudHome: CLOUD_HOME !== null, dataDir: DATA_DIR, cloudGrant: CLOUD_ENV.OMB_CLOUD_CONNECTED_APPS_GRANT, apply: (access) => { composio.setManagedBrokerAccess(access); broadcast({ kind: "config", ...configStatus() }); } });
   void afterFirstEngineRead().then(() => { if (builtInBrowserEnabled(cfg)) chromeLauncher.start(); });
   followupsReady = true;
+  reviveStoppedSignInWaits();
   drainQueuedSends();
   drainQueuedChannelSends();
   void cloudComputerPower.armRunning();
@@ -15676,6 +15735,7 @@ server.listen(PORT, "127.0.0.1", async () => {
     await enginesRead;
     if (companyShutdown) return;
   }
+  void autoFillWaitingSignInCards();
   // Only once every registry is initialized and the endpoint listens: earlier dispatch can hit uninitialized bindings.
   moveFreeze.hold(() => { routines!.start(); botWaits.start(); proactive.start(); }, () => { routines!.stop(); botWaits.stop(); proactive.stop(); });
   limitClock.start();
@@ -15692,6 +15752,62 @@ if (TUNNEL_SOCKET) {
   tunnelListener.listen(TUNNEL_SOCKET, () => {
     console.log(`openmausbot tunnel listener on ${TUNNEL_SOCKET}`);
   });
+}
+
+function signInThreadIds(): Set<string> {
+  const threads = new Set<string>();
+  for (const bot of store.bots) {
+    if (bot.threadId) threads.add(bot.threadId);
+    for (const task of store.tasks(bot.id)) threads.add(task.threadId);
+  }
+  for (const group of store.groups) {
+    if (group.threadId) threads.add(group.threadId);
+    for (const task of store.groupTasks(group.id)) threads.add(task.threadId);
+  }
+  return threads;
+}
+
+/** After engines are ready, retry fill_login once on waiting cards that have a saved login. Failure leaves the card open. */
+async function autoFillWaitingSignInCards(): Promise<void> {
+  const jobs: Array<{ botId: string; threadId: string; messageId: string }> = [];
+  for (const threadId of signInThreadIds()) {
+    for (const message of store.messagesFor(threadId)) {
+      const card = message.signIn;
+      if (message.kind !== "signin" || !card) continue;
+      const botId = message.from?.botId ?? store.botByThread(threadId)?.id;
+      if (!botId || !store.bot(botId)) continue;
+      const hasSaved = cardHasSavedLogin(botId, card);
+      if (!shouldAutoFillSignInCard(card, hasSaved)) continue;
+      store.patchMessage(threadId, message.id, { signIn: { ...card, fillAutoRetried: true, fillLoginPageTried: true, hasSavedLogin: true } });
+      jobs.push({ botId, threadId, messageId: message.id });
+    }
+  }
+  if (!jobs.length) return;
+  console.log(`sign-in: auto-filling ${jobs.length} waiting card(s) with a saved login`);
+  for (const job of jobs) {
+    if (companyShutdown) return;
+    try {
+      const result = await signInFillLogin(job.botId, job.threadId, job.messageId);
+      const text = typeof result.body.text === "string" ? result.body.text.slice(0, 180) : "";
+      console.log(`sign-in: auto-fill ${job.messageId} status=${result.status} ok=${result.body.ok === true}${text ? ` ${text}` : ""}`);
+    } catch (error) {
+      console.warn(`sign-in: auto-fill ${job.messageId} failed`, error);
+    }
+  }
+}
+
+/** Reopen waiting sign-in cards a prior stall or restart had marked stopped, so they stay fillable after the app comes back. */
+function reviveStoppedSignInWaits(): void {
+  let n = 0;
+  for (const threadId of signInThreadIds()) {
+    for (const id of stoppedSignInCardIdsToRevive(store.messagesFor(threadId))) {
+      const message = store.messagesFor(threadId).find((row) => row.id === id);
+      if (!message?.signIn) continue;
+      store.patchMessage(threadId, id, { signIn: { ...message.signIn, stopped: false } });
+      n++;
+    }
+  }
+  if (n) console.log(`sign-in: reopened ${n} waiting card(s) after restart`);
 }
 
 /** A root the runtime holds is the runtime's to account for at the next start: a line here, with Retry, would start the job a second time. */

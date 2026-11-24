@@ -27,6 +27,7 @@ import { WorkspaceBackupRecovery } from "@/components/WorkspaceBackupSettings";
 import { NotificationRail, NotificationsPanel } from "@/components/NotificationsPanel";
 import { useNotificationFeed } from "@/lib/notification-preferences";
 import { AppNotices } from "@/components/AppNotices";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { CloudAsleepStrip } from "@/components/CloudAsleepStrip";
 import { LiveConnectionStrip } from "@/components/LiveConnectionStrip";
 import { CloudSendStrip } from "@/components/CloudSendStrip";
@@ -276,6 +277,7 @@ function Shell({ viewer }: { viewer: WelcomeViewer | null }) {
     <CloudSendStrip cloudHome={state.config?.cloudHome === true} />
     <HomeLine />
     <AppNotices quiet={paletteOpen || drawerOpen} viewer={viewer} />
+    <UpdateBanner />
   </>;
   return (
     <div className={cn("flex h-full flex-col", framed && "bg-frame")}>

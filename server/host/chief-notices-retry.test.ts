@@ -115,7 +115,7 @@ describe("OpenMausBot's one automatic retry of a teammate's failed thread", () =
     const f = fixture();
     await f.notices.retryThread({ chief: f.chief as never, bot: f.ada as never, threadId: "ada-job", unattended: true, note: "The service was down." });
     expect(f.turnsOf("ada")[0]!.text).toBe("[Retry requested by Clive, your Chief of Staff, after this thread's last run stopped. Note from Clive: The service was down. " +
-      "Continue the request above from where it stopped and finish it. If the same problem comes back, say exactly what is blocking and stop.]");
+      "Continue the request above from where it stopped and finish it. If the work is still running (a submit, verification, login, or other backend job), wait and poll the current state instead of ending; a short timeout is not a final result. Do not close unfinished work, and do not resubmit a job that was already started. While waiting, assign and continue other ready teammate work and other logins.]");
     f.notices.reportIncident({ kind: "failed", bot: f.ada as never, threadId: "ada-job", detail: CRASH });
     expect(f.turnsOf("ada")).toHaveLength(1);
     expect(f.turnsOf("chief")).toHaveLength(1);

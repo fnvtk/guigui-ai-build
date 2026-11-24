@@ -19,7 +19,14 @@ vi.mock("@/state/store", async (original) => ({
 }));
 const answerSignIn = vi.fn();
 const here = { value: true };
-vi.mock("@/lib/sign-in", () => ({ answerSignIn: (...args: unknown[]) => answerSignIn(...args), signInHostIsHere: () => here.value }));
+const fillSavedLogin = vi.fn();
+const cardHasSavedLogin = vi.fn();
+vi.mock("@/lib/sign-in", () => ({
+  answerSignIn: (...args: unknown[]) => answerSignIn(...args),
+  signInHostIsHere: () => here.value,
+  fillSavedLogin: (...args: unknown[]) => fillSavedLogin(...args),
+  cardHasSavedLogin: (...args: unknown[]) => cardHasSavedLogin(...args),
+}));
 const saveLoginFromCard = vi.fn();
 const cardSaveTarget = vi.fn();
 vi.mock("@/lib/logins", () => ({
@@ -60,6 +67,8 @@ const settle = async () => { for (let turn = 0; turn < 10; turn++) await Promise
 beforeEach(() => {
   vi.stubGlobal("window", {});
   dispatch.mockReset(); answerSignIn.mockReset().mockResolvedValue(undefined);
+  fillSavedLogin.mockReset().mockResolvedValue(undefined);
+  cardHasSavedLogin.mockReset().mockResolvedValue(false);
   saveLoginFromCard.mockReset().mockResolvedValue(undefined);
   cardSaveTarget.mockReset().mockResolvedValue({ site: "example.com" });
   fixture.setters = []; fixture.states = {}; here.value = true;
@@ -74,7 +83,7 @@ describe("SignInRequestCard while it waits", () => {
     expect(html).toContain("— Pepper");
     expect(html).toContain("Pepper’s built-in browser");
     for (const label of ["Open", "Done", "Cancel"]) expect(html).toContain(label);
-    expect(html).toContain("MausBot never sees it.");
+    expect(html).toContain("乖乖AI never sees it.");
     expect(html).not.toContain("<input");
   });
 
@@ -88,7 +97,7 @@ describe("SignInRequestCard while it waits", () => {
 
   it("says the host computer, not this one, where this computer is somewhere else", () => {
     here.value = false;
-    expect(view({ place: "local" })).toContain("the computer MausBot runs on");
+    expect(view({ place: "local" })).toContain("the computer 乖乖AI runs on");
   });
 
   it("Open goes to the place the bot works", () => {
@@ -219,5 +228,34 @@ describe("SignInBanner", () => {
     expect(html).toContain("Take control");
     nodes.find((node) => node.type === "button" && node.props.onClick === takeControl.onClick)!.props.onClick!();
     expect(takeControl.onClick).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe("SignInRequestCard fill with a saved login", () => {
+  it("offers Fill with saved login when a saved login exists, including on this computer", () => {
+    const html = view({ hasSavedLogin: true, place: "local" });
+    expect(html).toContain("Fill with saved login");
+    expect(html).toContain("The server fills the saved login in the built-in browser");
+    expect(html).toContain('data-testid="sign-in-fill-saved"');
+  });
+
+  it("does not offer the fill control when no saved login is known", () => {
+    expect(view()).not.toContain("Fill with saved login");
+  });
+
+  it("asks the server to fill, and keeps the card open when fill fails", async () => {
+    fillSavedLogin.mockRejectedValueOnce(new Error("No login fields found on example.com."));
+    fixture.states[0] = null;
+    fixture.states[6] = true; // hasSavedLogin is the last useState
+    const nodes = tree({ hasSavedLogin: true });
+    const fillButton = button(nodes, "Fill with saved login");
+    expect(fillButton).toBeTruthy();
+    fillButton.props.onClick!();
+    await settle();
+    expect(fillSavedLogin).toHaveBeenCalledWith({ botId: "pepper", threadId: "thread-1", messageId: "card-1", place: "browser" });
+    const errorSetter = fixture.setters.find((setter) => setter.mock.calls.some((call) => call[0] === "No login fields found on example.com."));
+    expect(errorSetter).toBeTruthy();
+    expect(answerSignIn).not.toHaveBeenCalled();
   });
 });

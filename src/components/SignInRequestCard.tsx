@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Hand, KeyRound, Loader2, LockKeyhole, LogIn, RefreshCw, X } from "lucide-react";
 
 import type { ComputerHelpRef } from "../../shared/wire";
@@ -6,7 +6,7 @@ import { signInOutcome } from "../../shared/sign-in-request";
 import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { cardSaveTarget, saveLoginFromCard } from "@/lib/logins";
-import { answerSignIn, signInHostIsHere } from "@/lib/sign-in";
+import { answerSignIn, cardHasSavedLogin, fillSavedLogin, signInHostIsHere } from "@/lib/sign-in";
 import { useStore, type Bot, type Message } from "@/state/store";
 import { ASK_CHIP, ASK_CHIP_IDLE, askPrimary, ASK_QUIET_BUTTON, AskCard, AskSettledLine, returnFocusToComposer } from "./AskCard";
 import { LoginForm } from "./LoginForm";
@@ -37,16 +37,33 @@ export function SignInRequestCard({
 }) {
   const { dispatch } = useStore();
   const card = message.signIn!;
-  const [pending, setPending] = useState<"done" | "cancel" | null>(null);
+  const [pending, setPending] = useState<"done" | "cancel" | "fill" | null>(null);
   const [explained, setExplained] = useState(false);
   const [saving, setSaving] = useState(false);
   const [target, setTarget] = useState<{ site: string; signInHost?: string } | null>(null);
   const [alsoThere, setAlsoThere] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [hasSavedLogin, setHasSavedLogin] = useState(card.hasSavedLogin === true);
   const error = localError ?? card.error;
   const outcome = signInOutcome(card);
   const ref = { botId, threadId, messageId: message.id, place: card.place };
   const here = signInHostIsHere();
+
+  useEffect(() => {
+    if (signInOutcome(card) || card.superseded || card.answeredInChat) return;
+    let cancelled = false;
+    void cardHasSavedLogin(ref).then((has) => { if (!cancelled) setHasSavedLogin(has); }, () => {});
+    return () => { cancelled = true; };
+  }, [botId, threadId, message.id, card.site, card.done, card.cancelled, card.superseded, card.answeredInChat]);
+
+  const fill = async () => {
+    if (pending) return;
+    setPending("fill");
+    setLocalError(null);
+    try { await fillSavedLogin(ref); }
+    catch (cause) { setLocalError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setPending(null); }
+  };
 
   // A sign-in page on another site is added only when the person ticks it, seeing its host named.
   const startSaving = () => {
@@ -136,6 +153,12 @@ export function SignInRequestCard({
           <LogIn size={14} />
           {t("signIn.open")}
         </button>
+        {hasSavedLogin && (
+          <button type="button" onClick={() => void fill()} disabled={pending !== null} data-testid="sign-in-fill-saved" className={cn(ASK_CHIP, ASK_CHIP_IDLE)}>
+            {pending === "fill" ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+            {t("signIn.fillSaved")}
+          </button>
+        )}
         {canSave && (
           <button type="button" onClick={startSaving} disabled={pending !== null} className={cn(ASK_CHIP, ASK_CHIP_IDLE)}>
             <KeyRound size={14} />
@@ -172,6 +195,9 @@ export function SignInRequestCard({
           </LoginForm>
         </div>
       ) : <p className="mt-2 text-[13px] leading-snug text-ink-secondary">{t(where, { name: botName })}</p>}
+      {!saving && hasSavedLogin && (
+        <p className="mt-1.5 text-[13px] leading-snug text-ink-secondary">{t("signIn.fillSaved.hint")}</p>
+      )}
       {explained && (
         <p role="note" className="mt-1.5 text-[13px] leading-snug text-ink">{t(here ? "signIn.local.explain" : "signIn.local.explainHost", { name: botName })}</p>
       )}
@@ -196,7 +222,7 @@ export function SignInBanner({
   takeControl?: { onClick: () => void; disabled?: boolean; pending?: boolean };
   onError?: (message: string | null) => void;
 }) {
-  const [pending, setPending] = useState<"done" | "cancel" | null>(null);
+  const [pending, setPending] = useState<"done" | "cancel" | "fill" | null>(null);
   const answer = async (choice: "done" | "cancel") => {
     if (pending) return;
     setPending(choice);

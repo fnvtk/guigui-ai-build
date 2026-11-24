@@ -58,6 +58,11 @@ export function botPersona(bot: { name: string; title?: string; description?: st
     .join(" ");
 }
 
+
+/** Standing team-collaboration rules, in Chinese, so 卡若/乖乖-style teams keep working instead of idling or closing unfinished jobs. */
+export const TEAM_COLLABORATION_PROMPT =
+  " 团队协作规则：先查任务状态，已完成的任务不要重试或重新创建；只有在任务不存在且成员 ID 可达时才允许重试。不要把历史分派失败提示当成业务失败。新工作要加入团队任务队列，不要丢掉，也不要因为有人已在做别处的事就拒绝入队。多名队友可以并行处理互相独立的任务；有依赖或冲突的才串行，同一主责在途不超过两项。若某位队友已经在工作：登记等待并轮询回执，同时继续完成队列里其他已就绪的任务，不要让总协调或整个团队停住。收到回执后再接回原任务。提交补采、核验、登录或其他后端任务后，必须等待并轮询当前结果，不要因为一次点击未找到、短暂超时（例如 10 秒）或单个工具失败就结束或结案未完成的工作，也不要重复提交。登录或凭据步骤要留在当场处理：已保存的登录由系统自动填写，不要把密码写进对话；若还没有保存，打开登录卡片等待应用内输入，不要离开。向用户说明进展时用中文，且不要把未完成的工作说成已结束。";
+
 export function buildSystemPrompt(
   persona: string,
   soul: string,
@@ -70,6 +75,7 @@ export function buildSystemPrompt(
     { id: "soul", label: "Standing instructions (SOUL.md)", text: soulSystemPrompt(soul) },
     // Right after the soul: on a direct turn, ahead of every section that names a tool.
     { id: "tool-bridge", label: "Tool search", text: agentsToolBridged(agents) ? AGENTS_TOOL_BRIDGE_PROMPT : "" },
+    { id: "team-collaboration", label: "Team collaboration", text: TEAM_COLLABORATION_PROMPT },
     { id: "reply-style", label: "Reply style", text: replyStylePrompt(opts?.replyStyle) },
     ...parts,
     { id: "reply-habits", label: "How to reply", text: REPLY_HABITS_PROMPT },
@@ -117,7 +123,7 @@ const COMPUTER_PARAGRAPH: Record<ComputerPromptKind, string> = {
   vps:
     " You have your own self-hosted remote Linux computer through the official Cua tools. This is the user's own VPS; using it does not require a Boat API key. Its filesystem is disposable: everything on it is wiped whenever its container is recreated, so keep long-lived work somewhere durable — push it to a remote, or hand the results back in chat — instead of leaving it only on that computer. Inspect the desktop state before acting, prefer accessibility targets over raw coordinates, and act carefully." + SANDBOX_DESKTOP_INPUT,
   local:
-    " You can act on the user's computer through the computer tools. Discover the target app/window and inspect its state first. Prefer window-targeted accessibility actions with background delivery so the user can keep working in another app; do not bring OpenMausBot or another app to the front just to inspect it. Use the dedicated browser tools for browser work when available, keeping the user's intended browser profile/account, and OpenMausBot's configuration/proposal tools for supported bot setup rather than clicking through this app. Full-desktop input, app activation, and foreground delivery can move the real cursor, change focus, or switch desktops: use them only when the user asked for foreground control or agrees after background control reports it cannot perform the action. Do not silently retry a background refusal as foreground input, including through shell scripts, AppleScript/System Events, or another automation tool. If a background action unexpectedly changes focus, report it and stop that route rather than continuing to interrupt the user. Never promise that arbitrary desktop actions can run in the background.",
+    " You can act on the user's computer through the computer tools. Discover the target app/window and inspect its state first. Prefer window-targeted accessibility actions with background delivery so the user can keep working in another app; do not bring OpenMausBot or another app to the front just to inspect it. Use the dedicated browser tools for browser work when available, keeping the user's intended browser profile/account, and OpenMausBot's configuration/proposal tools for supported bot setup rather than clicking through this app. Selecting this computer grants only the advertised screen and app tools, not arbitrary access to local file paths. Do not claim you can read or change a path unless an available file tool or explicitly shared folder grants it. For a local file, ask the person to attach it in chat; for a folder on a connected workspace, they can grant that specific folder under Computer access. If this computer is already selected, do not ask them to select it again. Full-desktop input, app activation, and foreground delivery can move the real cursor, change focus, or switch desktops: use them only when the user asked for foreground control or agrees after background control reports it cannot perform the action. Do not silently retry a background refusal as foreground input, including through shell scripts, AppleScript/System Events, or another automation tool. If a background action unexpectedly changes focus, report it and stop that route rather than continuing to interrupt the user. Never promise that arbitrary desktop actions can run in the background.",
 };
 
 export function savedLoginsPrompt(logins: ReadonlyArray<LoginPlace & { username: string }>): string {

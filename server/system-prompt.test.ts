@@ -5,6 +5,7 @@ import { BUILT_IN_BROWSER_SYSTEM_PROMPT } from "./browser-engine.ts";
 import {
   longCommandsPrompt,
   buildSystemPrompt,
+  TEAM_COLLABORATION_PROMPT,
   CONVERSATIONAL_STYLE_PROMPT,
   CLOUD_HOME_PLACE,
   cloudHomePrompt,
@@ -107,7 +108,7 @@ describe("buildSystemPrompt", () => {
     expect(built.text).toContain("likes tea");
     expect(built.text).toContain("@Fig");
 
-    expect(built.stable).toBe(`You are Kiwi. Search past sessions.${REPLY_HABITS_PROMPT}`);
+    expect(built.stable).toBe(`You are Kiwi.${TEAM_COLLABORATION_PROMPT} Search past sessions.${REPLY_HABITS_PROMPT}`);
     // A German person once read "Now the edits." between a bot's German lines: every line they see is in their language.
     expect(REPLY_HABITS_PROMPT).toContain("in the language they use with you, including a short note between steps and a message you pass on for them");
     expect(built.volatile).toContain("likes tea");
@@ -125,7 +126,7 @@ describe("buildSystemPrompt", () => {
     ]);
     expect(built.volatile).toContain("Use the deploy skill.");
     expect(built.volatile).toContain(ROUTINE_EXECUTION_PROMPT);
-    expect(built.stable).toBe(`You are Kiwi. Set yourself up.${WEBHOOK_PROMPT}${REPLY_HABITS_PROMPT}`);
+    expect(built.stable).toBe(`You are Kiwi.${TEAM_COLLABORATION_PROMPT} Set yourself up.${WEBHOOK_PROMPT}${REPLY_HABITS_PROMPT}`);
   });
 
   it("keeps the phone part stable and where the person is volatile, so a turn from the phone keeps the cached prefix", () => {
@@ -133,7 +134,7 @@ describe("buildSystemPrompt", () => {
       { id: "device", label: "Phone", text: " The phone." },
       { id: "device-place", label: "Where the person is", text: place },
     ]);
-    expect(at(" On the phone.").stable).toBe(`You are Kiwi. The phone.${REPLY_HABITS_PROMPT}`);
+    expect(at(" On the phone.").stable).toBe(`You are Kiwi.${TEAM_COLLABORATION_PROMPT} The phone.${REPLY_HABITS_PROMPT}`);
     expect(at(" At the computer.").stable).toBe(at(" On the phone.").stable);
     expect(at(" On the phone.").volatile).toBe(" On the phone.");
   });
@@ -146,9 +147,10 @@ describe("buildSystemPrompt", () => {
 
   it("is the persona and how every bot replies when there is no soul and no parts", () => {
     const built = buildSystemPrompt("You are Kiwi.", "", []);
-    expect(built.text).toBe(`You are Kiwi.${REPLY_HABITS_PROMPT}`);
+    expect(built.text).toBe(`You are Kiwi.${TEAM_COLLABORATION_PROMPT}${REPLY_HABITS_PROMPT}`);
     expect(built.sections).toEqual([
       { id: "persona", label: "Identity", text: "You are Kiwi.", bytes: 13 },
+      { id: "team-collaboration", label: "Team collaboration", text: TEAM_COLLABORATION_PROMPT, bytes: Buffer.byteLength(TEAM_COLLABORATION_PROMPT, "utf8") },
       { id: "reply-habits", label: "How to reply", text: REPLY_HABITS_PROMPT, bytes: Buffer.byteLength(REPLY_HABITS_PROMPT, "utf8") },
     ]);
   });
@@ -160,19 +162,19 @@ describe("buildSystemPrompt", () => {
       { id: "memory", label: "Memory", text: " Your memory file is X." },
     ];
     const built = buildSystemPrompt("You are Kiwi.", "", parts);
-    expect(built.text).toBe(`You are Kiwi. You can act on the computer. Your memory file is X.${REPLY_HABITS_PROMPT}`);
-    expect(built.sections.map((s) => s.id)).toEqual(["persona", "computer", "memory", "reply-habits"]);
+    expect(built.text).toBe(`You are Kiwi.${TEAM_COLLABORATION_PROMPT} You can act on the computer. Your memory file is X.${REPLY_HABITS_PROMPT}`);
+    expect(built.sections.map((s) => s.id)).toEqual(["persona", "team-collaboration", "computer", "memory", "reply-habits"]);
   });
 
   it("puts the soul block directly after the persona and measures it in bytes", () => {
     const built = buildSystemPrompt("You are Kiwi.", "Be brief. é", [
       { id: "memory", label: "Memory", text: " Your memory file is X." },
     ]);
-    expect(built.sections.map((s) => s.id)).toEqual(["persona", "soul", "memory", "reply-habits"]);
+    expect(built.sections.map((s) => s.id)).toEqual(["persona", "soul", "team-collaboration", "memory", "reply-habits"]);
     const soul = built.sections[1]!;
     expect(soul.text).toBe(soulSystemPrompt("Be brief. é"));
     expect(soul.bytes).toBe(Buffer.byteLength(soul.text, "utf8"));
-    expect(built.text).toBe("You are Kiwi." + soul.text + " Your memory file is X." + REPLY_HABITS_PROMPT);
+    expect(built.text).toBe("You are Kiwi." + soul.text + TEAM_COLLABORATION_PROMPT + " Your memory file is X." + REPLY_HABITS_PROMPT);
   });
 });
 
@@ -183,6 +185,10 @@ describe("computerPrompt", () => {
     expect(prompt).toContain("do not bring OpenMausBot");
     expect(prompt).toContain("dedicated browser tools");
     expect(prompt).toContain("keeping the user's intended browser profile/account");
+    expect(prompt).toContain("not arbitrary access to local file paths");
+    expect(prompt).toContain("For a local file, ask the person to attach it in chat");
+    expect(prompt).toContain("for a folder on a connected workspace, they can grant that specific folder under Computer access");
+    expect(prompt).toContain("If this computer is already selected, do not ask them to select it again");
     expect(prompt).toContain("Do not silently retry a background refusal");
     expect(prompt).toContain("including through shell scripts, AppleScript/System Events");
     expect(prompt).toContain("If a background action unexpectedly changes focus");
@@ -435,7 +441,7 @@ describe("reply style", () => {
       { id: "memory", label: "Memory", text: " memory" },
       { id: "x", label: "X", text: " tail" },
     ], undefined, { replyStyle: "conversational" });
-    expect(built.sections.map((s) => s.id)).toEqual(["persona", "soul", "reply-style", "memory", "x", "reply-habits"]);
+    expect(built.sections.map((s) => s.id)).toEqual(["persona", "soul", "team-collaboration", "reply-style", "memory", "x", "reply-habits"]);
     expect(built.stable).toContain(CONVERSATIONAL_STYLE_PROMPT);
     expect(built.volatile).not.toContain("Reply style");
     expect(CONVERSATIONAL_STYLE_PROMPT).toMatch(/short/i);
@@ -481,5 +487,19 @@ describe("how every bot replies", () => {
     expect(WIDGET_PROMPT).not.toContain("never end a turn with a question in text that a form could ask");
     expect(TRIGGER_PROMPT).toContain("weekdays at 9:00 AM India time\", never a zone id such as Asia/Kolkata");
     expect(TRIGGER_PROMPT).toContain("where its results will appear, what each run covers, and when the first run is");
+  });
+});
+
+
+describe("team collaboration standing rules", () => {
+  it("keeps unfinished work open and continues other teammates while waiting", () => {
+    const built = buildSystemPrompt("You are a bot.", "", []);
+    expect(built.text).toContain("团队协作规则");
+    expect(built.text).toContain("不要重试或重新创建");
+    expect(built.text).toContain("等待并轮询");
+    expect(built.text).toContain("团队任务队列");
+    expect(built.text).toContain("登记等待并轮询回执");
+    expect(built.text).toContain("多名队友可以并行");
+    expect(TEAM_COLLABORATION_PROMPT).toContain("成员 ID 可达");
   });
 });

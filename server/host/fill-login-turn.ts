@@ -4,6 +4,7 @@ import type { BotLogins } from "../bot-logins.ts";
 import { BROWSER_CONTROL_REFUSAL } from "../browser-runtime.ts";
 import type { StepContext } from "../browser-steps.ts";
 import { fillLogin, type FillLoginDeps, type FillLoginOutcome } from "../login-fill.ts";
+import { withLoginStayGuidance } from "./credential-stay.ts";
 import { redactSecretsInText } from "../redact.ts";
 import type { BotRecord } from "../store.ts";
 import { surfaceLabel } from "../surface.ts";
@@ -24,6 +25,8 @@ export interface FillLoginTurnDeps {
   myChrome(bot: BotRecord): boolean;
   /** Null while the browser engine is not installed. */
   target(bot: BotRecord, threadId: string): Promise<{ session: string; spec: Spec; env: NodeJS.ProcessEnv } | null>;
+  /** Open `url` in the in-app browser when the current page is not this site. */
+  ensurePage?(browser: { session: string; spec: Spec; env: NodeJS.ProcessEnv }, url: string): Promise<void>;
   claim(turn: Turn, resource: string): boolean;
   withSecretInput(session: string, spec: Spec, fill: () => Promise<FillLoginOutcome>, ctx: StepContext): Promise<FillLoginOutcome>;
   logins: Pick<BotLogins, "candidates" | "sitesFor" | "markUsed">;
@@ -60,10 +63,8 @@ export function createFillLoginTurn(deps: FillLoginTurnDeps) {
     return { ok: false, text: `${ONLY_IN_BROWSER}${notHere}. OpenMausBot is moving this conversation to your own browser${chrome}. End this turn now without using the screen tools: the request continues there with your browser tools. Open the site's sign-in page in that browser, then call fill_login.` };
   }
 
-  async function fillLoginForTurn(bot: BotRecord, capability: Turn, rawUsername: unknown, rawSubmit: unknown): Promise<Answer> {
+  async function fillInBrowser(bot: BotRecord, capability: Turn, rawUsername: unknown, rawSubmit: unknown): Promise<Answer> {
     const threadId = capability.threadId;
-    const place = deps.place(bot, threadId);
-    if (place !== "browser") return elsewhere(bot, capability, place);
     const current = deps.current(bot, threadId);
     if (current.browser === false || current.computer === "off" || !deps.builtInBrowserOn()) {
       return { ok: false, text: "The built-in browser is off for you here, so fill_login has nothing to fill. Call request_sign_in instead." };
@@ -87,15 +88,54 @@ export function createFillLoginTurn(deps: FillLoginTurnDeps) {
         remember: deps.remember,
       }), deps.stepContext(current, capability));
       if (outcome.ok && outcome.loginId) deps.logins.markUsed(outcome.loginId);
-      return { ok: outcome.ok, text: outcome.text };
+      return { ok: outcome.ok, text: outcome.ok ? outcome.text : withLoginStayGuidance(outcome.text) };
     } catch (error) {
       if (error instanceof Error && error.message === BROWSER_CONTROL_REFUSAL) {
         return { ok: false, text: "The person is using this browser right now. Wait for them to hand it back, then call fill_login again." };
       }
       const reason = error instanceof Error ? error.message : String(error);
-      return { ok: false, text: `Could not fill the login: ${redactSecretsInText(reason)} Call request_sign_in if it keeps failing.` };
+      return { ok: false, text: withLoginStayGuidance(`Could not fill the login: ${redactSecretsInText(reason)} Call request_sign_in if it keeps failing.`) };
     }
   }
 
-  return { fillLoginForTurn };
+  async function fillLoginForTurn(bot: BotRecord, capability: Turn, rawUsername: unknown, rawSubmit: unknown): Promise<Answer> {
+    const place = deps.place(bot, capability.threadId);
+    if (place === "browser") return fillInBrowser(bot, capability, rawUsername, rawSubmit);
+    const current = deps.current(bot, capability.threadId);
+    // Security: never type a secret on a computer screen. When the in-app browser
+    // can be targeted, fill there in this same turn even if the conversation's
+    // place is this computer and a surface switch cannot be scheduled.
+    if (deps.browserSelectable(current) && deps.logins.sitesFor(bot.id).length) {
+      const targeted = await fillInBrowser(bot, capability, rawUsername, rawSubmit);
+      if (targeted.text !== "The browser is not available on this computer right now. Call request_sign_in instead.") {
+        deps.moveToBrowser(capability);
+        return targeted;
+      }
+    }
+    return elsewhere(bot, capability, place);
+  }
+
+  /** Person or restart: fill the saved login in the in-app browser, never inventing a username. */
+  async function fillLoginForCard(bot: BotRecord, threadId: string, messageId: string, pageUrl: string): Promise<Answer> {
+    const capability: Turn = { botId: bot.id, threadId, generation: `sign-in-fill:${messageId}` };
+    const current = deps.current(bot, threadId);
+    if (current.browser === false || current.computer === "off" || !deps.builtInBrowserOn()) {
+      return { ok: false, text: "The built-in browser is off for you here, so fill_login has nothing to fill." };
+    }
+    const browser = await deps.target(current, threadId);
+    if (!browser) return { ok: false, text: "The browser is not available on this computer right now." };
+    if (!deps.claim(capability, `browser:${browser.session}`)) {
+      return { ok: false, text: "Another conversation is using this browser. Wait until it finishes, then try again." };
+    }
+    if (deps.ensurePage) {
+      try { await deps.ensurePage(browser, pageUrl); }
+      catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        return { ok: false, text: withLoginStayGuidance(`Could not open the sign-in page: ${redactSecretsInText(reason)}`) };
+      }
+    }
+    return fillInBrowser(bot, capability, undefined, true);
+  }
+
+  return { fillLoginForTurn, fillLoginForCard };
 }

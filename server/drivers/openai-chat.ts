@@ -20,7 +20,7 @@ import { createChatToolApproval, refusal } from "./chat-tool-approval.ts";
 import { ChatProtocolError, ChatReasoningDetails, ChatToolCalls, object, type ChatToolCall } from "./openai-chat-protocol.ts";
 import { appendNative } from "./native.ts";
 import { classifyError, computeBackoff, interruptibleDelay, RETRY_MAX_ATTEMPTS } from "./retry.ts";
-import { plainFailureMessage } from "./engine-errors.ts"; import { toolFailureMessage } from "./tool-failure.ts";
+import { plainFailureMessage } from "./engine-errors.ts"; import { toolFailureMessage, isRecoverableToolFailure, RECOVERABLE_WAIT_ROUNDS } from "./tool-failure.ts";
 import { refusesRequestSize, RequestTooLargeError, sizeChange, smallerResend } from "./chat-size-limit.ts";
 import { requestTooLargeMessage } from "../../shared/request-too-large.ts";
 import { toolSchemaProfileFor } from "../tool-schema-profile.ts";
@@ -206,7 +206,8 @@ function replayDelivered(
   return { content, matched: found.map(({ record }) => record), volatile };
 }
 
-const CORRECTIVE_ROUND = "[OpenMausBot: a tool call in this turn failed (its result is marked ok:false). Re-run the failed operations with corrected inputs where possible, check the results, then give your final answer. Do not report results you did not get.]";
+const CORRECTIVE_ROUND = "[OpenMausBot: a tool call in this turn failed (its result is marked ok:false). Re-run the failed operations with corrected inputs where possible, check the results, then continue the original work. Do not report results you did not get. Do not close unfinished work just because one tool failed.]";
+const WAIT_AND_CONTINUE_ROUND = "[乖乖AI：本轮出现可恢复的点击、等待、超时或其他工具失败。原工作尚未完成。请继续等待并轮询当前页面或后端，不要结束；例如 10 秒的短暂超时不是最终结果。不要重复提交已经开始的任务。等待期间，用队友工具继续分配并执行其他已就绪的工作和其他登录，然后回来查看该结果。登录或凭据步骤请留在当场处理：已保存的登录用 fill_login 由系统填写，切勿把密码写进对话；若还没有保存，打开登录卡片等待应用内输入。不要把任务说成已完成或已结案。]";
 const PERSON_INTERVENTION_ROUND = `${CORRECTIVE_ROUND} If the failure needs the person's signed-in browser, screen, or computer authorization, use ask_user to request the one manual action needed (for example, sign in, take control, or approve access). After the person answers, continue the original request and verify the result; do not end with a generic failure notice.`;
 const COORDINATION_RECOVERY_ROUND = `${CORRECTIVE_ROUND} For a teammate hand-off failure, first call list_bots or list_room_targets and copy an exact reachable id. Check the existing task, room state, or assignment receipt before retrying coordinate_bots, so an uncertain hand-off is never duplicated. Handle browser failures separately by rereading the current page state before retrying the failed click.`;
 
@@ -769,11 +770,17 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             }
             if (toolFailed) {
               // A person's "no" is never answered with another attempt; a failure may first get the configured corrective rounds.
-              const correctiveLimit = Math.max(turn.toolErrorCorrectiveRounds ?? 0, personInterventionNeeded ? 1 : 0, coordinationRecoveryNeeded ? 2 : 0);
+              const recoverable = !denials.length && failedCalls.every((name) => isRecoverableToolFailure(name));
+              const correctiveLimit = Math.max(turn.toolErrorCorrectiveRounds ?? 0, personInterventionNeeded ? 1 : 0, coordinationRecoveryNeeded ? 2 : 0, recoverable ? RECOVERABLE_WAIT_ROUNDS : 0);
               if (!denials.length && !turnEntry.ending && correctiveRounds < correctiveLimit) {
                 correctiveRounds += 1;
-                messages.push({ role: "user", content: coordinationRecoveryNeeded ? COORDINATION_RECOVERY_ROUND : personInterventionNeeded ? PERSON_INTERVENTION_ROUND : CORRECTIVE_ROUND });
+                messages.push({ role: "user", content: recoverable ? WAIT_AND_CONTINUE_ROUND : coordinationRecoveryNeeded ? COORDINATION_RECOVERY_ROUND : personInterventionNeeded ? PERSON_INTERVENTION_ROUND : CORRECTIVE_ROUND });
                 continue;
+              }
+              // Recoverable click/timeout/wait failures must not close unfinished work as a terminal tool_error.
+              if (recoverable) {
+                ok = true;
+                break;
               }
               stopReason = "tool_error";
               throw new ChatProtocolError(toolFailureMessage(failedCalls, denials.filter((name) => name !== ASK_USER_TOOL)));

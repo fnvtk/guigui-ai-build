@@ -174,6 +174,13 @@ export function narrateTool(toolName: string): string | null {
     [/^trigger_info$/, "checking automations"],
     [/^delete_trigger$/, "deleting an automation"],
     [/^ask_bot$/, "asking a teammate"],
+    [/^(browser_agent_browser_open|agent_browser_open|open_page)$/, "opening a page"],
+    [/^(browser_agent_browser_screenshot|agent_browser_screenshot)$/, "capturing a page screenshot"],
+    [/^(browser_agent_browser_click|agent_browser_click)$/, "clicking the page"],
+    [/^(browser_agent_browser_snapshot|agent_browser_snapshot)$/, "reading the page structure"],
+    [/^(browser_agent_browser_wait_ms|browser_agent_browser_wait_for_load|agent_browser_wait_for_text|agent_browser_wait_for_load)$/, "waiting for the page"],
+    [/^agents_fill_login$/, "filling a saved login"],
+    [/^agents_retry_thread$/, "retrying a teammate thread"],
   ];
   for (const [pattern, phrase] of verbs) {
     if (pattern.test(bare)) return phrase;

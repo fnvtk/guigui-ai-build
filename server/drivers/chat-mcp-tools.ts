@@ -7,6 +7,7 @@ import type { SendTurnInput } from "../contracts.ts";
 import { augmentedPath } from "../env-path.ts";
 import { killCliTree, spawnCli } from "../procs.ts";
 import { AGENTS_TOOL_ALIASES } from "../../shared/agents-tool-names.ts";
+import { redactSecretsInText } from "../../shared/redact.ts";
 import { bridgedCallTarget, unbridgedServer } from "./agents-bridge.ts";
 import { chatImage, type ChatImagePart } from "./chat-images.ts";
 import { CALL_TOOL, directoryCallTarget, isDirectoryTool } from "../mcp-directory.ts";
@@ -87,7 +88,7 @@ export class ChatMcpClient {
   private frames = 0;
   private closed = false;
   private closing?: Promise<void>;
-  private pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void }>();
+  private pending = new Map<number, { method: string; resolve(value: unknown): void; reject(error: Error): void }>();
 
   constructor(server: Server, computerUse = false) {
     this.frameBytes = computerUse ? 32 * 1024 * 1024 : FRAME_BYTES;
@@ -167,7 +168,12 @@ export class ChatMcpClient {
       const entry = this.pending.get(message.id);
       if (!entry) continue;
       this.pending.delete(message.id);
-      if ("error" in message) entry.reject(new McpRequestRefused("MCP request failed; inspect the configured integration"));
+      if ("error" in message) {
+        const rpcError = object(message.error) ? message.error : {};
+        const code = typeof rpcError.code === "number" ? ` (${rpcError.code})` : "";
+        const detail = typeof rpcError.message === "string" ? redactSecretsInText(rpcError.message).replace(/\s+/g, " ").trim().slice(0, 300) : "";
+        entry.reject(new McpRequestRefused(`MCP ${entry.method} 调用失败${code}${detail ? `：${detail}` : ""}`));
+      }
       else if (!("result" in message)) entry.reject(new Error("MCP response has no result"));
       else entry.resolve(message.result);
     }
@@ -194,7 +200,7 @@ export class ChatMcpClient {
         const timer = setTimeout(() => finish(new Error(timeoutMessage)), timeout);
         timer.unref();
         signal.addEventListener("abort", cancel, { once: true });
-        this.pending.set(id, { resolve: (value) => finish(undefined, value), reject: (error) => finish(error) });
+        this.pending.set(id, { method, resolve: (value) => finish(undefined, value), reject: (error) => finish(error) });
         try { this.write({ jsonrpc: "2.0", id, method, params }); }
         catch { finish(new Error("MCP request could not be sent")); }
       });
@@ -258,13 +264,16 @@ function boundedText(value: string): string {
 }
 
 /** Smaller models fill optional fields with "" instead of omitting them; for these a blank means omitted. */
-const BUILT_IN_BROWSER_BLANK_MEANS_OMITTED: Record<string, readonly string[]> = {
-  agent_browser_read: ["url"],
+const BLANK_MEANS_OMITTED: Record<string, { builtInBrowser?: boolean; fields: readonly string[] }> = {
+  agent_browser_read: { builtInBrowser: true, fields: ["url"] },
+  trigger_info: { fields: ["action"] },
 };
 
 function omitBlankDefaults(builtInBrowser: boolean, tool: string, args: unknown) {
-  if (!builtInBrowser || !object(args)) return;
-  for (const field of BUILT_IN_BROWSER_BLANK_MEANS_OMITTED[tool] ?? []) {
+  if (!object(args)) return;
+  const config = BLANK_MEANS_OMITTED[tool];
+  if (!config || (config.builtInBrowser && !builtInBrowser)) return;
+  for (const field of config.fields) {
     const value = args[field];
     if (typeof value === "string" && !value.trim()) delete args[field];
   }

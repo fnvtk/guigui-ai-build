@@ -245,9 +245,12 @@ async function startEmbedded(binary, signal) {
       sdk: permissionStatus,
       ...macPermissions,
     }), { mode: 0o600 });
-    if (macPermissions.accessibility !== true || macPermissions.screenRecording !== "granted") {
+    // The embedded CUA driver owns the Accessibility identity on macOS. Electron's
+    // host process can report false here even when the driver is already granted
+    // in System Settings, so only gate startup on the screen-capture status that
+    // this process must request itself.
+    if (macPermissions.screenRecording !== "granted") {
       const missing = [
-        macPermissions.accessibility !== true && "Accessibility",
         macPermissions.screenRecording !== "granted" && "Screen Recording",
       ].filter(Boolean).join(" and ");
       throw new Error(`${missing} required; grant access in System Settings and restart OpenMausBot`);

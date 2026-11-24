@@ -795,6 +795,12 @@ export interface SignInRequestCardData {
   /** The person answered in the conversation instead of pressing Done: it
    * offers no Done or Cancel, and the turn their line started goes on. */
   answeredInChat?: boolean;
+  /** A saved login exists for this site (never a secret or a username). */
+  hasSavedLogin?: boolean;
+  /** The app already retried fill_login once after a restart; the person-facing fill control still works. */
+  fillAutoRetried?: boolean;
+  /** The app already tried opening the site's real sign-in page during an auto-fill; used to avoid a restart tight-loop. */
+  fillLoginPageTried?: boolean;
 }
 
 /** The open sign-in request a bot's computer plea stands for, so whichever

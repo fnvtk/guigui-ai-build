@@ -117,7 +117,15 @@ describe.skipIf(process.platform !== "darwin")("async standalone CUA launch (iso
     });
   });
 
+  it("does not block the embedded driver on Electron's stale accessibility probe", async () => {
+    fixture.accessibility = false;
+    fixture.screenRecording = "granted";
+    fixture.embeddedDelays = [1];
+    await expect(cua.startCua()).resolves.toMatchObject({ mode: "embedded" });
+  });
+
   it("keeps the event loop responsive and publishes the existing descriptor shape", async () => {
+    vi.stubEnv("OPENMAUSBOT_CUA_EMBEDDED", "0");
     let ticks = 0;
     const timer = setInterval(() => ticks++, 10);
     try {
@@ -128,6 +136,7 @@ describe.skipIf(process.platform !== "darwin")("async standalone CUA launch (iso
   });
 
   it("keeps the embedded and fallback launch failures visible", async () => {
+    vi.stubEnv("OPENMAUSBOT_CUA_EMBEDDED", "0");
     fixture.script = "process.stderr.write('fixture launch failure'); process.exit(4)";
     const result = await cua.startCua();
     expect(result.mode).toBe("unavailable");
@@ -137,6 +146,7 @@ describe.skipIf(process.platform !== "darwin")("async standalone CUA launch (iso
   });
 
   it("cancels a pending launch without publishing a stale ready connection", async () => {
+    vi.stubEnv("OPENMAUSBOT_CUA_EMBEDDED", "0");
     fixture.script = "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)";
     const started = cua.startCua();
     const aborted = expect(started).rejects.toMatchObject({ name: "AbortError" });
@@ -148,6 +158,7 @@ describe.skipIf(process.platform !== "darwin")("async standalone CUA launch (iso
   });
 
   it("bounds a TERM-ignoring launch with forceful timeout", async () => {
+    vi.stubEnv("OPENMAUSBOT_CUA_EMBEDDED", "0");
     fixture.script = "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)";
     await expect(cua.startCua()).resolves.toMatchObject({ mode: "unavailable", reason: expect.stringContaining("standalone launch failed") });
     expect(fixture.children[0].signalCode).toBe("SIGKILL");

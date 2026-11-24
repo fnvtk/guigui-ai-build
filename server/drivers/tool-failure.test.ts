@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { classifyContinuable } from "../turn-continuation.ts";
-import { toolFailureMessage } from "./tool-failure.ts";
+import { isCredentialToolFailure, isRecoverableToolFailure, RECOVERABLE_WAIT_ROUNDS, toolFailureMessage } from "./tool-failure.ts";
 
 const AFTER_FAILURE = "The bot's reply isn't proof the work was done; the failed step shows the error.";
 
@@ -35,5 +35,35 @@ describe("why a chat turn stopped on a tool call", () => {
     expect(toolFailureMessage(["browser_agent_browser_click"], [])).toContain("confirm the target still exists");
     expect(toolFailureMessage(["agents_coordinate_bots", "browser_agent_browser_click"], [])).toContain("call list_bots or list_room_targets");
     expect(toolFailureMessage(["agents_coordinate_bots", "browser_agent_browser_click"], [])).toContain("confirm the target still exists");
+  });
+});
+
+describe("recoverable tool failures", () => {
+  it("treats click, wait and timeout-related tools as recoverable", () => {
+    expect(isRecoverableToolFailure("browser_agent_browser_click")).toBe(true);
+    expect(isRecoverableToolFailure("browser_agent_browser_wait_ms")).toBe(true);
+    expect(isRecoverableToolFailure("agent_browser_wait_for_text")).toBe(true);
+    expect(isRecoverableToolFailure("composio_CLARITY_GET_INSIGHTS")).toBe(false);
+    expect(RECOVERABLE_WAIT_ROUNDS).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("recoverable login and source-read failures stay in place", () => {
+  it("treats saved-login and sign-in tools as credential failures that must not abort", () => {
+    expect(isCredentialToolFailure("agents_fill_login")).toBe(true);
+    expect(isCredentialToolFailure("agents_request_sign_in")).toBe(true);
+    expect(isRecoverableToolFailure("agents_fill_login")).toBe(true);
+    expect(isRecoverableToolFailure("fangshitong_source_read_text_file")).toBe(true);
+    expect(isRecoverableToolFailure("gmail_send")).toBe(false);
+    expect(RECOVERABLE_WAIT_ROUNDS).toBeGreaterThanOrEqual(3);
+  });
+
+  it("tells the bot to reuse saved credentials or wait on the in-app card, never to paste a password", () => {
+    const message = toolFailureMessage(["agents_fill_login"], []);
+    expect(message).toContain("stay on the current page");
+    expect(message).toContain("call fill_login");
+    expect(message).toContain("never paste a password");
+    expect(message).toContain("sign-in card");
+    expect(message).toContain("Do not end or leave unfinished login work");
   });
 });

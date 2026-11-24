@@ -1035,6 +1035,8 @@
   "update.button.downloadingStart": "Đang tải xuống bản cập nhật",
   "update.button.downloading": "Đang tải xuống bản cập nhật, {percent}%",
   "update.card.title": "Có bản cập nhật mới",
+  "update.card.availableNote": "Có phiên bản mới hơn. Hãy tải về để chuẩn bị cập nhật.",
+  "update.card.download": "Tải bản cập nhật",
   "update.card.current": "phiên bản hiện tại: {version}",
   "update.card.whatsNew": "Có gì mới",
   "update.card.allNotes": "Tất cả ghi chú phát hành",
@@ -5158,5 +5160,6 @@
   "botAccess.overview.cell": "{name} có thể làm gì với {bot}",
   "botAccess.overview.toastEveryone": "{bot}: mọi người trong {team} · {level}",
   "botAccess.overview.toastPerson": "{bot}: {name} · {level}",
-  "settings.simple.language.partial": "Tiếng Trung giản thể là mặc định; bạn có thể chọn ngôn ngữ khác."
+  "settings.simple.language.partial": "Tiếng Trung giản thể là mặc định; bạn có thể chọn ngôn ngữ khác.",
+  "update.button.available": "Có phiên bản mới: {app} {version}"
 }

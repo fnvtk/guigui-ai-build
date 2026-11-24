@@ -15,6 +15,7 @@ import { releaseSingleInstanceLock } from "./single-instance.mjs";
 import { openBlankTerminal } from "./terminal-launch.mjs";
 import { createUpdaterCoordinator } from "./updater-coordinator.mjs";
 import { createQuietInstall, installFailed, launchAfter, LOOK_EVERY_MS, updateSeen } from "./update-when-quiet.mjs";
+export const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 export { quietSignals } from "./update-when-quiet-main.mjs";
 
@@ -191,5 +192,5 @@ export function startUpdater(signals = null) {
   }
 
   setTimeout(() => void updaterCoordinator?.check(), 15_000).unref?.();
-  setInterval(() => void updaterCoordinator?.check(), 60 * 60 * 1000).unref?.();
+  setInterval(() => void updaterCoordinator?.check(), UPDATE_CHECK_INTERVAL_MS).unref?.();
 }

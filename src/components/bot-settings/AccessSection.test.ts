@@ -258,7 +258,7 @@ describe("Research (treg) card", () => {
 
   it("is on by default with a Cloud plan, and turns off for one bot with one patch", () => {
     fixture.config = { xResearch: { included: true } } as Partial<ConfigStatus>;
-    expect(render(makeBot())).toContain("Included with your MausBot Cloud plan");
+    expect(render(makeBot())).toContain("Included with your 乖乖AI Cloud plan");
     const { card, derived } = capture(makeBot());
     const toggle = card.find((node) => node.props["aria-label"] === "Let this bot use research")!;
     (toggle.props.onClick as () => void)();

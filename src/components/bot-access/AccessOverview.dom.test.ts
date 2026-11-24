@@ -31,7 +31,7 @@ const bot = (fields: Partial<Bot>): Bot => ({
 });
 const payroll = bot({ id: "payroll", name: "Payroll", reportsTo: CARA.email, access: { everyone: "none", people: { [BOB.email]: "view" } } });
 const helpdesk = bot({ id: "helpdesk", name: "Helpdesk", access: { everyone: "chat", people: {} } });
-const bobsOwn = bot({ id: "bobs", name: "MausBot", defaultBot: { person: BOB.email } });
+const bobsOwn = bot({ id: "bobs", name: "乖乖AI", defaultBot: { person: BOB.email } });
 
 let host: HTMLDivElement;
 let root: Root;
@@ -60,7 +60,7 @@ afterEach(() => {
   setTeamPeople(null);
 });
 
-it("lists each team bot with every User's level and what everyone gets, leaving out each person's own MausBot", () => {
+it("lists each team bot with every User's level and what everyone gets, leaving out each person's own 乖乖AI", () => {
   render(createElement(AccessOverview));
   expect([...document.querySelectorAll("[data-access-row]")].map((row) => row.getAttribute("data-access-row"))).toEqual(["helpdesk", "payroll"]);
   expect(select("Set for everyone: Payroll").value).toBe("none");

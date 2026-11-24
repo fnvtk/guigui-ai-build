@@ -49,12 +49,12 @@ afterEach(async () => {
 describe("the update button", () => {
   it("is shown only while an update downloads, prepares, waits or installs", () => {
     for (const status of ["idle", "checking", "error", "handed-off"] as const) expect(updateIndicatorShown({ status })).toBe(false);
-    for (const status of ["downloading", "preparing", "downloaded", "installing"] as const) expect(updateIndicatorShown({ status })).toBe(true);
+    for (const status of ["available", "downloading", "preparing", "downloaded", "installing"] as const) expect(updateIndicatorShown({ status })).toBe(true);
     expect(updateIndicatorShown(null)).toBe(false);
   });
 
   it("says what it holds", () => {
-    expect(updateIndicatorLabel({ status: "downloaded", version: "0.2.0" })).toBe("Update ready: MausBot 0.2.0");
+    expect(updateIndicatorLabel({ status: "downloaded", version: "0.2.0" })).toBe("Update ready: 乖乖AI 0.2.0");
     expect(updateIndicatorLabel({ status: "downloading", percent: 41.6 })).toBe("Downloading an update, 42%");
     expect(updateIndicatorLabel({ status: "downloading" })).toBe("Downloading an update");
   });
@@ -81,7 +81,7 @@ describe("the update card", () => {
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(dialog.parentElement!.className).toContain("items-center");
     expect(dialog.className).toContain("max-w-[420px]");
-    expect(dialog.textContent).toContain("MausBot 0.2.0");
+    expect(dialog.textContent).toContain("乖乖AI 0.2.0");
     expect([...dialog.querySelectorAll("li")].map((item) => item.textContent)).toEqual([
       "Faster start.",
       "Rooms keep actions.",
@@ -108,10 +108,10 @@ describe("the update card", () => {
   it("says the update installs by itself the next time the person is away, and still offers Restart", async () => {
     await emit({ status: "downloaded", version: "0.2.0", installMode: "restart", installsByItself: true });
     await act(async () => button()!.click());
-    expect(card()!.textContent).toContain("Restart now, or leave it: MausBot installs it by itself the next time you're away and nothing is running.");
+    expect(card()!.textContent).toContain("Restart now, or leave it: 乖乖AI installs it by itself the next time you're away and nothing is running.");
     expect(card()!.textContent).toContain("Restart to update");
     await emit({ status: "downloaded", version: "0.2.0", installMode: "restart", installsByItself: false });
-    expect(card()!.textContent).toContain("MausBot closes and reopens in a moment.");
+    expect(card()!.textContent).toContain("乖乖AI closes and reopens in a moment.");
     expect(card()!.textContent).not.toContain("by itself");
   });
 
@@ -168,5 +168,13 @@ describe("the update card", () => {
     for (const node of footer) {
       for (const token of ["h-7", "text-[13px]", "font-medium", "leading-4", "rounded-full", "gap-2"]) expect(node.className).toContain(token);
     }
+  });
+});
+
+describe("update icon when a newer version exists", () => {
+  it("shows the indicator and an available label before the download starts", () => {
+    const state = { status: "available" as const, version: "0.1.151" };
+    expect(updateIndicatorShown(state)).toBe(true);
+    expect(updateIndicatorLabel(state)).toMatch(/0\.1\.151|available|新版本/i);
   });
 });

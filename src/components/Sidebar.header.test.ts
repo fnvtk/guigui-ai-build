@@ -22,6 +22,10 @@ vi.mock("@/lib/sidebar-preferences", async (importOriginal) => ({
 }));
 vi.mock("@/lib/interface-mode", () => ({ useAdvancedMode: () => fixture.advanced, setAdvancedMode: () => {} }));
 vi.mock("@/lib/chrome-rail", () => ({ useChromeRail: () => fixture.rail, setChromeRailHidden: () => {} }));
+vi.mock("./UpdateIndicator", async () => {
+  const { createElement } = await import("react");
+  return { UpdateIndicator: () => createElement("span", { "data-update-indicator-slot": "" }) };
+});
 vi.mock("./DesktopCapabilities", async (importOriginal) => ({
   ...await importOriginal<typeof import("./DesktopCapabilities")>(),
   useDesktopCapabilities: () => {
@@ -361,6 +365,7 @@ describe("sidebar foot in Simple mode", () => {
     expect(html.match(/data-sidebar-nav="apps"/g)).toHaveLength(1);
     expect(foot.indexOf("data-sidebar-account")).toBeGreaterThan(-1);
     expect(foot.indexOf("data-sidebar-account")).toBeLessThan(foot.indexOf('data-sidebar-nav="apps"'));
+    expect(foot.indexOf('data-sidebar-nav="apps"')).toBeLessThan(foot.indexOf("data-update-indicator-slot"));
     expect(foot).toMatch(/data-tour="nav-apps" data-sidebar-nav="apps"[^>]*>(<[^>]*>)*Connect apps</);
     expect(foot.match(/data-app-face="/g)).toHaveLength(3);
   });

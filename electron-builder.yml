@@ -1,10 +1,10 @@
 appId: com.openmausbot.app
-productName: 乖乖Ai
-artifactName: 乖乖Ai-${version}-${arch}.${ext}
+productName: 乖乖AI
+artifactName: Ai-${version}-${arch}.${ext}
 copyright: 卡若创业派对出品
 
 protocols:
-  - name: 乖乖Ai 安装文件
+  - name: 乖乖AI 安装文件
     schemes: [openmausbot]
 
 # In-app auto-update reads latest-mac.yml + the .zip (macOS) or latest.yml +
@@ -139,10 +139,10 @@ mac:
     - from: dist-native/duckdb/darwin-${arch}/node_modules
       to: duckdb/node_modules
   extendInfo:
-    NSMicrophoneUsageDescription: 乖乖Ai 使用麦克风，将你的语音转为消息文字。
-    NSSpeechRecognitionUsageDescription: 乖乖Ai 在本机识别语音，帮助你输入消息。
-    NSAccessibilityUsageDescription: 经你允许后，乖乖Ai 使用辅助功能操作此 Mac。
-    NSScreenCaptureUsageDescription: 经你允许后，乖乖Ai 使用屏幕录制查看此 Mac 的画面。
+    NSMicrophoneUsageDescription: 乖乖AI 使用麦克风，将你的语音转为消息文字。
+    NSSpeechRecognitionUsageDescription: 乖乖AI 在本机识别语音，帮助你输入消息。
+    NSAccessibilityUsageDescription: 经你允许后，乖乖AI 使用辅助功能操作此 Mac。
+    NSScreenCaptureUsageDescription: 经你允许后，乖乖AI 使用屏幕录制查看此 Mac 的画面。
   # Notarization runs manually after the build (notarytool + staple),
   # mirroring the BlueyLite ship_release.sh flow.
   notarize: false
@@ -152,7 +152,7 @@ dmg:
   # ${arch} is load-bearing: without it the x64 dmg silently overwrites
   # the arm64 one when both arches build (this section overrides both the
   # top-level and mac-level artifactName, so it must carry the arch itself)
-  artifactName: 乖乖Ai-${version}-${arch}.dmg
+  artifactName: Ai-${version}-${arch}.dmg
   # x/y are icon centres in points. electron-builder 26.15.3 sizes the window
   # from build/background.png and ignores dmg.window whenever a background is set.
   iconSize: 112
@@ -199,10 +199,10 @@ win:
 nsis:
   oneClick: true
   perMachine: false
-  shortcutName: 乖乖Ai
+  shortcutName: 乖乖AI
   # Versioned, like the .dmg. The README's /latest/download/ button needs a
   # Versioned installer filename used by the 乖乖Ai release workflow.
-  artifactName: 乖乖Ai-${version}-setup.${ext}
+  artifactName: Ai-${version}-setup.${ext}
 
 linux:
   target:
@@ -234,7 +234,7 @@ linux:
       to: openmausbot-browser.apparmor
   desktop:
     entry:
-      Name: 乖乖Ai
+      Name: 乖乖AI
       Comment: Your own team of AI bots, in a chat app
       Keywords: AI;Agents;Chat;Productivity;
 

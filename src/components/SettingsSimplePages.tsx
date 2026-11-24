@@ -21,7 +21,7 @@ import { WindowFrameRow } from "./WindowFrameRow";
 import { ProfileSummaryRow } from "./ProfileSettings";
 import { ImportSettings } from "./ImportSettings";
 import { NotificationRows } from "./NotificationSettingsRows";
-import { AdvancedModeRow, BrowserProfilesRow, ColorUserBubblesRow, FollowUpRow, LanguageRow, SendKeyRow } from "./AppSettingsRows";
+import { AdvancedModeRow, BrowserProfilesRow, ColorUserBubblesRow, FollowUpRow, LanguageRow, SendKeyRow, UpdatesRow } from "./AppSettingsRows";
 import { ThemeRow } from "./ThemeRow";
 import { AdminOnly } from "./AdminOnly";
 import { RemoteComputerSection } from "./RemoteComputerSection";
@@ -91,6 +91,7 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks, section }: { has: 
           <SettingsGroup label={t("settings.simple.group.system")}>
             <SettingsRows>
               <OpenAtLoginRow simple />
+              <UpdatesRow />
               <DefaultBotSidebarRow simple />
               <TalkShortcutRow />
               <AnalyticsRow simple />
@@ -142,7 +143,7 @@ export function SimpleComputerPage({ has, remoteAccess, section = "computer" }: 
             <AdminOnly><MacLocalControl /></AdminOnly>
           </SettingsGroup>
           <SettingsGroup label="连接远程电脑" block="remote-computer">
-            <p className="mb-4 text-sm text-ink-secondary">远程电脑需要先安装并启动乖乖Ai，再通过一次性配对链接或验证码连接。连接后，机器人和对话会在远程电脑上运行。</p>
+            <p className="mb-4 text-sm text-ink-secondary">远程电脑需要先安装并启动乖乖AI，再通过一次性配对链接或验证码连接。连接后，机器人和对话会在远程电脑上运行。</p>
             <RemoteComputerSection />
           </SettingsGroup>
         </>}

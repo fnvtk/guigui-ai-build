@@ -12,7 +12,7 @@ const { WhatsNewPopup } = await import("./WhatsNewPopup");
 const BOTH: WhatsNewView = { slides: ["pro", "team"], audience: "none", signedIn: true, staging: false,
   plans: { pro: { name: "Pro", terms: "Pro · $49/month + tax · 14-day money-back" }, team: { name: "Team", terms: "Free for 3 days, then $169/month + tax" } } };
 const TEAM_ONLY: WhatsNewView = { ...BOTH, slides: ["team"], audience: "own", plans: { team: BOTH.plans.team } };
-const PRO = "Meet the new MausBot Cloud", TEAM = "Shared bots for your whole team";
+const PRO = "Meet the new 乖乖AI Cloud", TEAM = "Shared bots for your whole team";
 
 let host: HTMLDivElement, root: Root, opener: HTMLButtonElement;
 let steps: Array<[WhatsNewAction, WhatsNewSlide]>;

@@ -1326,6 +1326,8 @@
   "update.button.downloadingStart": "Descargando una actualización",
   "update.button.downloading": "Descargando una actualización, {percent}%",
   "update.card.title": "Actualización disponible",
+  "update.card.availableNote": "Hay una versión más reciente. Descárguela para dejarla lista.",
+  "update.card.download": "Descargar actualización",
   "update.card.current": "tienes la {version}",
   "update.card.whatsNew": "Novedades",
   "update.card.allNotes": "Todas las notas de la versión",
@@ -5667,5 +5669,6 @@
   "botAccess.overview.cell": "Lo que {name} puede hacer con {bot}",
   "botAccess.overview.toastEveryone": "{bot}: todo {team} · {level}",
   "botAccess.overview.toastPerson": "{bot}: {name} · {level}",
-  "settings.simple.language.partial": "El chino simplificado es el idioma predeterminado; puedes cambiarlo en cualquier momento."
+  "settings.simple.language.partial": "El chino simplificado es el idioma predeterminado; puedes cambiarlo en cualquier momento.",
+  "update.button.available": "Actualización disponible: {app} {version}"
 }
