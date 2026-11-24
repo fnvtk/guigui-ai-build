@@ -66,8 +66,8 @@ async function officialBinary() {
   const archive = join(cache, release.file);
   await writeFile(archive, bytes);
   await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-    "Expand-Archive -LiteralPath $env:OMB_CUA_ARCHIVE -DestinationPath $env:OMB_CUA_EXTRACT"], {
-    env: { ...process.env, OMB_CUA_ARCHIVE: archive, OMB_CUA_EXTRACT: cache },
+    "Expand-Archive -LiteralPath $env:OMB_CUA_ARCHIVE -DestinationPath $env:OMB_CUA_EXTRACT; $binary = Get-ChildItem -LiteralPath $env:OMB_CUA_EXTRACT -Recurse -File -Filter 'cua-driver.exe' | Select-Object -First 1; if ($null -eq $binary) { exit 2 }; Copy-Item -LiteralPath $binary.FullName -Destination $env:OMB_CUA_BINARY -Force"], {
+    env: { ...process.env, OMB_CUA_ARCHIVE: archive, OMB_CUA_EXTRACT: cache, OMB_CUA_BINARY: cachedBinary },
     timeout: 60_000,
     windowsHide: true,
   });
