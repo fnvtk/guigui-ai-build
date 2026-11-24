@@ -338,6 +338,9 @@ It includes workspace ownership, persistence, and proxy authentication checks.
 The [Podman Firefox sandbox recipe](podman-firefox.md) checks the capability set a
 managed desktop keeps so Firefox can start, with before/after acceptance evidence.
 
+The [group-goal cancellation race record](group-goal-cancellation-race-2026-11-04.md)
+records the disposable fixture and evidence for cancellation ordering.
+
 The [Hetzner launch record](hetzner-launch-2026-09-07.md) is a dated self-hosting
 run on a disposable VPS: what passed, what was corrected, and what it does not prove.
 
