@@ -1,6 +1,6 @@
 // Stage the Windows CUA executable and native SDK outside ASAR.
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -44,6 +44,18 @@ async function binaryVersion(candidate) {
   }
 }
 
+async function findFile(rootDir, name) {
+  for (const entry of await readdir(rootDir, { withFileTypes: true })) {
+    const path = join(rootDir, entry.name);
+    if (entry.isFile() && entry.name.toLowerCase() === name.toLowerCase()) return path;
+    if (entry.isDirectory()) {
+      const found = await findFile(path, name);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 async function officialBinary() {
   const cache = join(root, "node_modules", ".cache", "openmausbot", `cua-driver-${release.version}-win`);
   const cachedBinary = join(cache, "cua-driver.exe");
@@ -65,13 +77,10 @@ async function officialBinary() {
   }
   const archive = join(cache, release.file);
   await writeFile(archive, bytes);
-  await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-    "Expand-Archive -LiteralPath $env:OMB_CUA_ARCHIVE -DestinationPath $env:OMB_CUA_EXTRACT; $binary = Get-ChildItem -LiteralPath $env:OMB_CUA_EXTRACT -Recurse -File -Filter 'cua-driver.exe' | Select-Object -First 1; if ($null -eq $binary) { exit 2 }; Copy-Item -LiteralPath $binary.FullName -Destination $env:OMB_CUA_BINARY -Force"], {
-    env: { ...process.env, OMB_CUA_ARCHIVE: archive, OMB_CUA_EXTRACT: cache, OMB_CUA_BINARY: cachedBinary },
-    timeout: 60_000,
-    windowsHide: true,
-  });
-  if (!existsSync(cachedBinary)) throw new Error("downloaded CUA Driver archive has no cua-driver.exe");
+  await run("tar.exe", ["-xf", archive, "-C", cache], { timeout: 60_000, windowsHide: true });
+  const extracted = await findFile(cache, "cua-driver.exe");
+  if (!extracted) throw new Error("downloaded CUA Driver archive has no cua-driver.exe");
+  if (extracted !== cachedBinary) await copyFile(extracted, cachedBinary);
   return cachedBinary;
 }
 
