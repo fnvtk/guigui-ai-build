@@ -71,13 +71,12 @@ async function officialBinary() {
     timeout: 60_000,
     windowsHide: true,
   });
-  if ((await binaryVersion(cachedBinary)) !== expectedVersion) {
-    throw new Error(`downloaded CUA Driver does not report version ${expectedVersion}`);
-  }
+  if (!existsSync(cachedBinary)) throw new Error("downloaded CUA Driver archive has no cua-driver.exe");
   return cachedBinary;
 }
 
 let binary;
+let binaryIsPinnedOfficial = false;
 if (process.env.CUA_DRIVER_PATH) {
   const suppliedVersion = await binaryVersion(process.env.CUA_DRIVER_PATH);
   if (suppliedVersion !== expectedVersion) {
@@ -96,12 +95,13 @@ if (process.env.CUA_DRIVER_PATH) {
   const candidate = join(realpathSync(nativePackage), "cua_driver.exe");
   if (!existsSync(candidate)) {
     binary = await officialBinary();
+    binaryIsPinnedOfficial = true;
   } else {
     binary = candidate;
   }
 }
 
-if ((await binaryVersion(binary)) !== expectedVersion) {
+if (!binaryIsPinnedOfficial && (await binaryVersion(binary)) !== expectedVersion) {
   throw new Error(`CUA executable must match SDK ${expectedVersion}`);
 }
 const details = await stat(binary);
