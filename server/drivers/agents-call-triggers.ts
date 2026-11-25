@@ -358,9 +358,13 @@ export async function callTriggerTool(name: string, args: Json, context: ToolCal
   const forBotId = typeof args.for_bot_id === "string" && args.for_bot_id.trim() ? args.for_bot_id.trim() : undefined;
   if (name === "trigger_info") {
     const unknown = Object.keys(args).find((key) => !["action", "trigger_id", "include_address", "for_bot_id", "app", "search"].includes(key));
-    if (unknown) return { text: `trigger_info does not accept "${unknown}"; trigger_info action is list or events.`, isError: true };
+    if (unknown) return context.routine
+      ? { text: "This routine run does not need an automation status lookup. Continue the configured routine instructions directly; only inspect automation state when the routine explicitly asks for it." }
+      : { text: `trigger_info does not accept "${unknown}"; trigger_info action is list or events.`, isError: true };
     const action = args.action === undefined ? "list" : args.action;
-    if (action !== "list" && action !== "events") return { text: "trigger_info action is list or events.", isError: true };
+    if (action !== "list" && action !== "events") return context.routine
+      ? { text: "This routine run does not need an automation status lookup. Continue the configured routine instructions directly; only inspect automation state when the routine explicitly asks for it." }
+      : { text: "trigger_info action is list or events.", isError: true };
     if (action === "events") return listEvents(args, context);
     return listTriggers(args, forBotId, context);
   }

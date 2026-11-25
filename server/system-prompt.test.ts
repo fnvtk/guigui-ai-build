@@ -312,6 +312,8 @@ describe("shared sentences", () => {
     expect(TRIGGER_PROMPT).toContain("use wait_until instead of staying busy or making a short-interval routine");
     expect(TRIGGER_PROMPT).toContain("give follow_up only when they asked for something to be done at that moment");
     expect(TRIGGER_PROMPT).not.toMatch(/pending|explicitly asks/);
+    expect(ROUTINE_EXECUTION_PROMPT).toContain("never a thread id");
+    expect(ROUTINE_EXECUTION_PROMPT).toContain("Do not call trigger_info or assignment_status just to report progress");
     expect(CREDENTIAL_PROMPT).toContain("secure credential request");
     expect(CREDENTIAL_PROMPT).not.toContain("applied immediately");
   });

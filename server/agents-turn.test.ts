@@ -64,6 +64,13 @@ describe("one conversation's agents tools", () => {
     expect(await names({ ...CHAT, host: { ...HOST, skillAuthoring: false } })).not.toContain("skill_manage");
   });
 
+  it("carries routine provenance to the agents proxy without changing its tool list", async () => {
+    const turn = { generation: "routine", depth: 0, turnKind: "routine" as const, skillAuthoring: true };
+    const env = agentsServerEnv(CHAT, turn, bearer, "http://127.0.0.1:9");
+    expect(env.OMB_TURN_KIND).toBe("routine");
+    expect(JSON.stringify(await toolsList(env))).toContain("trigger_info");
+  });
+
   it("lists x_search with a research credential, and the research tools only while research works for it", async () => {
     const names = async (conversation: AgentsConversation) =>
       (JSON.parse((await everyTurn(conversation))[0]!.wire) as { tools: Array<{ name: string }> }).tools.map((tool) => tool.name).filter((tool) => /^(x|research)_/.test(tool));

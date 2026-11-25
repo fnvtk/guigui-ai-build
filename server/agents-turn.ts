@@ -21,6 +21,8 @@ export interface AgentsConversation {
 export interface AgentsTurn {
   generation: string;
   depth: number;
+  /** The direct-turn kind is enforced by the harness for calls whose wire tool list is shared. */
+  turnKind?: TurnKind;
   /** In a room only the first answer to a person's message may list or write skills. */
   skillAuthoring: boolean;
   roomHandoffId?: string;
@@ -38,6 +40,7 @@ export function agentsServerEnv(conversation: AgentsConversation, turn: AgentsTu
     OMB_THREAD_ID: conversation.threadId,
     OMB_COMMS_TOKEN: bearer(turn),
     OMB_TURN_DEPTH: String(turn.depth),
+    OMB_TURN_KIND: turn.turnKind ?? "person",
     OMB_SKILL_AUTHORING_ENABLED: flag(host.skillAuthoring),
     OMB_MEMORY_ENABLED: flag(bot.memoryEnabled !== false),
     OMB_SHARED_COMPUTERS_ENABLED: flag(host.sharedComputers),

@@ -25,6 +25,8 @@ export interface ToolCallContext {
   botId: string;
   threadId: string;
   depth: number;
+  /** A scheduled routine may recover from a model checking the wrong control-plane id. */
+  routine?: boolean;
   /** A standing external runtime: its capability cannot reach the result cache, so big results are cut. */
   externalRuntime: boolean;
   // Presentation only: the server still authenticates and scopes every call.
@@ -44,6 +46,7 @@ export function toolCallContextFromEnv(env: NodeJS.ProcessEnv): ToolCallContext 
     botId: profile.botId,
     threadId: env.OMB_THREAD_ID ?? "",
     depth: Number(env.OMB_TURN_DEPTH ?? "0") || 0,
+    routine: env.OMB_TURN_KIND === "routine",
     externalRuntime: env.OMB_EXTERNAL_RUNTIME === "1",
     sharedComputers: profile.sharedComputers,
     client: harnessClientFromEnv(env),
@@ -202,7 +205,12 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
   if (name === "memory_update" && (args.action === "append" || args.action === "prefer")
     && typeof args.old_text === "string" && !args.old_text.trim()) delete args.old_text;
   const refused = outOfBounds(name, fullInputSchema(name), args);
-  if (refused) return { text: refused, isError: true };
+  if (refused) {
+    if (context.routine && name === "trigger_info") {
+      return { text: "This routine run does not need an automation status lookup. Continue the configured routine instructions directly; only inspect automation state when the routine explicitly asks for it." };
+    }
+    return { text: refused, isError: true };
+  }
   const member = called === "session_read" ? "session_read" : agentsCallMember(name, args);
   const { botId: BOT_ID, threadId: THREAD_ID, depth: DEPTH } = context;
   const { api, apiResponse } = context.client;
@@ -327,6 +335,9 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
       const why = status === 404 ? `No assignment ${id || "(none given)"} is known here: check the id against your coordinate_bots receipt or the delegation id (not thread id) shown by list_threads.`
         : status === 403 ? `Assignment ${id} is not this conversation's; only its requester can read it.`
         : String(r.error ?? `HTTP ${status}`);
+      if (context.routine && status === 404) {
+        return { text: `${why} This routine has no matching assignment to wait on; continue its configured work without retrying this lookup.` };
+      }
       return { text: why, isError: true };
     }
     if (id) return { text: renderAssignmentStatus(r, id) };

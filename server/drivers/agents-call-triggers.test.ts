@@ -3,16 +3,16 @@ import { describe, expect, it } from "vitest";
 import { callTool, type ToolCallContext } from "./agents-call.ts";
 import { fullInputSchema } from "./agents-catalog.ts";
 
-function context(answers: { api?: unknown; response?: { ok: boolean; status: number; body: Record<string, unknown> } } = {}) {
+function context(answers: { api?: unknown; response?: { ok: boolean; status: number; body: Record<string, unknown> }; routine?: boolean } = {}) {
   const calls: Array<{ path: string; body?: unknown }> = [];
   const client = {
     api: async (path: string) => { calls.push({ path }); return answers.api ?? {}; },
-    apiResponse: async (path: string, init: RequestInit) => {
-      calls.push({ path, body: JSON.parse(String(init.body)) });
+    apiResponse: async (path: string, init?: RequestInit) => {
+      calls.push({ path, ...(init?.body === undefined ? {} : { body: JSON.parse(String(init.body)) }) });
       return answers.response ?? { ok: true, status: 201, body: { resultId: "t-1", summary: "When an email arrives in Gmail from acme.com, Scout follows: Draft." } };
     },
   };
-  return { calls, context: { botId: "scout", threadId: "thread-1", depth: 0, externalRuntime: false, sharedComputers: false, client } as unknown as ToolCallContext };
+  return { calls, context: { botId: "scout", threadId: "thread-1", depth: 0, routine: answers.routine === true, externalRuntime: false, sharedComputers: false, client } as unknown as ToolCallContext };
 }
 
 describe("app events in the trigger tools", () => {
@@ -139,6 +139,22 @@ describe("the trigger tool's actions", () => {
     expect(result.isError).toBe(true);
     expect(result.text).toContain('does not accept "prompt"');
     expect(refused.calls).toEqual([]);
+  });
+
+  it("keeps a malformed trigger_info call from failing the scheduled routine", async () => {
+    const routine = context({ routine: true });
+    const result = await callTool("trigger_info", { action: "report" }, routine.context);
+    expect(result.isError).toBeUndefined();
+    expect(result.text).toContain("Continue the configured routine instructions directly");
+    expect(routine.calls).toEqual([]);
+  });
+
+  it("keeps a missing assignment lookup recoverable in a scheduled routine", async () => {
+    const routine = context({ routine: true, response: { ok: false, status: 404, body: {} } });
+    const result = await callTool("assignment_status", { id: "thread-1" }, routine.context);
+    expect(result.isError).toBeUndefined();
+    expect(result.text).toContain("continue its configured work");
+    expect(routine.calls[0]?.path).toContain("/api/internal/assignment-status");
   });
 
   it("defaults only a missing trigger_info action to the declared read-only list", async () => {
