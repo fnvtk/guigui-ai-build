@@ -313,7 +313,7 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
   if (name === "assignment_status") {
     const id = args.id === undefined || args.id === null || args.id === "" ? "" : String(args.id).trim();
     if (id && !/^[\w-]{4,64}$/.test(id)) {
-      return { text: 'assignment_status takes an optional "id" (the assignment id from a coordinate_bots receipt or list_threads) and an optional "wait_ms" (0-240000). Omit id to list every outstanding assignment of this conversation.', isError: true };
+      return { text: 'assignment_status takes an optional "id" (the assignment id from a coordinate_bots receipt, or the delegation id shown by list_threads; do not use its thread id) and an optional "wait_ms" (0-240000). Omit id to list every outstanding assignment of this conversation.', isError: true };
     }
     if (args.wait_ms !== undefined && (typeof args.wait_ms !== "number" || !Number.isFinite(args.wait_ms) || args.wait_ms < 0)) {
       return { text: "assignment_status wait_ms must be a whole number of milliseconds from 0 to 240000.", isError: true };
@@ -324,7 +324,7 @@ export async function callTool(called: string, input: Json, context: ToolCallCon
     if (waitMs > 0) query.set("wait_ms", String(waitMs));
     const { ok, status, body: r } = await apiResponse(`/api/internal/assignment-status${query.size ? `?${query.toString()}` : ""}`);
     if (!ok) {
-      const why = status === 404 ? `No assignment ${id || "(none given)"} is known here: check the id against your coordinate_bots receipt or list_threads.`
+      const why = status === 404 ? `No assignment ${id || "(none given)"} is known here: check the id against your coordinate_bots receipt or the delegation id (not thread id) shown by list_threads.`
         : status === 403 ? `Assignment ${id} is not this conversation's; only its requester can read it.`
         : String(r.error ?? `HTTP ${status}`);
       return { text: why, isError: true };

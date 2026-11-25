@@ -1273,6 +1273,20 @@ describe("agents-proxy MCP surface", () => {
     }
   });
 
+  it("rejects a conversation thread id when assignment_status needs an assignment id", async () => {
+    assignmentStatusCode = 404;
+    assignmentStatusResponse = { error: "unknown assignment" };
+    try {
+      const status = await callTool("assignment_status", { id: "thread-room-123" });
+      expect(status.result.isError).toBe(true);
+      expect(status.result.content[0].text).toContain("No assignment thread-room-123 is known here");
+      expect(lastAssignmentStatusUrl).toBe("/api/internal/assignment-status?id=thread-room-123");
+    } finally {
+      assignmentStatusCode = 200;
+      assignmentStatusResponse = DONE_ASSIGNMENT;
+    }
+  });
+
   it("memory_update forwards only the configured owner and thread with its capability token", async () => {
     const result = await callTool("memory_update", {
       action: "replace", text: "- New preference", old_text: "- Old preference",

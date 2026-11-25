@@ -133,6 +133,14 @@ describe("the trigger tool's actions", () => {
     expect(events.calls[0]!.path).toBe("/api/internal/trigger-events?fromBotId=scout&fromThreadId=thread-1&app=gmail");
   });
 
+  it("rejects a routine prompt passed as trigger_info input instead of an action", async () => {
+    const refused = context();
+    const result = await callTool("trigger_info", { prompt: "房市通每日工作内容汇报" }, refused.context);
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('does not accept "prompt"');
+    expect(refused.calls).toEqual([]);
+  });
+
   it("defaults only a missing trigger_info action to the declared read-only list", async () => {
     const schema = fullInputSchema("trigger_info") as { required?: string[]; properties: { action: { default?: string } } };
     expect(schema.required ?? []).not.toContain("action");
