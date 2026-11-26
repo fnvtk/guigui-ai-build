@@ -22,22 +22,22 @@ The local preview does **not** give the bot control of this computer by itself. 
 the global **Enable local control** choice and assigning a bot to **This computer**; every action still enters the
 approval flow. On Wayland, local control is disabled and legacy opt-ins are cleared automatically. Automatic Wayland
 helper installation, Linux dictation, and ARM64 remain unavailable and fail closed; follow their
-progress in [issue #29](https://github.com/milind-soni/OpenMausBot/issues/29) and the safety hold in
-[issue #345](https://github.com/milind-soni/OpenMausBot/issues/345). Bundled
-CUA supply-chain work is tracked in [issue #113](https://github.com/milind-soni/OpenMausBot/issues/113). Xorg is tracked in
-[issue #79](https://github.com/milind-soni/OpenMausBot/issues/79), and guarded GNOME/Wayland support in
-[issue #109](https://github.com/milind-soni/OpenMausBot/issues/109).
+progress in [issue #29](https://github.com/fnvtk/guigui-ai-build/issues/29) and the safety hold in
+[issue #345](https://github.com/fnvtk/guigui-ai-build/issues/345). Bundled
+CUA supply-chain work is tracked in [issue #113](https://github.com/fnvtk/guigui-ai-build/issues/113). Xorg is tracked in
+[issue #79](https://github.com/fnvtk/guigui-ai-build/issues/79), and guarded GNOME/Wayland support in
+[issue #109](https://github.com/fnvtk/guigui-ai-build/issues/109).
 
 ## Download packages
 
 Choose one Ubuntu 24.04 x86_64 package from the latest release:
 
-- [Debian package (`OpenMausBot-amd64.deb`)](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot-amd64.deb) — recommended; APT installs its desktop dependencies and configures the bundled bot browser's sandbox.
-- [Portable AppImage (`OpenMausBot.AppImage`)](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot.AppImage) — does not install system files.
-- [SHA-256 checksums](https://github.com/milind-soni/OpenMausBot/releases/latest/download/SHA256SUMS-ubuntu-x64.txt)
+- [Debian package (`OpenMausBot-amd64.deb`)](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/OpenMausBot-amd64.deb) — 乖乖AI 的推荐安装包；APT 会安装桌面依赖并配置内置浏览器沙箱。
+- [Portable AppImage (`OpenMausBot.AppImage`)](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/OpenMausBot.AppImage) — 不写入系统文件。
+- [SHA-256 checksums](https://github.com/fnvtk/guigui-ai-build/releases/latest/download/SHA256SUMS-ubuntu-x64.txt)
 
 Versioned packages and previous releases remain available on the
-[releases page](https://github.com/milind-soni/OpenMausBot/releases).
+[乖乖AI releases page](https://github.com/fnvtk/guigui-ai-build/releases).
 
 ## Build packages
 
@@ -48,8 +48,8 @@ Requirements for building from source:
 - pnpm 10.33.0 (Corepack can install the version declared by the project)
 
 ```sh
-git clone https://github.com/milind-soni/OpenMausBot.git
-cd OpenMausBot
+git clone https://github.com/fnvtk/guigui-ai-build.git
+cd guigui-ai-build
 corepack enable
 pnpm install --frozen-lockfile
 pnpm package:linux
@@ -70,7 +70,7 @@ Install a downloaded Debian package with APT so its desktop dependencies are res
 sudo apt install ./OpenMausBot-amd64.deb
 ```
 
-Then open **OpenMausBot** from the GNOME application launcher. To remove it:
+Then open **乖乖AI** from the GNOME application launcher. To remove it:
 
 ```sh
 sudo apt remove openmausbot
@@ -91,7 +91,7 @@ The app checks for updates in the background and downloads them by itself. Nothi
 **Restart to update**.
 
 - **Debian package.** The click asks for your password once, in the system's own prompt, installs the update with
-  `apt-get` (so new dependencies are resolved) and reopens OpenMausBot. The downloaded file is copied to a
+  `apt-get` (so new dependencies are resolved) and reopens 乖乖AI. The downloaded file is copied to a
   root-only folder and checked against the checksum in the update feed first; a file that does not match is
   refused and nothing is installed. Closing the prompt leaves the update ready to try again. If the session cannot
   show a prompt (SSH, no desktop, no `pkexec`), the app falls back to copying the `sudo apt-get install` command

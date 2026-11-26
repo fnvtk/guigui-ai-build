@@ -610,7 +610,7 @@ jobs:
             done
           }
           ensure_draft "$GITHUB_REPOSITORY" --target "$SHA" \
-            --draft --title "OpenMausBot $VERSION" --generate-notes
+            --draft --title "乖乖AI $VERSION" --generate-notes
           target=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
           target_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
           test "$target_sha" = "$SHA" || {
@@ -651,9 +651,9 @@ jobs:
             done
           }
           ensure_draft milind-soni/openmausbot-releases \
-            --draft --title "OpenMausBot $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+            --draft --title "乖乖AI $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
           gh release edit "$tag" --repo milind-soni/openmausbot-releases \
-            --title "OpenMausBot $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+            --title "乖乖AI $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
           for file in assets/*; do
             gh release upload "$tag" "$file" --repo milind-soni/openmausbot-releases --clobber
           done
