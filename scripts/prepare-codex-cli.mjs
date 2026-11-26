@@ -25,6 +25,7 @@ function pack(spec) {
   const archive = execFileSync(npm, ["pack", "--silent", "--pack-destination", staging, spec], {
     cwd: root,
     encoding: "utf8",
+    shell: process.platform === "win32",
     stdio: ["ignore", "pipe", "inherit"],
   }).trim().split(/\r?\n/).at(-1);
   if (!archive) throw new Error(`npm pack returned no archive for ${spec}`);
