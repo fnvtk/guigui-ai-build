@@ -21,7 +21,8 @@ const packageTargets = targetPlatform === "darwin"
     : [["x64", "linux-x64", "x86_64-unknown-linux-musl"]];
 
 function pack(spec) {
-  const archive = execFileSync("npm", ["pack", "--silent", "--pack-destination", staging, spec], {
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  const archive = execFileSync(npm, ["pack", "--silent", "--pack-destination", staging, spec], {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
