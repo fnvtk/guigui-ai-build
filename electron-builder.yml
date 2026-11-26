@@ -87,6 +87,11 @@ extraResources:
     to: ui
   - from: dist-server
     to: server
+  # The platform-specific Codex CLI is part of the desktop update payload. It
+  # is staged by build:codex and kept outside ASAR so its native executable and
+  # adjacent resources keep their modes and relative paths.
+  - from: dist-native/codex/${arch}
+    to: codex
   # the companion sidecar — a separate process because it is the only part
   # of the app that listens off this machine, and it stays off until asked
   - from: dist-companion

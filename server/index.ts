@@ -187,7 +187,7 @@ import {
 import { serveStatic } from "./static-files.ts";
 import { startUpkeep } from "./host/start-upkeep.ts";
 import { ComputerControl } from "./computer-control.ts";
-import { resetPathCache } from "./env-path.ts";
+import { registerFallbackPathDir, resetPathCache } from "./env-path.ts";
 import { registerEnginesBinDir } from "./engine-install.ts";
 import { appendUsage, flushUsageLedger, queuedTurnTrigger, usageTriggerFor, type UsageRow, type UsageTrigger } from "./usage-ledger.ts";
 import { createTraceRecorder } from "./usage-trace/recorder.ts";
@@ -808,6 +808,7 @@ function customDomainStatus() {
 const registry = new ProviderRegistry(BUILT_IN_DRIVERS, { statusFile: join(DATA_DIR, "providers", "engine-status.json") });
 const supportsApprovalMode = createApprovalModeSupport(registry);
 registerEnginesBinDir();
+if (process.env.OMB_RESOURCES_PATH) registerFallbackPathDir(join(process.env.OMB_RESOURCES_PATH, "codex", "bin"));
 
 // Set only when a turn is admitted, never on queue or steer, so a second person's words cannot re-book the first person's turn.
 const turnTriggers = new Map<string, UsageTrigger>();
