@@ -13,12 +13,14 @@ export function createSystemTray({ Tray, Menu, nativeImage, iconPath, getWindow,
     win.focus();
     return true;
   };
-  tray.setToolTip("乖乖AI");
-  tray.setContextMenu(Menu.buildFromTemplate([
+  let update = null;
+  const refreshMenu = () => tray.setContextMenu(Menu.buildFromTemplate([
     { label: "打开乖乖AI", click: show },
-    { type: "separator" },
+    update ? { label: update.label, click: show } : { type: "separator" },
     { label: "退出乖乖AI", click: onQuit },
   ]));
+  tray.setToolTip("乖乖AI");
+  refreshMenu();
   tray.on("click", show);
   tray.on("double-click", show);
   return {
@@ -26,6 +28,13 @@ export function createSystemTray({ Tray, Menu, nativeImage, iconPath, getWindow,
     hide(win) { hidden = true; win.setSkipTaskbar(true); win.hide(); },
     isHidden() { return hidden; },
     windowShown(win) { hidden = false; win.setSkipTaskbar(false); },
+    setUpdate(state) {
+      const version = typeof state?.version === "string" ? state.version : null;
+      const visible = version && ["available", "downloaded"].includes(state?.status);
+      update = visible ? { label: `有新版本可用 · ${version}` } : null;
+      tray.setToolTip(update ? `乖乖AI · ${update.label}` : "乖乖AI");
+      refreshMenu();
+    },
     destroy() { if (!tray.isDestroyed()) tray.destroy(); },
   };
 }

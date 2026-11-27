@@ -109,6 +109,8 @@ function relaunchAfterInstall() {
   app.quit();
 }
 
+let onState = () => {};
+
 function setState(patch) {
   state = { ...state, ...patch };
   if (quiet && patch.status === "error") installFailed(quietRecord());
@@ -117,6 +119,7 @@ function setState(patch) {
     if (contents && pageAllowed({ sender: contents, senderFrame: contents.mainFrame })) contents.send("update:state", view());
   } catch {
   }
+  onState(view());
 }
 
 export function sendUpdaterState() {
@@ -146,7 +149,8 @@ export function attachUpdaterWindow(mainWindow) {
 }
 
 /** `signals` (quietSignals): what tells a quiet moment; without them a downloaded update installs only on Restart or quit. */
-export function startUpdater(signals = null) {
+export function startUpdater(signals = null, options = {}) {
+  onState = typeof options.onState === "function" ? options.onState : () => {};
   if (!app.isPackaged) {
     updaterCoordinator = null;
     setState({ status: "idle" });
